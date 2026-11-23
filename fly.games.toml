@@ -1,0 +1,29 @@
+# Third hostname for Nebulix: Hub games whose creator chose "Run like in Chrome" are served from here, on their own
+# origin (separate from the app, so they never see anyone's account). This app only forwards requests to the main
+# app over Fly's private network with Host set to its public name (scripts/origin-forwarder.js). No data, no secrets.
+app = "nebulix-games"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  PUBLIC_HOST = "nebulix-games.fly.dev"
+  TARGET_HOST = "nebulix.internal"
+  TARGET_PORT = "3000"
+
+[processes]
+  app = "node scripts/origin-forwarder.js"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

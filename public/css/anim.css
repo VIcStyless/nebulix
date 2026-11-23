@@ -1,0 +1,108 @@
+/* Nebulix — micro-animations. All are disabled by the global reduce-motion switch (data-reduce / OS setting).
+   Kept subtle so the default stays clean; themes with higher --anim feel livelier. */
+
+/* staggered entrance for grids and lists */
+.apps .app-tile, .squad-grid > .squad, .ev-list > .ev, .wn-list > .wn-item, .lib-cols .game-card, .grid.auto > *, .pr-grid > * {
+  animation: a-rise calc(.4s * var(--anim)) var(--ease) both;
+}
+.apps .app-tile:nth-child(1), .squad-grid > .squad:nth-child(1) { animation-delay: .02s }
+.apps .app-tile:nth-child(2), .squad-grid > .squad:nth-child(2) { animation-delay: .05s }
+.apps .app-tile:nth-child(3), .squad-grid > .squad:nth-child(3) { animation-delay: .08s }
+.apps .app-tile:nth-child(4), .squad-grid > .squad:nth-child(4) { animation-delay: .11s }
+.apps .app-tile:nth-child(5) { animation-delay: .14s } .apps .app-tile:nth-child(6) { animation-delay: .17s }
+.apps .app-tile:nth-child(7) { animation-delay: .2s } .apps .app-tile:nth-child(8) { animation-delay: .23s }
+.apps .app-tile:nth-child(n+9) { animation-delay: .26s }
+@keyframes a-rise { from { opacity: 0; transform: translateY(10px) } }
+
+/* hover lift on interactive cards */
+.app-tile, .link-tile, .squad, .game-card, .wn-item, .ev, .kpi, .arc-card, .pr-ach, .lib-col .game-card { transition: transform .18s var(--ease), box-shadow .18s, border-color .15s, background .15s; }
+.app-tile:hover, .link-tile:hover { transform: translateY(-2px); }
+.squad:hover, .arc-card:hover, .cm-mini:hover { transform: translateY(-3px); }
+
+/* active nav icon settles with a little spring, and its mark pops once */
+.rail-btn.on .rb-ic { animation: a-navpop .4s var(--spring) both; }
+@keyframes a-navpop { 0% { transform: scale(.7) } 55% { transform: scale(1.18) } 100% { transform: scale(1) } }
+
+/* icon buttons that imply motion rotate a touch on hover */
+.btn.ghost.icon:hover svg[style*="flex"] { transition: transform .3s var(--ease); }
+button[aria-label*="Refresh"]:hover svg, button[title*="again"]:hover svg, button[aria-label*="Swap"]:hover svg { transform: rotate(180deg); transition: transform .4s var(--spring); }
+.side-fold:hover svg { transform: scale(1.1); }
+
+/* presence dot gets a soft live pulse */
+.dot.on::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--success); opacity: 0; animation: a-ping 2.4s var(--ease) infinite; }
+@keyframes a-ping { 0% { opacity: .6; transform: scale(.7) } 70%, 100% { opacity: 0; transform: scale(1.5) } }
+
+/* coin shimmer */
+.coin::before { position: relative; overflow: hidden; }
+
+/* pressable feedback: buttons dip, primary buttons get a quick sheen */
+.btn.primary { position: relative; overflow: hidden; }
+.btn.primary::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .35), transparent); transform: skewX(-18deg); opacity: 0; }
+.btn.primary:hover::after { animation: a-sheen .7s var(--ease); }
+@keyframes a-sheen { 0% { left: -60%; opacity: 0 } 15% { opacity: 1 } 100% { left: 130%; opacity: 0 } }
+
+/* avatars pop in */
+.ava { animation: a-avin calc(.3s * var(--anim)) var(--ease) both; }
+@keyframes a-avin { from { opacity: 0; transform: scale(.85) } }
+
+/* tab/page switch: content fades up (reinforces the existing viewin) */
+.set-tab, .adm-tab { animation: a-rise calc(.3s * var(--anim)) var(--ease) both; }
+
+/* modal backdrop breathes in */
+.overlay { animation: a-fade calc(.18s * var(--anim)) ease both; } @keyframes a-fade { from { opacity: 0; backdrop-filter: blur(0) } }
+
+/* ===== Nebulix 3.5 — stronger, still-tasteful motion (all gated by data-reduce in base.css) ===== */
+
+/* page/view transition: each view fades and rises in when you navigate */
+.inner, .view-wrap, .play-wrap, .pl-wrap, .cl-wrap, .nv-wrap, .bh-wrap, .os-wrap { animation: a-viewin calc(.42s * var(--anim, 1)) var(--ease) both; }
+@keyframes a-viewin { from { opacity: 0; transform: translateY(16px) scale(.994); filter: saturate(.9); } }
+
+/* cards: a soft accent glow follows the lift on hover */
+.app-tile:hover, .link-tile:hover, .site-tile:hover, .card.th-card-x:hover, .kpi:hover { box-shadow: 0 14px 34px rgba(0, 0, 0, .18), 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent); }
+
+/* press feedback on every button */
+.btn, .site-tile, .rail-btn, .chip, .nv-chip, .tab, .seg > * { transition: transform .12s var(--ease), box-shadow .18s, background .15s, border-color .15s, color .15s; }
+.btn:active:not(:disabled), .site-tile:active, .chip:active, .nv-chip:active, .rail-btn:active { transform: scale(.955); }
+
+/* primary buttons gain depth + a lift */
+.btn.primary { transition: transform .16s var(--ease), box-shadow .2s, filter .15s; }
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 8px 22px color-mix(in oklab, var(--accent) 40%, transparent); filter: brightness(1.03); }
+
+/* section cards rise in with a gentle stagger wherever they appear */
+.grid.s12 > .card, .home-grid > .card { animation: a-rise calc(.45s * var(--anim, 1)) var(--ease) both; }
+
+/* headings in a fresh view slide in just after the container */
+.page-title h2, .home-head h2, .cl-title { animation: a-rise calc(.5s * var(--anim, 1)) var(--ease) both; }
+
+/* animated accent underline under section headers on hover */
+.card-head h3 { position: relative; }
+
+/* the Nebulix logo mark gently floats */
+.nx-logo { transition: transform .3s var(--spring); }
+.brand:hover .nx-logo, .nv-logo:hover .nx-logo { transform: translateY(-2px) rotate(-4deg) scale(1.06); }
+
+/* toasts pop in from the side */
+.toast { animation: a-toast .34s var(--spring) both; } @keyframes a-toast { from { opacity: 0; transform: translateX(16px) scale(.96); } }
+
+/* pills and badges settle in */
+.pill, .badge { animation: a-avin calc(.3s * var(--anim, 1)) var(--ease) both; }
+
+/* ===== Community (chat) motion ===== */
+/* newly arrived messages slide and fade in (only once — see chat.js msgSeen) */
+.cm-msg.cm-in { animation: cm-slidein .34s var(--ease) both; }
+@keyframes cm-slidein { from { opacity: 0; transform: translateY(12px); } }
+/* a message that @mentions you flashes an accent highlight as it arrives */
+.cm-msg.mentioned.cm-in { animation: cm-slidein .34s var(--ease) both, cm-flash 1.6s var(--ease) both; }
+@keyframes cm-flash { 0%, 12% { background: color-mix(in oklab, var(--accent) 18%, transparent); } 100% { background: transparent; } }
+/* reactions: pop on hover, and your own reaction gets a gentle lift */
+.cm-rx { transition: transform .14s var(--ease), background .15s, border-color .15s; }
+.cm-rx:hover { transform: translateY(-2px) scale(1.06); }
+.cm-rx.me { animation: cm-rxpop .3s var(--spring) both; } @keyframes cm-rxpop { 0% { transform: scale(.7); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+/* the hover action bar pops in */
+.cm-msg:hover .cm-act, .cm-msg:focus-within .cm-act, .cm-msg.sel .cm-act { animation: a-actpop .18s var(--ease) both; }
+@keyframes a-actpop { from { opacity: 0; transform: translateY(4px) scale(.94); } }
+/* channel rows nudge on hover */
+.cm-ch { transition: background .14s, transform .14s var(--ease), border-color .14s; }
+.cm-ch:hover { transform: translateX(2px); }
+
+/* reduce-motion: the global data-reduce rule in base.css already neutralises everything above */

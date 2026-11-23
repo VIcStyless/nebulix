@@ -1,0 +1,9 @@
+Nebulix VM lab — third-party open-source software, served unmodified:
+- v86 emulator (libv86.mjs, v86.wasm) — BSD 2-Clause, https://github.com/copy/v86 (see v86-LICENSE.txt)
+- SeaBIOS (seabios.bin) — LGPLv3, https://www.seabios.org/  ·  VGA BIOS (vgabios.bin) — LGPL, https://github.com/copy/v86/tree/master/bios
+- linux4.iso — Buildroot Linux build from the v86 project, GPLv2 (Linux, BusyBox), sources: https://github.com/copy/v86/tree/master/tools/docker  https://buildroot.org/
+- freedos722.img — FreeDOS, GPL, https://www.freedos.org/
+- kolibri.img — KolibriOS, GPLv2, https://kolibrios.org/
+- dsl-4.11.rc2.iso — Damn Small Linux, GPL, https://www.damnsmalllinux.org/
+- openbsd-floppy.img — OpenBSD installer floppy, ISC/BSD licenses, https://www.openbsd.org/
+- oberon.img — Native Oberon (ETH Zürich), freely redistributable, https://www.ethoberon.ethz.ch/

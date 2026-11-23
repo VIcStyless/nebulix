@@ -1,0 +1,6 @@
+# Mirror / proxy-origin forwarder: only the forwarder script, nothing else.
+FROM node:24.22.2-alpine3.24
+WORKDIR /app
+COPY scripts/origin-forwarder.js ./scripts/origin-forwarder.js
+ENV NODE_ENV=production
+CMD ["node", "scripts/origin-forwarder.js"]

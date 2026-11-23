@@ -1,0 +1,62 @@
+/* Nebulix — surface treatments: glass (Liquid Glass / glassmorphism), aero (Frutiger Aero, glossy),
+   mica (Windows 11), neo (neumorphism). Activated by data-surface on <html> (see js/theme.js).
+   The default (flat) theme is untouched. These make the chrome translucent so the animated background shows. */
+
+/* ---- translucent panel tokens ---- */
+:root[data-surface="glass"], :root[data-surface="aero"] {
+  --panel: color-mix(in srgb, var(--surface) 55%, transparent);
+  --panel2: color-mix(in srgb, var(--surface2) 60%, transparent);
+  --hover: color-mix(in srgb, var(--text) 12%, transparent);
+  --glass-edge: color-mix(in srgb, var(--text) 16%, transparent);
+  --glass-hi: color-mix(in srgb, #ffffff 26%, transparent);
+}
+:root[data-surface="mica"] {
+  --panel: color-mix(in srgb, var(--surface) 80%, transparent);
+  --panel2: color-mix(in srgb, var(--surface2) 84%, transparent);
+  --glass-edge: var(--border);
+  --glass-hi: transparent;
+}
+:root[data-mode="light"][data-surface="glass"], :root[data-mode="light"][data-surface="aero"] { --panel: color-mix(in srgb, var(--surface) 62%, transparent); --panel2: color-mix(in srgb, var(--surface2) 66%, transparent); }
+
+/* ---- blur + translucency on all chrome ---- */
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) :is(.card, .rail, .topbar, .menu, .modal, .pal, .input, .select, textarea.input, .seg, .tabs, .toast, .tip, .vc-bar, .lp, .cm-sv, .inbox-pop, .tr-card, .wn-list, .cm-cmds, .dm-side, .cm-servers, .cm-chans, .cm-members) {
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.5);
+  backdrop-filter: blur(var(--blur)) saturate(1.5);
+}
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .rail { background: var(--panel); border-right-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .topbar { background: color-mix(in srgb, var(--surface) 45%, transparent); border-bottom-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .card { border-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"]) .card { box-shadow: 0 1px 0 var(--glass-hi) inset, 0 calc(16px * var(--shadow)) calc(40px * var(--shadow)) rgba(0, 0, 0, calc(.4 * var(--shadow))); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) :is(.input, .select, textarea.input) { background: color-mix(in srgb, var(--surface) 40%, transparent); border-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .btn:not(.primary):not(.ghost) { background: color-mix(in srgb, var(--surface2) 55%, transparent); border-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .menu, :is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .modal { background: color-mix(in srgb, var(--surface) 78%, transparent); border-color: var(--glass-edge); }
+:is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) .pill { background: color-mix(in srgb, var(--text) 8%, transparent); }
+
+/* a thin top highlight line, like light catching a glass edge */
+:is([data-surface="glass"], [data-surface="aero"]) .card::before { content: ""; position: absolute; left: 1px; right: 1px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-hi) 20%, var(--glass-hi) 80%, transparent); border-radius: inherit; pointer-events: none; }
+
+/* ---- Frutiger Aero: glossy, saturated, bubbly ---- */
+[data-surface="aero"] .card { background-image: linear-gradient(to bottom, color-mix(in srgb, #ffffff 24%, transparent), transparent 46%); }
+[data-surface="aero"] .btn.primary, [data-surface="aero"] .seg button.on { background-image: linear-gradient(to bottom, color-mix(in srgb, #ffffff 45%, transparent), transparent 52%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 2px 7px color-mix(in srgb, var(--accent) 45%, transparent); }
+[data-surface="aero"] .rail-btn.on, [data-surface="aero"] .app-tile:hover { box-shadow: inset 0 1px 0 var(--glass-hi); }
+[data-surface="aero"] .ava, [data-surface="aero"] .wn-ic, [data-surface="aero"] .app-tile .ai { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 2px 6px rgba(0, 0, 0, .18); }
+
+/* ---- Windows 11 Mica: calm, soft, Fluent ---- */
+[data-surface="mica"] .card, [data-surface="mica"] .menu, [data-surface="mica"] .modal { box-shadow: 0 calc(14px * var(--shadow)) calc(34px * var(--shadow)) rgba(0, 0, 0, calc(.3 * var(--shadow))); }
+[data-surface="mica"] .btn { border-radius: calc(var(--radius) * .9); } [data-surface="mica"] .btn.primary { box-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
+[data-surface="mica"] .rail-btn.on::before { background: var(--accent); border-radius: 3px; } /* Fluent selection pill */
+[data-surface="mica"] .rail-btn { border-radius: var(--radius); }
+
+/* ---- Neumorphism ---- */
+:root[data-surface="neo"] { --panel: var(--surface); --soft-lo: color-mix(in srgb, var(--bg) 60%, #000); --soft-hi: color-mix(in srgb, var(--surface) 70%, #fff); }
+[data-surface="neo"] .card, [data-surface="neo"] .btn:not(.ghost), [data-surface="neo"] .input, [data-surface="neo"] .select, [data-surface="neo"] textarea.input { border: 0; box-shadow: 6px 6px 14px var(--soft-lo), -6px -6px 14px var(--soft-hi); }
+[data-surface="neo"] .btn:active, [data-surface="neo"] .input:focus, [data-surface="neo"] .rail-btn.on { box-shadow: inset 4px 4px 10px var(--soft-lo), inset -4px -4px 10px var(--soft-hi); }
+[data-surface="neo"] .rail-btn.on::before { display: none; }
+
+/* glass chat bubbles */
+:root[data-bubble="glass"] .bub, :root[data-bubble="glass"] .cm-msg .cm-text { backdrop-filter: blur(8px); }
+
+/* when reduced transparency is requested by the OS, fall back to solid panels */
+@media (prefers-reduced-transparency: reduce) {
+  :is([data-surface="glass"], [data-surface="aero"], [data-surface="mica"]) :is(.card, .rail, .topbar, .menu, .modal, .input, .select, textarea.input) { backdrop-filter: none; -webkit-backdrop-filter: none; background-color: var(--surface); }
+}

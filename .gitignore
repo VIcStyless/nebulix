@@ -1,0 +1,28 @@
+# dependencies and builds
+node_modules/
+apps/windows/dist/
+apps/android/build/
+apps/android/app/build/
+apps/android/.gradle/
+apps/android/local.properties
+*.apk
+*.aab
+# secrets and private data — never commit these
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+data/
+uidata/
+secret.key
+# big OS images for the virtual machines: download them with scripts/fetch-vm-images.sh
+public/vm/*.iso
+public/vm/*.img
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

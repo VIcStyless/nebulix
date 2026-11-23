@@ -1,0 +1,36 @@
+{
+  "name": "nebulix-desktop",
+  "productName": "Nebulix",
+  "version": "1.0.0",
+  "description": "Nebulix for Windows — a secure desktop window for Nebulix",
+  "author": "VicStyles",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "dev.nebulix.desktop",
+    "productName": "Nebulix",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "package.json", "build/icon.png"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nebulix",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "Nebulix-Setup-${version}.exe"
+    }
+  }
+}

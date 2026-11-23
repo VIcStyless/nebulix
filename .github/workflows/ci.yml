@@ -1,0 +1,17 @@
+# Quick checks on every push: every server and client JavaScript file must parse.
+name: Checks
+on: [push, pull_request]
+permissions: { contents: read }
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: '24' }
+      - name: Parse all JavaScript
+        run: |
+          set -e
+          for f in $(git ls-files 'server/*.js' 'server/**/*.js' 'scripts/*.js' 'apps/windows/main.js'); do node --check "$f"; done
+          for f in $(git ls-files 'public/js/*.js' 'public/js/**/*.js' | grep -v '/vendor/'); do node --input-type=module --check < "$f" 2>/dev/null || node --check "$f"; done
+          echo "All files parse"

@@ -1,0 +1,30 @@
+# Same settings as the live app (from `fly config show -a nebulix`).
+app = "nebulix"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ORIGIN = "https://nebulix.fly.dev"
+  DATA_DIR = "/data"
+  HOST = "::"
+  PORT = "3000"
+  PROXY_ORIGIN = "https://nebulix-px.fly.dev"
+  GAMES_ORIGIN = "https://nebulix-games.fly.dev"
+  TRUST_PROXY = "1"
+
+[[mounts]]
+  source = "nebulix_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
