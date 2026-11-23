@@ -476,3 +476,51 @@ html.dc-on #app, html.dc-on .nvf-fab, html.dc-on .toasts { visibility: hidden !i
 .dc-doc h1 { margin: 0 0 4px; font-size: 28px; color: #111827; } .dc-meta { color: #6b7280; font-size: 14px; margin: 0 0 18px; }
 .dc-doc h2 { font-size: 20px; color: #1e3a8a; margin: 22px 0 6px; } .dc-doc li { margin: 4px 0; }
 @media (max-width: 760px) { .dc-main { grid-template-columns: 1fr; } .dc-side { position: static; } .dc-date { display: none; } }
+/* ---------- Premium plans (13.8) ---------- */
+.prem-toggle { display: flex; gap: 4px; justify-content: center; margin: 14px auto; padding: 4px; border-radius: 12px; background: var(--surface2, #1a1c21); width: max-content; max-width: 100%; }
+.prem-toggle button { border: 0; padding: 8px 16px; border-radius: 9px; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+.prem-toggle button.on { background: var(--accent); color: var(--on-accent, #111); }
+.prem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; align-items: stretch; }
+.prem-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 20px; border-radius: 18px; border: 2px solid color-mix(in srgb, var(--tc) 35%, transparent); background: linear-gradient(170deg, color-mix(in srgb, var(--tc) 12%, var(--surface, #131418)), var(--surface, #131418) 60%); }
+.prem-card.best { border-color: var(--tc); box-shadow: 0 10px 40px color-mix(in srgb, var(--tc) 25%, transparent); }
+.prem-card.mine { outline: 3px solid var(--tc); }
+.prem-name { display: flex; align-items: center; gap: 8px; font-size: 19px; color: var(--tc); }
+.prem-price { font: 800 26px/1.2 system-ui; }
+.prem-perks { list-style: none; padding: 0; margin: 4px 0 10px; display: grid; gap: 7px; flex: 1; }
+.prem-perks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; } .prem-perks li svg { flex: none; margin-top: 3px; color: var(--tc); }
+/* ---------- Nebula Fusion (13.8) ---------- */
+.fu { display: grid; gap: 12px; } .fu-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; } .fu-head h2 { margin: 0; }
+.fu-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+.fu-main { display: grid; grid-template-columns: 1fr 280px; gap: 12px; min-height: 70vh; }
+.fu-boardwrap { position: relative; display: grid; grid-template-rows: 1fr auto; border-radius: 16px; border: 1px solid var(--line, #ffffff1a); background: radial-gradient(circle at 30% 20%, #1e1b4b55, transparent 50%), radial-gradient(circle at 80% 80%, #0e749044, transparent 50%), var(--surface, #131418); overflow: hidden; }
+.fu-board { position: relative; min-height: 60vh; touch-action: none; }
+.fu-tools { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line, #ffffff14); }
+.fu-side { display: grid; grid-template-rows: auto 1fr; gap: 8px; min-height: 0; }
+.fu-list { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; overflow: auto; max-height: 68vh; padding: 2px; }
+.fu-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--hc) 55%, transparent); background: color-mix(in srgb, var(--hc) 14%, var(--surface2, #1a1c21)); color: inherit; font-weight: 700; font-size: 14px; cursor: pointer; user-select: none; white-space: nowrap; }
+.fu-chip i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--hc); color: #111; font-style: normal; font-weight: 900; font-size: 12px; }
+.fu-chip.on-board { position: absolute; cursor: grab; box-shadow: 0 6px 16px #0006; transition: transform .12s, box-shadow .12s; }
+.fu-chip.on-board.drag { cursor: grabbing; transform: scale(1.06); transition: none; }
+.fu-chip.target, .fu-chip.sel { box-shadow: 0 0 0 3px var(--hc), 0 6px 16px #0006; }
+.fu-chip.busy { opacity: .6; animation: fu-pulse .6s infinite alternate; }
+.fu-chip.pop { animation: fu-pop .5s ease-out; } .fu-chip.nope { animation: fu-shake .4s; }
+@keyframes fu-pulse { to { transform: scale(1.08); } } @keyframes fu-pop { 0% { transform: scale(.3); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } } @keyframes fu-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@media (max-width: 760px) { .fu-main { grid-template-columns: 1fr; } .fu-list { max-height: 30vh; } }
+/* ---------- Nebula Dash (13.8) ---------- */
+.dsh { display: grid; min-height: calc(100vh - 160px); }
+.dsh-menu { display: grid; gap: 14px; justify-items: center; text-align: center; padding: 20px 8px; } .dsh-menu h2 { font-size: 34px; margin: 0; }
+.dsh-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; width: min(900px, 100%); }
+.dsh-lv { display: grid; gap: 6px; justify-items: start; padding: 18px; border: 0; border-radius: 16px; color: #fff; text-align: left; cursor: pointer; background: linear-gradient(135deg, var(--c1, #1e1b4b), var(--c2, #4c1d95)); box-shadow: 0 8px 24px #0006; transition: transform .12s; }
+.dsh-lv:hover { transform: translateY(-3px); } .dsh-lv b { font-size: 18px; } .dsh-lv span { color: #fde047; }
+.dsh-bar, .dsh-prog { width: 100%; height: 6px; border-radius: 9px; background: #ffffff30; overflow: hidden; } .dsh-bar i, .dsh-prog i { display: block; height: 100%; background: #a3e635; }
+.dsh-game, .dsh-ed { position: relative; display: grid; grid-template-rows: auto 1fr; gap: 8px; min-height: calc(100vh - 170px); }
+.dsh-ed { grid-template-rows: auto auto 1fr auto; }
+.dsh-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dsh-cv { width: 100%; height: 100%; min-height: 360px; border-radius: 14px; display: block; touch-action: none; cursor: pointer; grid-row: 2; }
+.dsh-game .dsh-top { grid-row: 1; }
+.dsh-hud { position: absolute; top: 52px; left: 12px; right: 12px; display: flex; gap: 10px; align-items: center; color: #fff; font-weight: 800; text-shadow: 0 1px 3px #000; pointer-events: none; }
+.dsh-hud .dsh-prog { flex: 1; max-width: 420px; height: 8px; }
+.dsh-ov { position: absolute; inset: 52px 0 0; display: grid; place-items: center; pointer-events: none; } .dsh-ov > * { pointer-events: auto; }
+.dsh-win { display: grid; gap: 8px; justify-items: center; padding: 26px 34px; border-radius: 18px; background: #000c; color: #fff; text-align: center; }
+.dsh-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+.dsh-cv.ed { cursor: crosshair; grid-row: auto; }

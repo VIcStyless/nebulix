@@ -31,13 +31,13 @@ const NAV_GROUPS = [
   ['', [['home', 'Home', 'home'], ['live', 'Nebulix Live', 'activity'], ['season', 'Season', 'star'], ['browse', 'Browser', 'globe']]],
   ['Learn', [['study', 'Study', 'book'], ['study/cards', 'Flashcards', 'layers'], ['study/tutor', 'AI tutor', 'spark'], ['study/live', 'Live class', 'users']]],
   ['Social', [['echo', 'Nebulix Echo', 'activity'], ['clips', 'Clips', 'zap'], ['tv', 'Nebulix TV', 'play'], ['lens', 'Nebulix Lens', 'image'], ['forum', 'Nebulix Foros', 'chat'], ['chat', 'Community', 'users'], ['dm', 'Messages', 'mail'], ['clans', 'Clans', 'shield'], ['squads', 'Squads', 'target'], ['events', 'Events', 'calendar']]],
-  ['Play', [['games', 'Nebulix Games', 'gamepad'], ['arena', 'Nebulix Arena', 'target'], ['ranked', 'Competitive', 'trophy'], ['vault', 'Nebula Vault', 'bag'], ['retro', 'Retro consoles', 'gamepad'], ['cloud', 'Cloud gaming', 'monitor'], ['worlds', 'Nebula Worlds', 'cube'], ['boss', 'World Boss', 'zap'], ['tournaments', 'Tournaments', 'trophy'], ['leagues', 'Leagues', 'medal'], ['quiz', 'Nebulix Quiz', 'flag'], ['word', 'Word of the day', 'type'], ['play', 'Games', 'puzzle'], ['music', 'Pulse', 'music'], ['arcade', 'Arcade', 'gamepad'], ['library', 'Game library', 'layers'], ['casino', 'Casino', 'dice'], ['casino3d', '3D Casino', 'box3d']]],
+  ['Play', [['games', 'Nebulix Games', 'gamepad'], ['arena', 'Nebulix Arena', 'target'], ['fusion', 'Nebula Fusion', 'spark'], ['dash', 'Nebula Dash', 'zap'], ['ranked', 'Competitive', 'trophy'], ['vault', 'Nebula Vault', 'bag'], ['retro', 'Retro consoles', 'gamepad'], ['cloud', 'Cloud gaming', 'monitor'], ['worlds', 'Nebula Worlds', 'cube'], ['boss', 'World Boss', 'zap'], ['tournaments', 'Tournaments', 'trophy'], ['leagues', 'Leagues', 'medal'], ['quiz', 'Nebulix Quiz', 'flag'], ['word', 'Word of the day', 'type'], ['play', 'Games', 'puzzle'], ['music', 'Pulse', 'music'], ['arcade', 'Arcade', 'gamepad'], ['library', 'Game library', 'layers'], ['casino', 'Casino', 'dice'], ['casino3d', '3D Casino', 'box3d']]],
   ['Economy', [['shop', 'Shop & Locker', 'bag'], ['wallet', 'Wallet', 'coins'], ['life', 'Life', 'heart'], ['work', 'Work', 'clip'], ['invest', 'Invest', 'chart'], ['perks', 'Advantages', 'zap'], ['market', 'Market', 'bag'], ['plaza', 'Plaza', 'gift'], ['avatar', 'My 3D avatar', 'box3d']]],
   ['Create', [['code', 'Nebulix Code', 'terminal'], ['studio', 'Nebulix Studio', 'edit'], ['hub', 'Nebulix Hub', 'upload'], ['drive', 'Drive', 'layers'], ['docs', 'Docs', 'note'], ['sheets', 'Sheets', 'grid'], ['slides', 'Slides', 'monitor'], ['notes', 'Notes', 'note'], ['nova', 'Nova AI', 'spark'], ['translate', 'Translator', 'translate'], ['look', 'Appearance', 'layout'], ['themes', 'Themes', 'palette'], ['terminal', 'Terminal', 'terminal'], ['vm', 'Virtual machines', 'cpu'], ['vm/android', 'Android', 'phone'], ['security', 'Security Lab', 'shield'], ['vpn', 'Nebulix VPN', 'lock'], ['links', 'Links', 'link'], ['nerd', 'Nerd Lab', 'flask'], ['changelog', 'What’s new', 'bolt']]],
 ];
 const NAV = NAV_GROUPS.flatMap((g) => g[1]);
 const LOADERS = {
-  study: () => import('./views/study.js'), home: () => import('./views/home.js'), browse: () => import('./views/browser.js'), chat: () => import('./views/chat.js'), dm: () => import('./views/dm.js'),
+  study: () => import('./views/study.js'), fusion: () => import('./views/fusion.js'), dash: () => import('./views/dash.js'), home: () => import('./views/home.js'), browse: () => import('./views/browser.js'), chat: () => import('./views/chat.js'), dm: () => import('./views/dm.js'),
   casino: () => import('./views/casino.js'), market: () => import('./views/market.js'), themes: () => import('./views/themes.js'), nova: () => import('./views/nova.js'),
   nerd: () => import('./views/nerd.js'), settings: () => import('./views/settings.js'), profile: () => import('./views/profile.js'), pro: () => import('./views/pro.js'),
   ext: () => import('./views/ext.js'), admin: () => import('./views/admin.js'), music: () => import('./views/music.js'), dj: () => import('./views/dj.js'),
@@ -148,7 +148,7 @@ export function openLauncher() {
   const q = h('input.input.ln-q', { placeholder: t('Search apps…'), 'aria-label': t('Search apps') });
   const list = h('div.ln-body');
   const tile = ([k, label, ic]) => h('a.ln-tile', { href: '#/' + k, onClick: () => closeLauncher() }, appTile(k, ic, 46), h('span', t(label)));
-  const extra = [['look', 'Appearance', 'palette'], ['ext', 'Extensions', 'puzzle'], ['pro', 'PRO', 'crown'], ['settings', 'Settings', 'gear']];
+  const extra = [['look', 'Appearance', 'palette'], ['ext', 'Extensions', 'puzzle'], ['pro', 'Premium', 'crown'], ['settings', 'Settings', 'gear']];
   const paint = () => { const s = q.value.trim().toLowerCase(); const groups = NAV_GROUPS.concat([['More', extra]]).map(([g, items]) => [g, items.filter((x) => !s || t(x[1]).toLowerCase().includes(s) || x[0].includes(s))]).filter((g) => g[1].length);
     mount(list, groups.map(([g, items]) => h('section.ln-sec', g ? h('div.ln-g', t(g)) : null, h('div.ln-grid', items.map(tile))))); };
   q.addEventListener('input', paint);
@@ -198,9 +198,9 @@ function buildShell() {
       h('button.side-fold', { 'aria-label': t('Collapse sidebar'), title: t('Collapse sidebar'), onClick: toggleSide }, icon('sidebar', 16))),
     h('button.side-search', { onClick: () => palette(), 'aria-label': t('Search') }, icon('search', 15), h('span.rb-l', t('Search')), h('kbd', 'Ctrl K')),
     h('div.side-scroll', groups,
-      h('div.side-group', h('div.side-label', t('More')), railBtn('ext', 'Extensions', 'puzzle'), railBtn('pro', 'PRO', 'crown'), isStaff() ? railBtn('admin', 'Admin', 'shield') : null, railBtn('settings', 'Settings', 'gear'))),
+      h('div.side-group', h('div.side-label', t('More')), railBtn('ext', 'Extensions', 'puzzle'), railBtn('pro', 'Premium', 'crown'), isStaff() ? railBtn('admin', 'Admin', 'shield') : null, railBtn('settings', 'Settings', 'gear'))),
     accountCard());
-  nexus = buildNexus({ groups: NAV_GROUPS, more: [['look', 'Appearance', 'layout'], ['progress', 'Achievements', 'trophy'], ['ext', 'Extensions', 'puzzle'], ['pro', 'PRO', 'crown'], ...(isStaff() ? [['admin', 'Admin', 'shield']] : []), ['settings', 'Settings', 'gear']], go, palette, accountMenu, badgeFor });
+  nexus = buildNexus({ groups: NAV_GROUPS, more: [['look', 'Appearance', 'layout'], ['progress', 'Achievements', 'trophy'], ['ext', 'Extensions', 'puzzle'], ['pro', 'Premium', 'crown'], ...(isStaff() ? [['admin', 'Admin', 'shield']] : []), ['settings', 'Settings', 'gear']], go, palette, accountMenu, badgeFor });
   titleEl = h('span'); crumbEl = h('span.top-crumb');
   const coin = h('button.top-coin', { title: t('Your coins'), onClick: () => go('wallet') }, h('span.coin#coinbar', { title: fmt.num(S.me.coins) }, coinTxt(S.me.coins)));
   const gemBtn = h('button.top-gem', { title: t('Your gems'), onClick: () => go('plaza', { tab: 'gems' }) }, icon('gem', 14), h('span#gembar', fmt.compact(S.me.gems || 0)));

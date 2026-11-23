@@ -11,7 +11,7 @@ const touch = () => S.store.touch('drive');
 const KINDS = ['folder', 'file', 'doc', 'sheet', 'slides'];
 const clean = (s, n) => String(s || '').replace(/[\u0000-\u001f‪-‮\/\\]/g, ' ').trim().slice(0, n);
 const MAX_DATA = 2 * 1024 * 1024;
-const maxFile = (u) => (isPro(u) ? 1024 : 200) * 1024 * 1024;
+const maxFile = (u) => (isPro(u) ? [1024, 1024, 2048, 4096][require('../state').tierRank(u)] : 200) * 1024 * 1024;
 
 const canRead = (it, u) => it && !it.purged && (it.owner === u.id || it.share === 'link' || it.share === 'edit' || u.role === 'owner');
 const canEdit = (it, u) => it && !it.purged && (it.owner === u.id || it.share === 'edit');

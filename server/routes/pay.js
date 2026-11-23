@@ -14,6 +14,12 @@ const DAY = 86400000;
 // (one entry per test/live mode). STRIPE_PRICE_* / STRIPE_WEBHOOK_SECRET env vars still override everything.
 const CUR = String(process.env.PRO_CURRENCY || 'eur').toLowerCase();
 const CENTS = { monthly: parseInt(process.env.PRO_MONTHLY_CENTS || '499', 10), yearly: parseInt(process.env.PRO_YEARLY_CENTS || '3999', 10) };
+// 13.8 higher tiers (Premium is the original PRO price above)
+const TIER_CENTS = { pro: { monthly: parseInt(process.env.TIER_PRO_MONTHLY_CENTS || '999', 10), yearly: parseInt(process.env.TIER_PRO_YEARLY_CENTS || '8999', 10) }, ultimate: { monthly: parseInt(process.env.TIER_ULT_MONTHLY_CENTS || '1999', 10), yearly: parseInt(process.env.TIER_ULT_YEARLY_CENTS || '17999', 10) } };
+const TIER_NAMES = { premium: 'Nebulix Premium', pro: 'Nebulix Premium Pro', ultimate: 'Nebulix Premium Ultimate' };
+const tierLookup = (tier, plan) => (tier === 'premium' ? LOOKUP[plan] : `nebulix_tier_${tier}_${plan}`);
+const tierPrice = (tier, plan) => (tier === 'premium' ? priceIds()[plan] : ((auto().tiers || {})[tier] || {})[plan] || '');
+const tierOfPrice = (id) => { if (!id) return null; const t = auto().tiers || {}; for (const k of ['pro', 'ultimate']) if (t[k] && (t[k].monthly === id || t[k].yearly === id)) return k; const p = priceIds(); return p.monthly === id || p.yearly === id ? 'premium' : null; };
 const EVENTS = ['checkout.session.completed', 'invoice.paid', 'customer.subscription.updated', 'customer.subscription.deleted'];
 const LOOKUP = { monthly: 'nebulix_pro_monthly', yearly: 'nebulix_pro_yearly' };
 const smode = () => (/_live_/.test(cfg.stripe.secret || '') ? 'live' : 'test');
@@ -27,6 +33,13 @@ const cardsOff = () => !!(S.meta && S.meta.cardsOff);
 function enabled() {
   const p = priceIds();
   return { stripe: !cardsOff() && !!(cfg.stripe.secret && (p.monthly || p.yearly)), cardsOff: cardsOff(), webhook: !!whSecret(), plans: { monthly: !!p.monthly, yearly: !!p.yearly }, redeem: true, mode: cfg.stripe.secret ? smode() : null };
+}
+function tierLabels(u) {
+  const es = !u || (u.lang || 'es') === 'es'; const t = auto().tiers || {}; const cur = (auto().currency || CUR).toUpperCase();
+  const f = (c) => { try { return new Intl.NumberFormat(es ? 'es-ES' : 'en-US', { style: 'currency', currency: cur }).format(c / 100); } catch { return (c / 100).toFixed(2) + ' ' + cur; } };
+  const out = { premium: labelsFor(u) };
+  for (const k of ['pro', 'ultimate']) { const a = (t[k] && t[k].amounts) || TIER_CENTS[k]; out[k] = { monthly: f(a.monthly) + (es ? ' / mes' : ' / month'), yearly: f(a.yearly) + (es ? ' / año' : ' / year') }; }
+  return out;
 }
 function labelsFor(u) {
   const a = auto(); const es = !u || (u.lang || 'es') === 'es';
@@ -53,6 +66,17 @@ async function autoSetup() {
         if (!yr) yr = await stripe('POST', '/v1/prices', { product, currency: CUR, unit_amount: CENTS.yearly, recurring: { interval: 'year' }, lookup_key: LOOKUP.yearly, nickname: 'PRO yearly' });
       }
       st.monthly = mo.id; st.yearly = yr.id; st.currency = mo.currency; st.amounts = { monthly: mo.unit_amount, yearly: yr.unit_amount };
+    }
+    // 13.8: the Premium Pro and Premium Ultimate products and prices
+    st.tiers = st.tiers || {};
+    for (const tier of ['pro', 'ultimate']) {
+      const want = TIER_CENTS[tier]; const keys = ['monthly', 'yearly'].map((p) => tierLookup(tier, p));
+      const found = await stripe('GET', '/v1/prices?active=true&limit=10&' + keys.map((k) => 'lookup_keys%5B%5D=' + k).join('&'));
+      let mo = (found.data || []).find((p) => p.lookup_key === keys[0]); let yr = (found.data || []).find((p) => p.lookup_key === keys[1]);
+      if (!mo || !yr) { let product = (mo || yr) ? ((mo || yr).product.id || (mo || yr).product) : (await stripe('POST', '/v1/products', { name: TIER_NAMES[tier], description: TIER_NAMES[tier] + ' membership: cosmetics, more AI, bigger uploads. Virtual coins are never sold.', metadata: { app: 'nebulix', tier } })).id;
+        if (!mo) mo = await stripe('POST', '/v1/prices', { product, currency: CUR, unit_amount: want.monthly, recurring: { interval: 'month' }, lookup_key: keys[0], nickname: TIER_NAMES[tier] + ' monthly' });
+        if (!yr) yr = await stripe('POST', '/v1/prices', { product, currency: CUR, unit_amount: want.yearly, recurring: { interval: 'year' }, lookup_key: keys[1], nickname: TIER_NAMES[tier] + ' yearly' }); }
+      st.tiers[tier] = { monthly: mo.id, yearly: yr.id, amounts: { monthly: mo.unit_amount, yearly: yr.unit_amount } };
     }
     // Stripe only delivers webhooks to public https addresses
     if (!cfg.stripe.webhook && /^https:\/\//.test(cfg.appOrigin) && !/\/\/(localhost|127\.|\[::1\])/.test(cfg.appOrigin)) {
@@ -100,8 +124,9 @@ async function stripe(method, path, params) {
   return j;
 }
 
-function grant(u, untilMs, why) {
+function grant(u, untilMs, why, tier) {
   const before = u.proUntil || 0;
+  if (tier && ['premium', 'pro', 'ultimate'].includes(tier)) u.tier = tier;
   u.proUntil = Math.max(before, untilMs);
   u.proSince = u.proSince || now();
   try { require('../progress').checkAchievements(u); } catch {}
@@ -137,14 +162,14 @@ async function onEvent(ev) {
       if (o.customer) u.stripeCustomer = o.customer;
       if (o.subscription) u.stripeSub = o.subscription;
       // access is extended by the invoice.paid event; give a short head start in case it arrives later
-      grant(u, now() + 2 * DAY, 'checkout');
+      grant(u, now() + 2 * DAY, 'checkout', o.metadata && o.metadata.tier);
       break;
     }
     case 'invoice.paid': {
       const u = userFor(o); if (!u) return;
       let end = 0;
-      for (const l of (o.lines && o.lines.data) || []) if (l.period && l.period.end) end = Math.max(end, l.period.end * 1000);
-      grant(u, (end || now() + 31 * DAY) + 2 * DAY, 'invoice');
+      let tier = null; for (const l of (o.lines && o.lines.data) || []) { if (l.period && l.period.end) end = Math.max(end, l.period.end * 1000); tier = tier || tierOfPrice(l.price && (l.price.id || l.price)) || (l.pricing && l.pricing.price_details && tierOfPrice(l.pricing.price_details.price)); }
+      grant(u, (end || now() + 31 * DAY) + 2 * DAY, 'invoice', tier);
       break;
     }
     case 'customer.subscription.updated':
@@ -152,7 +177,7 @@ async function onEvent(ev) {
       const u = userFor(o); if (!u) return;
       const end = (o.current_period_end || 0) * 1000;
       if (o.status === 'canceled' || ev.type === 'customer.subscription.deleted') { u.proUntil = Math.min(u.proUntil || 0, Math.max(end, now())); u.stripeSub = null; }
-      else if (end) { u.proUntil = Math.max(u.proUntil || 0, end); u.cancelAtEnd = !!o.cancel_at_period_end; }
+      else if (end) { u.proUntil = Math.max(u.proUntil || 0, end); u.cancelAtEnd = !!o.cancel_at_period_end; const it = o.items && o.items.data && o.items.data[0]; const tr = it && tierOfPrice(it.price && it.price.id); if (tr) u.tier = tr; }
       S.store.touch('users');
       try { S.hub.push(u.id, { t: 'me', user: selfUser(u) }); } catch {}
       break;
@@ -175,7 +200,7 @@ module.exports = function register(r) {
   r.get('/api/pro/state', { auth: true }, async (c) => {
     const u = c.user;
     return {
-      pro: isPro(u), proUntil: u.proUntil || 0, owner: u.role === 'owner', cancelAtEnd: !!u.cancelAtEnd, manage: !!u.stripeCustomer,
+      pro: isPro(u), tier: require('../state').tierOf(u), proUntil: u.proUntil || 0, owner: u.role === 'owner', tierLabels: tierLabels(u), tierPlans: { pro: !!tierPrice('pro', 'monthly'), ultimate: !!tierPrice('ultimate', 'monthly') }, cancelAtEnd: !!u.cancelAtEnd, manage: !!u.stripeCustomer,
       payments: enabled(), labels: labelsFor(u),
       stripeStatus: u.role === 'owner' ? { mode: cfg.stripe.secret ? smode() : null, ready: enabled().stripe, webhook: enabled().webhook, error: auto().error || null } : undefined,
       perks: ['animated_avatar', 'big_uploads', 'pro_cosmetics', 'ai_quota', 'extensions', 'badge', 'custom_css', 'early_access'],
@@ -183,14 +208,14 @@ module.exports = function register(r) {
   });
 
   r.post('/api/pro/checkout', { auth: true, verified: true, limit: [10, 600000, 'user'] }, async (c) => {
-    const plan = c.body.plan === 'yearly' ? 'yearly' : 'monthly';
-    const price = priceIds()[plan];
+    const plan = c.body.plan === 'yearly' ? 'yearly' : 'monthly'; const tier = ['pro', 'ultimate'].includes(c.body.tier) ? c.body.tier : 'premium';
+    const price = tierPrice(tier, plan);
     if (cardsOff() || !cfg.stripe.secret || !price) throw new HttpError(501, 'payments_off', 'Card payments are not configured on this server. You can still redeem a PRO code.');
     const u = c.user;
     const params = {
       mode: 'subscription', 'line_items': [{ price, quantity: 1 }], client_reference_id: u.id, allow_promotion_codes: 'true',
       success_url: `${cfg.appOrigin}/#/pro?paid=1`, cancel_url: `${cfg.appOrigin}/#/pro?canceled=1`,
-      subscription_data: { metadata: { uid: u.id } }, metadata: { uid: u.id },
+      subscription_data: { metadata: { uid: u.id, tier } }, metadata: { uid: u.id, tier },
     };
     // accounts without a (valid) email simply type it in Stripe's own checkout page
     if (u.stripeCustomer) params.customer = u.stripeCustomer; else if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(u.email || ''))) params.customer_email = u.email;
@@ -214,7 +239,7 @@ module.exports = function register(r) {
     rec.used.push(c.user.id);
     const u = c.user;
     const base = Math.max(now(), u.proUntil || 0);
-    grant(u, base + rec.days * DAY, 'code ' + key.slice(0, 4));
+    grant(u, base + rec.days * DAY, 'code ' + key.slice(0, 4), rec.tier || (isPro(u) ? null : 'premium'));
     S.store.touch('codes');
     return { ok: true, days: rec.days, proUntil: u.proUntil, user: selfUser(u) };
   });

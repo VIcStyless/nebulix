@@ -9,6 +9,8 @@ import { roleChip } from '../roles.js';
 import { avatarEl } from '../cosmetics.js';
 
 const owner = () => S.me && S.me.role === 'owner';
+const tierPick = () => new Promise((res) => { const m = modal({ title: t('Which plan?'), body: h('div.col', { style: 'gap:6px' }, [['premium', 'Premium'], ['pro', 'Premium Pro'], ['ultimate', 'Premium Ultimate']].map(([k, n]) => h('button.btn', { onClick: () => { m.close(); res(k); } }, icon('crown', 14), n))), actions: [{ label: t('Cancel'), value: null }] }); m.then((v) => { if (v === null || v === true) res(null); }); });
+
 
 export default {
   title: () => t('Admin'),
@@ -76,7 +78,7 @@ async function users(box, ctx) {
       isAdmin() ? { label: t('Give / take coins'), icon: 'coins', onClick: () => act(async () => { const v = await promptBox(t('Adjust coins'), { label: t('Amount (use a minus sign to remove)'), type: 'text', validate: (x) => (Number.isFinite(+x) ? null : t('Enter a number')) }); if (v === null) return; return api.post(`/api/admin/users/${u.id}/coins`, { delta: Math.trunc(+v), reason: 'admin' }); }) } : null,
       owner() ? { label: u.infinite ? t('Turn off unlimited coins') : t('Give unlimited coins'), icon: 'coins', onClick: () => act(() => api.post(`/api/admin/users/${u.id}/infinite`, { on: !u.infinite })) } : null,
       isAdmin() ? { label: t('Community roles…'), icon: 'shield', onClick: () => assignGroles(u) } : null,
-      isAdmin() ? { label: t('Grant PRO days'), icon: 'crown', onClick: () => act(async () => { const v = await promptBox(t('Grant PRO'), { label: t('Days of PRO to add'), type: 'number' }); if (!v) return; return api.post(`/api/admin/users/${u.id}/pro`, { days: Math.trunc(+v) }); }) } : null,
+      isAdmin() ? { label: t('Grant PRO days'), icon: 'crown', onClick: () => act(async () => { const v = await promptBox(t('Grant PRO'), { label: t('Days of PRO to add'), type: 'number' }); if (!v) return; const tier = await tierPick(); if (!tier) return; return api.post(`/api/admin/users/${u.id}/pro`, { days: Math.trunc(+v), tier }); }) } : null,
       owner() && u.role !== 'owner' ? { label: t('Change role'), icon: 'shield', onClick: () => act(async () => { const v = await pickRole(u.role); if (!v) return; return api.post(`/api/admin/users/${u.id}/role`, { role: v }); }) } : null,
       { hr: true },
       { label: t('Warn…'), icon: 'alert', onClick: () => act(async () => { const reason = await promptBox(t('Warn {n}', { n: u.username }), { label: t('Reason (they will see it)') }); if (!reason) return; return api.post(`/api/admin/users/${u.id}/warn`, { reason }); }) },
@@ -145,9 +147,10 @@ async function codes(box) {
       copyBtn(c.code), c.disabled ? h('span.pill.bad', t('disabled')) : h('button.btn.sm.ghost', { onClick: async () => { if (await confirmBox(t('Disable this code?'))) { try { await api.del('/api/admin/codes/' + encodeURIComponent(c.code)); run(); } catch (e) { toastErr(e); } } } }, t('Disable')))));
   }
   const gen = h('button.btn.primary', { onClick: () => busy(gen, async () => {
+    const tier = await tierPick(); if (!tier) return;
     const days = await promptBox(t('Generate PRO codes'), { label: t('Days of PRO each code grants'), type: 'number', value: '30' }); if (!days) return;
     const count = await promptBox(t('How many codes?'), { label: t('Number of codes (1-50)'), type: 'number', value: '1' }); if (!count) return;
-    try { const r = await api.post('/api/admin/codes', { days: +days, count: +count, max: 1 }); await navigator.clipboard.writeText(r.codes.join('\n')).catch(() => {}); toast(t('{n} codes created and copied.', { n: r.codes.length }), 'good', 3500); run(); } catch (e) { toastErr(e); }
+    try { const r = await api.post('/api/admin/codes', { days: +days, count: +count, max: 1, tier }); await navigator.clipboard.writeText(r.codes.join('\n')).catch(() => {}); toast(t('{n} codes created and copied.', { n: r.codes.length }), 'good', 3500); run(); } catch (e) { toastErr(e); }
   }) }, icon('plus', 16), t('Generate codes'));
   mount(box, h('div.row', { style: 'margin-bottom:12px' }, gen), listBox); run();
 }

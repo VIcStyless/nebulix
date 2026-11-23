@@ -13,7 +13,7 @@ const on = () => ls('nova.float') !== false;
 let fab = null; let panel = null; let msgs = []; let busy = false; let ctrl = null; let wired = false;
 let curRoute = 'home'; const route = () => curRoute;
 // 13.8: never over games, emulators and machines (full-screen things), and it can be hidden with a right click
-const GAME_ROUTES = ['arena', 'casino3d', 'worlds', 'vm', 'terminal', 'retro', 'cloud', 'boss', 'play', 'arcade', 'arcade3d', 'avatar', 'study'];
+const GAME_ROUTES = ['arena', 'dash', 'fusion', 'casino3d', 'worlds', 'vm', 'terminal', 'retro', 'cloud', 'boss', 'play', 'arcade', 'arcade3d', 'avatar', 'study'];
 const hidden = () => !S.me || route() === 'nova' || GAME_ROUTES.includes(route()) || document.documentElement.classList.contains('nbx-locked') || document.body.classList.contains('os-mode');
 const selected = () => { const s = String(window.getSelection ? window.getSelection() : '').trim(); return s.length > 2 ? s.slice(0, 6000) : ''; };
 function pageText() { const root = document.querySelector('#app .view, #app main, #app') || document.body; return String(root.innerText || '').replace(/\n{3,}/g, '\n\n').slice(0, 7000); }

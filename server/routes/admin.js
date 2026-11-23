@@ -113,6 +113,7 @@ module.exports = function register(r) {
     const t = target(c); const days = c.body.days;
     if (!Number.isInteger(days) || days < 0 || days > 3650) throw new HttpError(400, 'bad_days', 'Days must be 0-3650');
     t.proUntil = days === 0 ? 0 : Math.max(now(), t.proUntil || 0) + days * 86400000;
+    if (['premium', 'pro', 'ultimate'].includes(c.body.tier)) t.tier = c.body.tier;
     S.store.touch('users'); audit('pro', c.user.id, `${t.username} ${days}d`);
     hub.push(t.id, { t: 'me', user: require('../state').selfUser(t) });
     return { user: adminView(t) };
@@ -276,7 +277,7 @@ module.exports = function register(r) {
     for (let i = 0; i < count; i++) {
       const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let code = '';
       for (const b of crypto.randomBytes(12)) code += alphabet[b % alphabet.length];
-      S.codes[code] = { days, max, used: [], created: now(), by: c.user.id, note: String(c.body.note || '').slice(0, 60) };
+      S.codes[code] = { days, max, used: [], created: now(), by: c.user.id, note: String(c.body.note || '').slice(0, 60), tier: ['premium', 'pro', 'ultimate'].includes(c.body.tier) ? c.body.tier : 'premium' };
       made.push(require('./pay').fmtCode(code));
     }
     S.store.touch('codes'); audit('codes', c.user.id, `${count}x ${days}d`);

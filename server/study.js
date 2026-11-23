@@ -76,7 +76,7 @@ function review(u, deckId, idx, grade) {
   return { due: dueCount(u, d), card: c };
 }
 // a few coins for studying, at most 120 a day
-function earn(u, n, why) { const st = mine(u); if (st.day !== dayKey()) { st.day = dayKey(); st.earned = 0; } const give = Math.min(n, 120 - st.earned); if (give <= 0) return 0; st.earned += give; try { require('./economy').adjust(u, give, 'study:' + why); } catch {} try { require('./progress').award(u, 'study', 1); } catch {} return give; }
+function earn(u, n, why) { const cap = [120, 150, 200, 300][require('./state').tierRank(u)] || 120; const st = mine(u); if (st.day !== dayKey()) { st.day = dayKey(); st.earned = 0; } const give = Math.min(n, cap - st.earned); if (give <= 0) return 0; st.earned += give; try { require('./economy').adjust(u, give, 'study:' + why); } catch {} try { require('./progress').award(u, 'study', 1); } catch {} return give; }
 
 // ---------- grades & exams ----------
 function setGrades(u, list) {

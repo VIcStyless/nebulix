@@ -288,7 +288,8 @@ module.exports = function register(r) {
 - When the user shares code, read it carefully, keep their style and only change what is needed.`;
   const COPILOT_SYS = `You are Nova Copilot, a coding assistant inside Nebulix Studio (a code editor). Be precise and concise. When you return code that should replace the user's selection, give exactly ONE fenced code block with the full replacement and nothing else inside it.`;
   const cleanMsgs = (raw, n, len) => { let msgs = (Array.isArray(raw) ? raw : []).slice(-n).map((m) => ({ role: m && m.role === 'assistant' ? 'assistant' : 'user', content: String((m && m.content) || '').slice(0, len) })).filter((m) => m.content.trim()); while (msgs.length && msgs[0].role !== 'user') msgs.shift(); const norm = []; for (const m of msgs) { const p = norm[norm.length - 1]; if (p && p.role === m.role) p.content += '\n' + m.content; else norm.push({ ...m }); } return norm; };
-  const quota = (u) => { const limit = (isPro(u) ? cfg.ai.proDaily : cfg.ai.freeDaily) + require('../boosts').novaExtra(u); u.ai = u.ai && u.ai.day === dayKey() ? u.ai : { day: dayKey(), n: 0 }; return limit; };
+  const tierMult = (u) => [1, 1, 2, 5][require('../state').tierRank(u)] || 1; // Premium Pro ×2 and Ultimate ×5 the PRO allowance
+  const quota = (u) => { const limit = (isPro(u) ? cfg.ai.proDaily * tierMult(u) : cfg.ai.freeDaily) + require('../boosts').novaExtra(u); u.ai = u.ai && u.ai.day === dayKey() ? u.ai : { day: dayKey(), n: 0 }; return limit; };
   const genFor = (m, norm, signal, system, opts) => (m === 'anthropic' ? anthropicStream(norm, signal, system, opts) : m === 'openai' || m === 'ollama' || m === 'free' ? openaiStream(norm, signal, system, m, opts) : null);
 
   // web search for Nova: the top results from the Nebulix search engine, to cite as [1], [2]…
@@ -434,7 +435,7 @@ module.exports = function register(r) {
     const res = checking ? await checking : null; return { results: res, models: mview(), checkedAt: lastCheck || Date.now() };
   });
   r.get('/api/ai/status', { auth: true }, async (c) => {
-    const limit = (isPro(c.user) ? cfg.ai.proDaily : cfg.ai.freeDaily) + require('../boosts').novaExtra(c.user);
+    const limit = (isPro(c.user) ? cfg.ai.proDaily * tierMult(c.user) : cfg.ai.freeDaily) + require('../boosts').novaExtra(c.user);
     const used = c.user.ai && c.user.ai.day === dayKey() ? c.user.ai.n : 0;
     const m = mode();
     return { mode: m, model: MODEL_LABEL(m), limit, left: Math.max(0, limit - used), external: m === 'free' };

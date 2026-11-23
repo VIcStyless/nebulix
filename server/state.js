@@ -119,10 +119,14 @@ function publicUser(u) {
   };
 }
 
+// 13.8 membership tiers: Premium (the old PRO), Premium Pro and Premium Ultimate. All of them count as PRO.
+const TIERS = ['premium', 'pro', 'ultimate'];
+const tierOf = (u) => (u && isPro(u) ? (u.role === 'owner' ? 'ultimate' : TIERS.includes(u.tier) ? u.tier : 'premium') : null);
+const tierRank = (u) => TIERS.indexOf(tierOf(u)) + 1; // 0 free · 1 premium · 2 pro · 3 ultimate
 function selfUser(u) {
   return Object.assign(publicUser(u), {
     email: u.email, verified: !!u.verified, noEmail: !!u.noEmail, pendingEmail: u.pendEmail ? u.pendEmail.email : null, coins: u.coins, gems: u.gems || 0, inv: u.inv, lang: u.lang || 'en',
-    proUntil: u.proUntil || 0, settings: u.settings || {}, hasKey: !!u.pub, hasBackup: !!u.keyBackup, tfa: !!(u.tfa && u.tfa.on),
+    proUntil: u.proUntil || 0, tier: tierOf(u), settings: u.settings || {}, hasKey: !!u.pub, hasBackup: !!u.keyBackup, tfa: !!(u.tfa && u.tfa.on),
     stats: u.stats || {}, bookmarks: u.bookmarks || [], uploadBytes: u.uploadBytes || 0, lock: u.lock ? { on: true, idle: u.lock.idle || 0, start: !!u.lock.start } : null,
   });
 }
@@ -135,4 +139,4 @@ function audit(action, actorId, detail) {
 
 function hasOwner() { return Object.values(S.users).some((u) => u.role === 'owner' && !u.deleted); }
 
-module.exports = { S, hub, init, isPro, isStaff, isAdmin, publicUser, selfUser, badgesOf, cleanEq, audit, hasOwner, statusOf, activityOf };
+module.exports = { TIERS, tierOf, tierRank, S, hub, init, isPro, isStaff, isAdmin, publicUser, selfUser, badgesOf, cleanEq, audit, hasOwner, statusOf, activityOf };
