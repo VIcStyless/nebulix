@@ -15,6 +15,7 @@ export default {
   mount(root, ctx) {
     if (!isStaff()) { mount(root, h('div.page', h('div.empty', h('div.empty-art.ea-mark'), h('h3', t('Staff only'))))); return () => {}; }
     const TABS = [['overview', 'Overview', 'monitor', overview], ['users', 'Users', 'users', users], ['reports', 'Reports', 'flag', reports], ['content', 'Content', 'layers', content], ['modlog', 'Moderation log', 'clock', modlog]];
+    if (isAdmin()) TABS.splice(2, 0, ['coins', 'Coins', 'coins', coinsTab]);
     if (isAdmin()) TABS.push(['ai', 'AI', 'bolt', aiTab], ['groles', 'Community roles', 'shield', groles], ['codes', 'PRO codes', 'gift', codes], ['announce', 'Announce', 'bell', announce], ['system', 'System', 'server', system]);
     let cleanup = null, token = 0;
     const body = h('div.adm-body');
@@ -59,10 +60,10 @@ async function users(box, ctx) {
   }
   function rowFor(u) {
     const banned = u.banned && (!u.banned.until || u.banned.until > Date.now());
-    const tags = [u.mutedUntil ? h('span.pill.bad', '🔇 ' + t('muted')) : null, u.warnings ? h('span.pill', '⚠ ' + u.warnings) : null, u.role !== 'user' ? h('span.pill', u.role) : null, u.pro ? h('span.pill.pro', 'PRO') : null, !u.verified ? h('span.pill', t('unverified')) : null, banned ? h('span.pill.bad', t('banned')) : null];
+    const tags = [u.mutedUntil ? h('span.pill.bad', '🔇 ' + t('muted')) : null, u.warnings ? h('span.pill', '⚠ ' + u.warnings) : null, u.role !== 'user' ? h('span.pill', u.role) : null, u.pro ? h('span.pill.pro', 'PRO') : null, u.infinite ? h('span.pill.pro', '∞ ' + t('coins')) : null, !u.verified ? h('span.pill', t('unverified')) : null, banned ? h('span.pill.bad', t('banned')) : null];
     const row = h('div.card.adm-user', avatarEl(u, { size: 40, frame: false }),
       h('div.grow', h('div.row', { style: 'gap:6px' }, h('b', u.displayName || u.username), tags), h('div.tiny.muted', '@' + u.username + ' · ' + u.email + ' · ' + t('joined {d}', { d: fmt.date(u.created) })),
-        h('div.tiny.muted', t('{c} coins · {s} sessions · last seen {d}', { c: fmt.coins(u.coins), s: u.sessions, d: u.lastSeen ? fmt.rel(u.lastSeen) : '—' }))),
+        h('div.tiny.muted', t('{c} coins · {s} sessions · last seen {d}', { c: u.infinite ? '∞' : fmt.coins(u.coins), s: u.sessions, d: u.lastSeen ? fmt.rel(u.lastSeen) : '—' }))),
       h('button.btn.sm', { onClick: (e) => menu(u, row, e) }, icon('more', 16), t('Actions')));
     return row;
   }
@@ -73,6 +74,7 @@ async function users(box, ctx) {
       { label: t('View profile'), icon: 'user', onClick: () => ctx.go('profile', u.username) },
       !u.verified && isAdmin() ? { label: t('Verify (+50 coins)'), icon: 'check', onClick: () => act(() => api.post(`/api/admin/users/${u.id}/verify`)) } : null,
       isAdmin() ? { label: t('Give / take coins'), icon: 'coins', onClick: () => act(async () => { const v = await promptBox(t('Adjust coins'), { label: t('Amount (use a minus sign to remove)'), type: 'text', validate: (x) => (Number.isFinite(+x) ? null : t('Enter a number')) }); if (v === null) return; return api.post(`/api/admin/users/${u.id}/coins`, { delta: Math.trunc(+v), reason: 'admin' }); }) } : null,
+      owner() ? { label: u.infinite ? t('Turn off unlimited coins') : t('Give unlimited coins'), icon: 'coins', onClick: () => act(() => api.post(`/api/admin/users/${u.id}/infinite`, { on: !u.infinite })) } : null,
       isAdmin() ? { label: t('Community roles…'), icon: 'shield', onClick: () => assignGroles(u) } : null,
       isAdmin() ? { label: t('Grant PRO days'), icon: 'crown', onClick: () => act(async () => { const v = await promptBox(t('Grant PRO'), { label: t('Days of PRO to add'), type: 'number' }); if (!v) return; return api.post(`/api/admin/users/${u.id}/pro`, { days: Math.trunc(+v) }); }) } : null,
       owner() && u.role !== 'owner' ? { label: t('Change role'), icon: 'shield', onClick: () => act(async () => { const v = await pickRole(u.role); if (!v) return; return api.post(`/api/admin/users/${u.id}/role`, { role: v }); }) } : null,
@@ -280,4 +282,40 @@ async function modlog(box) {
   const IC = { ban: '⛔', unban: '✅', warn: '⚠️', mute: '🔇', unmute: '🔊', 'remove.hub': '🗑', 'remove.world': '🗑', report: '🚩', theme: '🎨' };
   mount(box, r.log.length ? h('div.col', { style: 'gap:6px' }, r.log.map((a) => h('div.card.tight.row', { style: 'gap:10px;align-items:center' }, h('span', IC[a.a] || IC[a.a.split('.')[0]] || '•'), h('div.grow', h('div.small', h('b', '@' + a.byName), ' · ' + a.a + ' · ' + a.d)), h('span.tiny.muted', fmt.dt(a.t)))))
     : h('p.muted', t('No moderation actions yet.')));
+}
+
+// ---------- Coins (13.6): donate to one person, unlimited wallets (owner) and gifts for everyone ----------
+const AMOUNTS = [100, 1000, 10000, 100000, 1000000, 1000000000];
+const short = (n) => (n >= 1e9 ? n / 1e9 + 'B' : n >= 1e6 ? n / 1e6 + 'M' : n >= 1e3 ? n / 1e3 + 'K' : String(n));
+async function coinsTab(box) {
+  let sel = null; let amount = 1000; let results = [];
+  const q = h('input.input', { placeholder: t('Search by name or email'), autocomplete: 'off', onInput: debounce(async () => { try { results = (await api.get('/api/admin/users?q=' + encodeURIComponent(q.value.trim()))).users.slice(0, 8); } catch { results = []; } paint(); }, 250) });
+  const amt = h('input.input', { type: 'number', min: 1, step: 1, value: amount, onInput: () => { amount = Math.trunc(Number(amt.value) || 0); paintAmounts(); } });
+  const reason = h('input.input', { placeholder: t('Reason (optional)'), maxlength: 80 });
+  const listEl = h('div.adm-coin-list'); const selEl = h('div'); const amountsEl = h('div.row.wrap', { style: 'gap:6px' });
+  const give = async (e, sign) => {
+    if (!sel || !amount) return; busy(e.currentTarget, async () => {
+      try { const r = await api.post(`/api/admin/users/${sel.id}/coins`, { delta: sign * amount, reason: reason.value.trim() || 'admin' }); sel = r.user; toast(sign > 0 ? t('{n} coins sent to @{u}', { n: fmt.num(amount), u: sel.username }) : t('{n} coins taken from @{u}', { n: fmt.num(amount), u: sel.username }), 'good'); paint(); } catch (err) { toastErr(err); }
+    });
+  };
+  function paintAmounts() { mount(amountsEl, AMOUNTS.map((n) => h('button.btn.sm' + (amount === n ? '.primary' : ''), { onClick: () => { amount = n; amt.value = n; paintAmounts(); } }, '+' + short(n)))); }
+  function paint() {
+    mount(listEl, results.map((u) => h('button.adm-coin-u' + (sel && sel.id === u.id ? '.on' : ''), { onClick: () => { sel = u; paint(); } }, avatarEl(u, { size: 28, frame: false }), h('span.grow', h('b', u.displayName || u.username), h('span.tiny.muted', ' @' + u.username)), h('span.tiny', u.infinite ? '∞' : fmt.coins(u.coins)))));
+    mount(selEl, sel ? h('div.card.adm-coin-sel', avatarEl(sel, { size: 48, frame: false }), h('div.grow', h('b', sel.displayName || sel.username), h('div.tiny.muted', '@' + sel.username), h('div.adm-coin-bal', icon('coins', 18), ' ', sel.infinite ? t('Unlimited') : fmt.coins(sel.coins))),
+      owner() ? h('label.row', { style: 'gap:8px' }, h('span.tiny', t('Unlimited coins')), switchEl(!!sel.infinite, async (on) => { try { sel = (await api.post(`/api/admin/users/${sel.id}/infinite`, { on })).user; toast(on ? t('Unlimited coins on') : t('Unlimited coins off — the old balance is back'), 'good'); paint(); } catch (err) { toastErr(err); paint(); } })) : null)
+      : h('p.muted', t('Search for a person and pick them.')));
+  }
+  const bulkAmt = h('input.input', { type: 'number', min: 1, step: 1, value: 500 });
+  const bulk = (scope) => async (e) => {
+    const n = Math.trunc(Number(bulkAmt.value) || 0); if (n <= 0) return toast(t('Enter an amount'), 'info');
+    if (!(await confirmBox(scope === 'all' ? t('Give {n} coins to every account?', { n: fmt.num(n) }) : t('Give {n} coins to everyone online?', { n: fmt.num(n) }), { ok: t('Give') }))) return;
+    busy(e.currentTarget, async () => { try { const r = await api.post('/api/admin/coins/bulk', { amount: n, scope }); toast(t('{n} coins sent to {c} people', { n: fmt.num(n), c: r.count }), 'good'); } catch (err) { toastErr(err); } });
+  };
+  mount(box, h('div.adm-coins',
+    h('section.card', h('h3', icon('gift', 18), ' ', t('Donate coins')), h('p.small.muted', t('Pick a person, choose an amount and send it. They get a notice. Up to 1,000,000,000,000 coins at once.')),
+      q, listEl, selEl, h('div.adm-coin-amt', amountsEl, h('div.row', { style: 'gap:8px;margin-top:8px' }, amt, reason)),
+      h('div.row', { style: 'gap:8px;margin-top:10px' }, h('button.btn.primary', { onClick: (e) => give(e, 1) }, icon('gift', 15), t('Give')), h('button.btn.ghost', { onClick: (e) => give(e, -1) }, t('Take')))),
+    h('section.card', h('h3', icon('users', 18), ' ', t('Gift for everyone')), h('p.small.muted', t('Send the same amount to everyone online right now, or to every account (banned accounts are skipped).')),
+      h('div.row', { style: 'gap:8px;flex-wrap:wrap' }, bulkAmt, h('button.btn', { onClick: bulk('online') }, t('Everyone online')), h('button.btn', { onClick: bulk('all') }, t('Every account'))))));
+  paintAmounts(); paint();
 }

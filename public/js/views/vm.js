@@ -3,7 +3,8 @@
 // give them memory and an empty virtual hard disk to install on, take named snapshots, clone, export and delete.
 // Machines, disks and snapshots live in this browser (IndexedDB); nothing reaches the server and there is no network
 // inside the machines. Large OS images stream in pieces (HTTP ranges), so only the sectors the machine reads download.
-// #/vm · #/vm/terminal (Linux straight in the terminal)
+// #/vm · #/vm/terminal (Linux straight in the terminal) · #/vm/android (Android-x86 in a phone-style player)
+// 13.6: BIOS setup screen for every machine; Android player with Back / Home / Recents / Menu buttons, screenshots.
 import { h, mount, fmt, ls } from '../util.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -64,7 +65,7 @@ export default {
           h('div.vb-box', h('h4', icon('save', 15), ' ', t('Storage')), tp.disks.cdrom ? kv(t('Optical drive'), tp.disks.cdrom.split('/').pop()) : null, tp.disks.fda ? kv(t('Floppy'), tp.disks.fda.split('/').pop()) : null, tp.disks.hda ? kv(t('Hard disk'), tp.disks.hda.split('/').pop()) : null, v.hddMb ? kv(t('Virtual hard disk'), v.hddMb + ' MB') : null, v.isoName ? kv(t('Your image'), v.isoName) : null),
           h('div.vb-box', h('h4', icon('globe', 15), ' ', t('Network')), kv(t('Adapter'), t('Not attached (isolated)'))),
           h('div.vb-box', h('h4', icon('layers', 15), ' ', t('Snapshots')), v.snaps.length ? v.snaps.slice().reverse().map((s) => h('div.vb-snap', icon('clock', 13), h('span.grow', s.name + ' · ' + fmt.dt(s.t)), h('button.btn.sm', { onClick: () => run(v, s) }, t('Restore')), h('button.btn.sm.ghost', { onClick: async () => { if (!(await confirmBox(t('Delete snapshot “{n}”?', { n: s.name }), { danger: true }))) return; await dbDel('snap:' + v.id + ':' + s.id); v.snaps = v.snaps.filter((x) => x.id !== s.id); saveVms(vms); manager(); } }, icon('trash', 13)))) : h('p.small.muted', t('Take a snapshot while the machine runs to come back to that exact moment later.')))),
-        h('div.row', { style: 'gap:8px;flex-wrap:wrap' }, h('button.btn.primary', { onClick: () => run(v) }, icon('play', 15), t('Start')), h('button.btn', { onClick: () => settings(v) }, icon('gear', 15), t('Settings')), h('button.btn', { onClick: () => clone(v) }, icon('copy', 15), t('Clone')), h('button.btn.ghost', { onClick: () => remove(v) }, icon('trash', 15), t('Delete'))),
+        h('div.row', { style: 'gap:8px;flex-wrap:wrap' }, h('button.btn.primary', { onClick: () => run(v) }, icon('play', 15), t('Start')), h('button.btn', { onClick: () => settings(v) }, icon('gear', 15), t('Settings')), h('button.btn', { onClick: () => bios(v, manager) }, icon('cpu', 15), 'BIOS'), h('button.btn', { onClick: () => clone(v) }, icon('copy', 15), t('Clone')), h('button.btn.ghost', { onClick: () => remove(v) }, icon('trash', 15), t('Delete'))),
         h('p.tiny.muted', t('Runs on the open-source v86 emulator (x86 in WebAssembly). Everything stays on this device; machines have no network. Sources and licenses: '), h('a', { href: '/vm/SOURCES.txt', target: '_blank' }, 'SOURCES.txt')))
         : h('section.vb-detail', h('div.empty', h('h3', t('Create your first virtual machine')), h('button.btn.primary', { onClick: wizard }, icon('plus', 15), t('New'))));
       mount(box, h('div.vb', h('div.vb-top', h('b', icon('cpu', 18), ' ', t('Virtual machines')), h('span.grow'), h('button.btn.sm', { onClick: () => run(newVm(TPL('linux'), { temp: true })) }, icon('terminal', 14), t('Quick terminal'))), h('div.vb-main', list, detail)));
@@ -86,13 +87,43 @@ export default {
       const ok = await modal({ title: t('Settings · {n}', { n: v.name }), body: h('div.col', { style: 'gap:8px' }, h('label.small', t('Name')), name, h('label.small', t('Memory (MB)')), mem, h('label.small', t('Video memory (MB)')), vga, h('label.small', t('Empty virtual hard disk (MB, 0 = none)')), hdd, h('p.tiny.muted', t('Changing the disk size starts with a new empty disk; snapshots keep the old one.')), h('label.small', t('Boot order')), boot, h('label.row.small', { style: 'gap:6px' }, acpi, t('ACPI (needed by Windows XP and newer)')), h('p.tiny.muted', t('After installing an OS from the CD, switch to “Hard disk first”. Up to {m} MB of memory: big values need a powerful computer.', { m: MAX_MEM })), h('label.small', t('Notes')), notes), actions: [{ label: t('Cancel'), value: false }, { label: t('Save'), kind: 'primary', value: true }] });
       if (ok !== true) return; Object.assign(v, { name: name.value.trim() || v.name, mem: Math.max(16, Math.min(MAX_MEM, Number(mem.value) || v.mem)), vga: Math.max(2, Math.min(128, Number(vga.value) || 8)), hddMb: Math.max(0, Math.min(MAX_HDD, Number(hdd.value) || 0)), boot: boot.value, acpi: acpi.checked, notes: notes.value.slice(0, 2000) }); saveVms(vms); manager();
     }
+    // ---------- BIOS setup (13.6) ----------
+    async function bios(v, after) {
+      const tp = TPL(v.tpl); let tab = 'main'; const st = { mem: v.mem, vga: v.vga, hddMb: v.hddMb, boot: v.boot || 'auto', acpi: !!v.acpi }; let focus = null;
+      const body = h('div.bios'); const MEMS = [16, 32, 64, 128, 256, 512, 768, 1024, 1536, 2048].filter((x) => x <= MAX_MEM); if (!MEMS.includes(st.mem)) MEMS.push(st.mem);
+      const sel = (k, opts, help) => h('select.bios-sel', { onFocus: () => { focus = help; paintHelp(); }, onChange: (e) => { st[k] = isNaN(+e.target.value) || k === 'boot' ? e.target.value : +e.target.value; } }, opts.map(([val, lab]) => h('option', { value: val, selected: String(st[k]) === String(val) }, lab)));
+      const row = (label, value, help) => h('div.bios-row', { tabindex: 0, onFocus: () => { focus = help; paintHelp(); }, onMouseenter: () => { focus = help; paintHelp(); } }, h('span', label), h('b', value));
+      const ro = (label, value, help) => row(label, h('span.bios-ro', value), help);
+      const helpEl = h('div.bios-help'); const paintHelp = () => mount(helpEl, h('b', t('Item help')), h('p', focus || t('Choose an item to see what it does.')));
+      const pages = {
+        main: () => [ro(t('BIOS vendor'), 'SeaBIOS · Nebulix', t('The open-source PC firmware that starts the virtual machine.')), ro(t('System date'), new Date().toLocaleDateString()), ro(t('System time'), new Date().toLocaleTimeString(), t('The clock comes from your device.')),
+          ro(t('Processor'), 'x86 · i686 (32-bit) · 1 core', t('The emulated CPU is a 32-bit Pentium-class processor.')), row(t('Total memory'), sel('mem', MEMS.sort((a, b) => a - b).map((m) => [m, m >= 1024 ? m / 1024 + ' GB' : m + ' MB'])), t('RAM for the machine (up to 2 GB). It is taken from your browser while the machine runs.')),
+          row(t('Video memory'), sel('vga', [2, 4, 8, 16, 32, 64, 128].map((m) => [m, m + ' MB'])), t('More video memory allows higher resolutions and more colours.'))],
+        adv: () => [row('ACPI', sel('acpi', [['true', t('Enabled')], ['', t('Disabled')]]), t('Power management. Windows XP and newer prefer it enabled.')),
+          row(t('Virtual hard disk'), sel('hddMb', [0, 64, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768].map((m) => [m, m ? (m >= 1024 ? m / 1024 + ' GB' : m + ' MB') : t('None')])), t('An empty disk to install a system on. Changing its size erases what was on it.')),
+          ro(t('x86-64 (64-bit mode)'), t('Not supported'), t('The browser emulator is 32-bit only, so 64-bit systems (Windows 10/11, modern Linux, Android 9+) cannot start.')),
+          ro(t('Virtualization (VT-x)'), t('Not supported'), t('There is no hardware virtualization inside a web page.')), ro(t('Network adapter'), t('Disabled (isolated)'), t('Machines have no internet, for your safety.'))],
+        boot: () => [row(t('Boot priority'), sel('boot', [['auto', t('Automatic')], ['cd', t('CD / DVD first')], ['hdd', t('Hard disk first')], ['fda', t('Floppy first')]]), t('Which drive the machine tries first. Use CD first to install from an ISO, then Hard disk first.')),
+          ro(t('Boot menu'), 'Esc / F12', t('While the machine starts, press Esc or F12 inside it to pick a drive once.')), ro(t('Media'), [tp.disks.cdrom || v.isoName ? 'CD' : null, tp.disks.fda ? t('Floppy') : null, st.hddMb || tp.disks.hda ? t('Hard disk') : null].filter(Boolean).join(' · ') || '—')],
+        sec: () => [ro('Secure Boot', t('Not available'), t('Secure Boot needs UEFI firmware; this machine uses a classic BIOS.')), ro('TPM 2.0', t('Not available'), t('Windows 11 requires TPM 2.0, Secure Boot and a 64-bit CPU, so it cannot run here. Windows 98 / 2000 / XP and ReactOS can.')), ro(t('Supervisor password'), t('Not set'))],
+      };
+      const TABS = [['main', t('Main')], ['adv', t('Advanced')], ['boot', t('Boot')], ['sec', t('Security')]];
+      function paint() { mount(body, h('div.bios-top', 'Nebulix BIOS Setup Utility'), h('div.bios-tabs', TABS.map(([k, n]) => h('button' + (tab === k ? '.on' : ''), { onClick: () => { tab = k; focus = null; paint(); } }, n))), h('div.bios-main', h('div.bios-left', pages[tab]()), helpEl), h('div.bios-foot', t('Tab / click: change screen · F10: save and exit · Esc: discard'))); paintHelp(); }
+      paint();
+      const onK = (e) => { if (!body.isConnected) return document.removeEventListener('keydown', onK); if (e.key === 'F10') { e.preventDefault(); m.close('save'); } };
+      document.addEventListener('keydown', onK);
+      const m = modal({ cls: 'bios-modal', body, actions: [{ label: t('Discard'), value: 'cancel' }, { label: t('Save & exit'), value: 'save' }, { label: t('Save & start'), value: 'start', kind: 'primary' }] });
+      const r = await m; document.removeEventListener('keydown', onK); if (r !== 'save' && r !== 'start') return;
+      Object.assign(v, { mem: Math.max(16, Math.min(MAX_MEM, Number(st.mem) || v.mem)), vga: Number(st.vga) || v.vga, hddMb: Math.max(0, Math.min(MAX_HDD, Number(st.hddMb) || 0)), boot: st.boot, acpi: st.acpi === true || st.acpi === 'true' });
+      saveVms(vms); toast(t('BIOS settings saved'), 'good'); if (r === 'start') run(v); else if (after) after();
+    }
     async function clone(v) { const n = await promptBox(t('Clone “{n}”', { n: v.name }), { value: v.name + ' (2)' }); if (!n) return; const c = Object.assign(JSON.parse(JSON.stringify(v)), { id: uid(), name: n, created: Date.now(), snaps: [] }); if (v.isoName) { const img = await dbGet('img:' + v.id); if (img) await dbSet('img:' + c.id, img); } const last = v.snaps[v.snaps.length - 1]; if (last) { const st = await dbGet('snap:' + v.id + ':' + last.id); if (st) { const sid = uid(); await dbSet('snap:' + c.id + ':' + sid, st); c.snaps = [{ id: sid, name: last.name, t: last.t }]; } } vms.push(c); saveVms(vms); sel = c.id; manager(); toast(t('Machine cloned'), 'good'); }
     async function remove(v) { if (!(await confirmBox(t('Delete “{n}” with its disk and snapshots? This cannot be undone.', { n: v.name }), { danger: true, ok: t('Delete') }))) return; for (const s of v.snaps) await dbDel('snap:' + v.id + ':' + s.id); await dbDel('img:' + v.id); vms = vms.filter((x) => x.id !== v.id); saveVms(vms); sel = (vms[0] || {}).id; manager(); }
 
     // ---------- running a machine ----------
     async function run(v, snap) {
       if (stop) { stop(); stop = null; }
-      const tp = TPL(v.tpl); const serial = v.serial;
+      const tp = TPL(v.tpl); const serial = v.serial; const droid = v.tpl === 'android';
       const screenEl = h('div.vm-screen', h('div', { style: 'white-space:pre;font:14px monospace;line-height:14px' }), h('canvas', { style: 'display:none' }));
       const termEl = h('div.vm-term'); const status = h('span.tiny.muted', t('Starting…')); const ips = h('span.tiny.muted'); let paused = false;
       const pauseBtn = h('button.btn.sm', { onClick: () => { if (!emu) return; if (paused) { emu.run(); paused = false; mount(pauseBtn, icon('pause', 14)); status.textContent = t('Running'); } else { emu.stop(); paused = true; mount(pauseBtn, icon('play', 14)); status.textContent = t('Paused'); } }, title: t('Pause') }, icon('pause', 14));
@@ -103,7 +134,7 @@ export default {
         v.temp ? null : h('button.btn.sm', { onClick: () => snapshot() }, icon('layers', 14), t('Snapshot')),
         h('button.btn.sm', { onClick: () => emu && emu.restart() }, icon('refresh', 14), t('Reset')), serial ? null : h('button.btn.sm', { onClick: () => { try { emu.screen_go_fullscreen(); } catch {} } }, icon('fullscreen', 14)),
         h('button.btn.sm.ghost', { title: t('Power off'), onClick: () => powerOff() }, icon('power', 14))),
-        serial ? termEl : screenEl, h('div.tiny.muted.vm-foot', serial ? t('Real Linux shell. Try: ls /, uname -a, cat /proc/cpuinfo, vi hello.txt, top. Paste with Ctrl+Shift+V.') : t('Click the screen to type. Your keyboard and mouse go to the virtual machine.'))));
+        serial ? termEl : droid ? droidShell() : screenEl, h('div.tiny.muted.vm-foot', serial ? t('Real Linux shell. Try: ls /, uname -a, cat /proc/cpuinfo, vi hello.txt, top. Paste with Ctrl+Shift+V.') : t('Click the screen to type. Your keyboard and mouse go to the virtual machine.'))));
       let emu = null; let term = null; let fit = null; let tm = 0; let lastIc = 0;
       try {
         const [{ V86 }, xt] = await Promise.all([lib(), serial ? xterm() : Promise.resolve(null)]);
@@ -122,6 +153,16 @@ export default {
         emu.add_listener('download-progress', (e) => { if (e.total && !tp.async) status.textContent = t('Downloading {p}%', { p: Math.round((e.loaded / e.total) * 100) }); });
         tm = setInterval(() => { if (!box.isConnected) return cleanup(); try { const ic = emu.get_instruction_counter(); const d = ic - lastIc; lastIc = ic; ips.textContent = d > 1e6 ? fmt.num(d / 1e6) + ' MIPS' : ''; } catch {} }, 1000);
       } catch (e) { status.textContent = t('Could not start'); toastErr(e); }
+      // Android player (13.6): a phone-style frame with the Android buttons on the side
+      function droidShell() {
+        const keysOf = { back: [0x01, 0x81], home: [0xe0, 0x5b, 0xe0, 0xdb], recents: [0x38, 0x0f, 0x8f, 0xb8], menu: [0xe0, 0x5d, 0xe0, 0xdd], volup: [0xe0, 0x30, 0xe0, 0xb0], voldown: [0xe0, 0x2e, 0xe0, 0xae] };
+        const press = (k) => { try { emu && emu.keyboard_send_scancodes(keysOf[k]); } catch {} };
+        const btn = (k, ic, label) => h('button.vm-dbtn', { title: label, onClick: () => press(k) }, icon(ic, 18), h('span', label));
+        const shot = () => { const c = screenEl.querySelector('canvas'); if (!c || !c.width) return toast(t('Nothing on the screen yet'), 'info'); const a = h('a', { href: c.toDataURL('image/png'), download: 'android-' + Date.now() + '.png' }); a.click(); };
+        return h('div.vm-droid', h('div.vm-droid-frame', h('div.vm-droid-cam'), screenEl, h('div.vm-droid-nav', h('button', { title: t('Back'), onClick: () => press('back') }, '◁'), h('button', { title: t('Home'), onClick: () => press('home') }, '○'), h('button', { title: t('Recent apps'), onClick: () => press('recents') }, '□'))),
+          h('aside.vm-droid-bar', btn('back', 'back', t('Back')), btn('home', 'home', t('Home')), btn('recents', 'layers', t('Recent apps')), btn('menu', 'more', t('Menu')), btn('volup', 'up', t('Volume +')), btn('voldown', 'down', t('Volume −')),
+            h('button.vm-dbtn', { title: t('Screenshot'), onClick: shot }, icon('image', 18), h('span', t('Screenshot'))), h('button.vm-dbtn', { title: t('Capture the mouse (Esc releases it)'), onClick: () => { try { emu.lock_mouse(); } catch {} } }, icon('mouse', 18), h('span', t('Mouse'))), h('button.vm-dbtn', { title: t('Full screen'), onClick: () => { try { emu.screen_go_fullscreen(); } catch {} } }, icon('fullscreen', 18), h('span', t('Full screen')))));
+      }
       function changeCd() { const fi = h('input', { type: 'file', accept: '.iso', onChange: async () => { const f = fi.files[0]; if (!f || !emu) return; try { await emu.set_cdrom({ buffer: f, async: f.size > 64 * 1048576 }); toast(t('CD inserted: {n}', { n: f.name }), 'good'); } catch (e) { toastErr(e); } } }); modal({ title: t('CD/DVD drive'), cls: 'narrow', body: h('p.small', t('Insert another ISO (for example drivers or programs) or eject the current one.')), actions: [{ label: t('Eject'), value: 'e', onClick: () => { try { emu.eject_cdrom(); toast(t('CD ejected'), 'good'); } catch {} } }, { label: t('Insert ISO…'), kind: 'primary', onClick: () => fi.click() }] }); }
       async function snapshot() { if (!emu) return; const n = await promptBox(t('Snapshot name'), { value: t('Snapshot {n}', { n: v.snaps.length + 1 }) }); if (!n) return; try { const st = await emu.save_state(); const sid = uid(); await dbSet('snap:' + v.id + ':' + sid, st); v.snaps.push({ id: sid, name: n.slice(0, 60), t: Date.now(), size: st.byteLength }); saveVms(vms); toast(t('Snapshot taken ({s})', { s: fmt.bytes(st.byteLength) }), 'good'); } catch (e) { toastErr(e); } }
       async function powerOff() {
@@ -133,7 +174,9 @@ export default {
       function cleanup() { clearInterval(tm); try { emu && emu.destroy(); } catch {} try { term && term.dispose(); } catch {} emu = null; }
       stop = cleanup;
     }
-    if (ctx.params[0] === 'terminal') run(newVm(TPL('linux'), { temp: true, name: 'Terminal' })); else manager();
+    if (ctx.params[0] === 'terminal') run(newVm(TPL('linux'), { temp: true, name: 'Terminal' }));
+    else if (ctx.params[0] === 'android') { let a = vms.find((x) => x.tpl === 'android'); if (!a) { a = newVm(TPL('android')); vms.push(a); saveVms(vms); } sel = a.id; run(a); }
+    else manager();
     return () => { if (stop) stop(); };
   },
 };

@@ -86,7 +86,7 @@ module.exports = function register(r) {
   r.get('/api/word', R, async (c) => require('../word').view(c.user));
   r.post('/api/word/guess', W(40), async (c) => require('../word').guess(c.user, c.body.w));
   // Nebulix Live
-  r.get('/api/arena', { auth: true }, async () => { const st = require('../arena').stats(); const n = (g, rk) => st.filter((x) => x.game === g && (rk === undefined || !!x.ranked === rk)).reduce((a, x) => a + x.humans, 0); return { ops: n('ops'), royale: n('royale'), duel: n('duel'), ranked: st.filter((x) => x.ranked).reduce((a, x) => a + x.humans, 0), rooms: st.length }; });
+  r.get('/api/arena', { auth: true }, async () => { const st = require('../arena').stats(); const n = (g, rk) => st.filter((x) => x.game === g && (rk === undefined || !!x.ranked === rk)).reduce((a, x) => a + x.humans, 0); return { ops: n('ops'), royale: n('royale'), duel: n('duel'), real: n('real'), box: n('box'), ranked: st.filter((x) => x.ranked).reduce((a, x) => a + x.humans, 0), rooms: st.length }; });
   r.get('/api/feed', R, async (c) => ({ items: require('../feed').recent(String((c.query || {}).kind || '') || null, Number((c.query || {}).n) || 60) }));
   // Home "command centre": everything live in one call
   r.get('/api/live', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {

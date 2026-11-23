@@ -50,7 +50,7 @@ const humans = (room) => [...room.ents.values()].filter((e) => !e.bot);
 function feed(room, a, b, w, head) { send(room, { t: 'ar_kill', a: a ? a.id : null, an: a ? a.name : null, b: b.id, bn: b.name, w, head: !!head, x: b.x, y: b.y, z: b.z, fx: a && a.lk && a.lk.elim ? a.lk.elim : null }); }
 
 // ---------- map helpers ----------
-function solids(room) { return room.game !== 'royale' ? room.map.boxes : room.map.boxes.concat([...room.builds.values()].map((p) => SH.pieceBox(p)).filter(Boolean)); }
+function solids(room) { return !room.builds.size ? room.map.boxes : room.map.boxes.concat([...room.builds.values()].flatMap((p) => SH.pieceBoxes(p))); }
 function blocked(room, x, z, y = 0, r = 0.4) {
   for (const b of solids(room)) { const by = b.y || 0; if (y + 1.7 > by && y < by + b.h - 0.35 && Math.abs(x - b.x) < b.w / 2 + r && Math.abs(z - b.z) < b.d / 2 + r) return true; }
   if (room.game === 'royale') { for (const t of room.map.trees) if (Math.hypot(t.x - x, t.z - z) < t.r + r) return true; for (const k of room.map.rocks) if (y < k.r * 0.8 && Math.hypot(k.x - x, k.z - z) < k.r + r) return true; const H = room.map.half; if (Math.abs(x) > H || Math.abs(z) > H) return true; }
@@ -63,7 +63,7 @@ const los = (room, a, b) => SH.losBoxes(solids(room), a.x, a.y + SH.EYE, a.z, b.
 function damage(room, attacker, target, amount, w, head) {
   if (!target.alive || room.phase === 'end') return;
   if (room.game !== 'royale' && attacker && attacker.team === target.team && attacker !== target) return; // no friendly fire
-  if (room.game === 'duel' && room.phase !== 'live') return;
+  if (room.duelish && room.phase !== 'live') return;
   let dmg = amount; if (target.armor > 0) { const absorb = Math.min(target.armor, dmg * (room.game === 'ops' ? 0.5 : 1)); target.armor -= absorb; dmg -= absorb; }
   if (target.ai && attacker && attacker !== target) { target.ai.hurtAt = now(); target.ai.by = attacker.id; }
   target.hp -= dmg; if (target.conn) target.conn.send({ t: 'ar_hurt', by: attacker ? attacker.id : null, hp: Math.max(0, Math.round(target.hp)), armor: Math.round(target.armor) });
@@ -72,10 +72,10 @@ function damage(room, attacker, target, amount, w, head) {
 }
 function kill(room, attacker, target, w, head) {
   target.alive = false; target.hp = 0; target.deaths++; target.diedAt = now();
-  if (attacker && attacker !== target) { attacker.kills++; if (target.bot) attacker.botKills++; if (room.game === 'ops') attacker.money = Math.min(16000, attacker.money + 300); else if (room.game === 'royale') attacker.mats = Math.min(999, attacker.mats + 50); if (attacker.uid && target.uid) reward(attacker.uid, room.game === 'ops' ? 30 : 25, 'kill');
+  if (attacker && attacker !== target) { attacker.kills++; if (target.bot) attacker.botKills++; if (room.game === 'ops') attacker.money = Math.min(16000, attacker.money + 300); else if (room.game === 'royale' || room.bf) attacker.mats = Math.min(999, attacker.mats + 50); if (attacker.uid && target.uid) reward(attacker.uid, room.game === 'ops' ? 30 : 25, 'kill');
     if (attacker.bot && attacker.lk && attacker.lk.emotes && attacker.lk.emotes[0] && Math.random() < 0.35) setTimeout(() => send(room, { t: 'ar_emote', id: attacker.id, k: attacker.lk.emotes[0].k }), 600); }
   feed(room, attacker && attacker !== target ? attacker : null, target, w, head);
-  if (room.game === 'duel') { const win = attacker && attacker !== target ? attacker.team : (target.team === 'atk' ? 'def' : 'atk'); return duelEndRound(room, win, 'elim'); }
+  if (room.duelish) { const win = attacker && attacker !== target ? attacker.team : (target.team === 'atk' ? 'def' : 'atk'); return duelEndRound(room, win, 'elim'); }
   if (room.game === 'ops') { target.inv = [{ w: 'pistol', r: 0 }]; target.slot = 0; target.w = 'pistol'; if (room.carrier === target.id) { room.carrier = null; room.coreDrop = { x: target.x, z: target.z }; send(room, { t: 'ar_core', drop: room.coreDrop }); } }
   else if (room.game === 'royale') { if (target.inv.length) dropLoot(room, target); room.placed.push({ id: target.id, name: target.name, place: [...room.ents.values()].filter((e) => e.alive).length + 1 }); if (target.uid) { const place = [...room.ents.values()].filter((e) => e.alive).length + 1; let rk = null; if (room.ranked && !target.rkDone) { rk = require('./ranked').result(S.users[target.uid], 'royale', { place, kills: target.kills - target.botKills, botKills: target.botKills, total: room.ents.size }); target.rkDone = true; target.rkRes = rk; } send1(target, { t: 'ar_out', place, by: attacker ? attacker.name : null, rk }); } }
 }
@@ -86,7 +86,7 @@ function onShot(room, e, m) {
   const W = SH.WEAPONS[m.w]; if (!W || !e.alive || room.frozen) return;
   if (!e.inv.some((it) => it.w === m.w)) return; // must own the weapon
   const t0 = now(); if (t0 - (e.last[m.w] || 0) < W.rate * 1000 * 0.75) return; e.last[m.w] = t0; e.w = m.w;
-  const rar = (e.inv.find((it) => it.w === m.w) || {}).r || 0; const mult = room.game === 'royale' ? SH.RARITY[rar].m : 1;
+  const rar = (e.inv.find((it) => it.w === m.w) || {}).r || 0; const mult = room.game === 'royale' || room.bf ? SH.RARITY[rar].m : 1;
   send(room, { t: 'ar_fx', id: e.id, w: m.w, to: Array.isArray(m.to) ? m.to.slice(0, 3).map(Number) : null }, e);
   const hits = (Array.isArray(m.hits) ? m.hits : []).slice(0, W.pellets || 1);
   for (const h of hits) {
@@ -95,7 +95,7 @@ function onShot(room, e, m) {
     if (!los(room, e, tg) && !SH.losBoxes(solids(room), e.x, e.y + SH.EYE, e.z, tg.x, tg.y + 1.6, tg.z)) continue;
     const fall = d > W.range * 0.6 ? 0.75 : 1; damage(room, e, tg, W.dmg * mult * fall * (h.head ? W.head : 1), m.w, h.head);
   }
-  if (room.game === 'royale') for (const bid of (Array.isArray(m.builds) ? m.builds : []).slice(0, 3)) hitBuild(room, String(bid), W.dmg * mult);
+  if (room.game === 'royale' || room.bf) for (const bid of (Array.isArray(m.builds) ? m.builds : []).slice(0, 3)) hitBuild(room, String(bid), W.dmg * mult);
 }
 function hitBuild(room, bid, dmg) { const p = room.builds.get(bid); if (!p) return; p.hp -= dmg; if (p.hp <= 0) { room.builds.delete(bid); send(room, { t: 'ar_unbuild', id: bid }); } else send(room, { t: 'ar_bhp', id: bid, hp: Math.round(p.hp) }); }
 
@@ -194,7 +194,7 @@ function botWeapon(e, d) {
 }
 // a wall between the bot and whoever is shooting it (same rules and cost as players)
 function botBuild(room, e, from) {
-  if (room.game !== 'royale' || e.mats < SH.BUILD_COST || room.builds.size > 1500) return false;
+  if ((room.game !== 'royale' && !room.bf) || e.mats < SH.BUILD_COST || room.builds.size > 1500) return false;
   const C = SH.CELL; const dx = from.x - e.x, dz = from.z - e.z; const gx0 = Math.round(e.x / C), gz0 = Math.round(e.z / C); const zMajor = Math.abs(dz) >= Math.abs(dx);
   const lvl = Math.max(0, Math.floor((e.y + 0.2) / C));
   const p = zMajor ? { k: 'wall', gx: gx0, gy: lvl, gz: dz < 0 ? gz0 : gz0 + 1, dir: 0 } : { k: 'wall', gx: dx < 0 ? gx0 : gx0 + 1, gy: lvl, gz: gz0, dir: 1 };
@@ -220,7 +220,7 @@ function botThink(room, e, dt) {
     if (best && best.id !== ai.target) ai.react = T + (650 - ai.skill * 450) * rand(0.7, 1.3); // reaction time before the first shot
     ai.target = best ? best.id : null;
     if (!best) {
-      if (ops) { if (!ai.goal || dist(e, ai.goal) < 2) { if (room.game === 'duel') ai.goal = { x: rand(-10, 10), z: rand(-8, 8) }; else { const site = room.map.sites[room.siteGoal]; ai.goal = e.team === 'atk' ? (room.coreDrop && Math.random() < 0.6 ? { x: room.coreDrop.x, z: room.coreDrop.z } : { x: site.x + rand(-3, 3), z: site.z + rand(-3, 3) }) : (room.core ? { x: room.core.x, z: room.core.z } : { x: room.map.sites[Math.random() < 0.5 ? 'A' : 'B'].x + rand(-5, 5), z: room.map.sites.A.z + rand(-4, 6) }); } } }
+      if (ops) { if (!ai.goal || dist(e, ai.goal) < 2) { if (room.duelish) ai.goal = { x: rand(-10, 10), z: rand(-8, 8) }; else { const site = room.map.sites[room.siteGoal]; ai.goal = e.team === 'atk' ? (room.coreDrop && Math.random() < 0.6 ? { x: room.coreDrop.x, z: room.coreDrop.z } : { x: site.x + rand(-3, 3), z: site.z + rand(-3, 3) }) : (room.core ? { x: room.core.x, z: room.core.z } : { x: room.map.sites[Math.random() < 0.5 ? 'A' : 'B'].x + rand(-5, 5), z: room.map.sites.A.z + rand(-4, 6) }); } } }
       else {
         const st = room.storm; const stormT = st ? st.until - T : 1e9;
         // heal when it is calm
@@ -256,7 +256,7 @@ function botThink(room, e, dt) {
     // jump now and then while fighting (harder to hit)
     if (!ops && e.y <= 0 && Math.random() < dt * ai.skill * 0.9) ai.vy = 6.5;
     // under fire with materials: build a wall and keep fighting from behind it
-    if (!ops && T - ai.hurtAt < 600 && T > ai.buildAt && Math.random() < 0.25 + ai.skill * 0.6) { const from = room.ents.get(ai.by) || tg; if (botBuild(room, e, from)) { ai.buildAt = T + 2500 - ai.skill * 1200; } }
+    if ((!ops || room.bf) && T - ai.hurtAt < 600 && T > ai.buildAt && Math.random() < 0.25 + ai.skill * 0.6) { const from = room.ents.get(ai.by) || tg; if (botBuild(room, e, from)) { ai.buildAt = T + 2500 - ai.skill * 1200; } }
     if (W && w) { e.w = w; }
     if (!W && d < 2.4 && T - (e.last.pick || 0) > 650) { e.last.pick = T; send(room, { t: 'ar_fx', id: e.id, w: 'pick', to: null }); if (Math.random() < 0.5 + ai.skill * 0.4) damage(room, e, tg, 20, 'pick', false); }
     if (W && d <= W.range && T > ai.react && T - (e.last[w] || 0) > W.rate * 1000 * (ops ? 2 : 2.3) * (1.25 - ai.skill * 0.4)) {
@@ -265,7 +265,7 @@ function botThink(room, e, dt) {
         // accuracy: skill, distance against the weapon's range, target moving / crouching / in the air, bot moving
         const moving = (tg.a & 1) ? 0.8 : 1; const crouch = (tg.a & 2) ? 0.85 : 1; const air = (tg.a & 4) || tg.y > 0.5 ? 0.75 : 1; const self = (mx || mz) ? 0.85 : 1;
         const p = Math.max(0.05, Math.min(0.92, (0.25 + ai.skill * 0.7) * (1 - Math.min(1, d / (W.range * 1.1)) * 0.6) * moving * crouch * air * self));
-        const rar = room.game === 'royale' ? SH.RARITY[(e.inv.find((x) => x.w === w) || { r: 0 }).r].m : 1;
+        const rar = room.game === 'royale' || room.bf ? SH.RARITY[(e.inv.find((x) => x.w === w) || { r: 0 }).r].m : 1;
         const pellets = W.pellets ? Math.round(W.pellets * (0.25 + 0.5 * Math.max(0, 1 - d / W.range))) : 1;
         if (Math.random() < p) damage(room, e, tg, W.dmg * pellets * rar * (Math.random() < 0.06 + ai.skill * 0.12 ? W.head : 1) * (ops ? 0.9 : 0.85), w, false);
       }
@@ -273,12 +273,12 @@ function botThink(room, e, dt) {
   } else if (ai.goal) { const d = Math.hypot(ai.goal.x - e.x, ai.goal.z - e.z) || 1; mx = (ai.goal.x - e.x) / d; mz = (ai.goal.z - e.z) / d; e.yaw = Math.atan2(mx, mz) + Math.PI; }
   // stuck: break a build in the way, or take a short detour (and hop)
   if (ai.detour && T < ai.detour.until) { mx = ai.detour.x; mz = ai.detour.z; }
-  const sp = (room.game === 'duel' ? 4.8 : 4.6) * dt * (ai.goal && ai.goal.storm ? 1.3 : 1); const nx = e.x + mx * sp, nz = e.z + mz * sp;
+  const sp = (room.duelish ? 4.8 : 4.6) * dt * (ai.goal && ai.goal.storm ? 1.3 : 1); const nx = e.x + mx * sp, nz = e.z + mz * sp;
   if (!blocked(room, nx, e.z, e.y)) e.x = nx; if (!blocked(room, e.x, nz, e.y)) e.z = nz;
   e.a = ((mx || mz) ? 1 : 0) | (e.y > 0.2 ? 4 : 0); ai.stuck += dt;
   if (ai.stuck > 1) {
     if (Math.hypot(e.x - ai.lx, e.z - ai.lz) < 0.6 && (mx || mz)) {
-      let broke = false; if (!ops) for (const p of room.builds.values()) { const b = SH.pieceBox(p); if (b && Math.hypot(b.x - e.x, b.z - e.z) < 3) { hitBuild(room, p.id, 60); broke = true; break; } }
+      let broke = false; if (!ops || room.bf) for (const p of room.builds.values()) { const b = SH.pieceBox(p); if (b && Math.hypot(b.x - e.x, b.z - e.z) < 3) { hitBuild(room, p.id, 60); broke = true; break; } }
       if (!broke) { const a = rand(0, Math.PI * 2); ai.detour = { x: Math.cos(a), z: Math.sin(a), until: T + 1400 }; if (!ai.goal || !ai.goal.storm) ai.goal = null; if (e.y <= 0) ai.vy = 6; }
     }
     ai.stuck = 0; ai.lx = e.x; ai.lz = e.z;
@@ -312,9 +312,11 @@ const DUEL = { pre: 3000, live: 45000, post: 2600, end: 12000, wait: 10000, priv
 function duelRound(room) {
   room.round++; const w = SH.DUEL_ROT[(room.round - 1) % SH.DUEL_ROT.length];
   room.phase = 'buy'; room.frozen = true; room.until = now() + DUEL.pre;
-  for (const e of room.ents.values()) { const s = room.map.spawns[e.team][0]; Object.assign(e, { x: s.x, y: 0, z: s.z + rand(-1, 1), yaw: s.yaw, pitch: 0, hp: 100, armor: 50, alive: true, inv: [{ w, r: 0 }], w, slot: 0 }); if (e.ai) { e.ai.goal = null; e.ai.target = null; } }
-  send(room, { t: 'ar_round', round: room.round, score: room.score, phase: 'buy', until: room.until, weapon: w });
-  for (const e of room.ents.values()) send1(e, { t: 'ar_you', inv: e.inv, armor: e.armor, x: e.x, z: e.z, yaw: e.yaw, hp: e.hp, money: 0 });
+  for (const e of room.ents.values()) { const s = room.map.spawns[e.team][0]; Object.assign(e, { x: s.x, y: 0, z: s.z + (room.bf ? 0 : rand(-1, 1)), yaw: s.yaw, pitch: 0, hp: 100, armor: room.bf ? 100 : 50, alive: true, inv: room.bf ? SH.BF_LOADOUT.map((x) => Object.assign({}, x)) : [{ w, r: 0 }], w: room.bf ? SH.BF_LOADOUT[0].w : w, slot: 0, mats: room.bf ? SH.BF_MATS : e.mats }); if (e.ai) { e.ai.goal = null; e.ai.target = null; } }
+  // build fights: clear the field every round (Box fight: rebuild each player's box, owned by that player so they can edit it)
+  if (room.bf) { room.builds.clear(); send(room, { t: 'ar_bclear' }); if (room.game === 'box') for (const e of room.ents.values()) { const s = room.map.spawns[e.team][0]; for (const q of SH.spawnBox(Math.round(s.x / SH.CELL), Math.round(s.z / SH.CELL) - 0)) { const p = Object.assign(q, { id: rid(6), hp: SH.BUILD_HP, owner: e.id }); room.builds.set(p.id, p); send(room, { t: 'ar_build', p }); } } }
+  send(room, { t: 'ar_round', round: room.round, score: room.score, phase: 'buy', until: room.until, weapon: room.bf ? null : w });
+  for (const e of room.ents.values()) send1(e, { t: 'ar_you', inv: e.inv, armor: e.armor, x: e.x, z: e.z, yaw: e.yaw, hp: e.hp, money: 0, mats: e.mats });
 }
 function duelEndRound(room, winner, why) {
   if (room.phase !== 'live') return; room.phase = 'post'; room.until = now() + DUEL.post; if (winner) room.score[winner]++;
@@ -351,12 +353,13 @@ function duelTick(room) {
 }
 
 // ---------- rooms ----------
-const GAMES = ['ops', 'royale', 'duel'];
+const GAMES = ['ops', 'royale', 'duel', 'real', 'box'];
+const DUELISH = ['duel', 'real', 'box'];
 async function newRoom(game, opts = {}) {
-  await shared();
-  const room = { id: rid(6), game, ents: new Map(), phase: game === 'ops' ? 'warm' : game === 'duel' ? 'wait' : 'lobby', until: now() + (game === 'ops' ? 5000 : game === 'duel' ? (opts.priv ? DUEL.privWait : DUEL.wait) : 20000), created: now(), builds: new Map(), score: { atk: 0, def: 0 }, round: 0,
-    seed: game === 'royale' ? 'nebula-royale-' + Math.floor(Math.random() * 5) : game === 'duel' ? 'court' : 'depot', ranked: !!opts.ranked, priv: opts.priv || null, allowed: opts.allowed || null, pot: opts.pot || 0, escrow: opts.escrow || null, botBoost: opts.botBoost || 0 };
-  room.map = game === 'ops' ? SH.opsMap() : game === 'duel' ? SH.duelMap() : SH.royaleMap(room.seed); rooms.set(room.id, room);
+  await shared(); const duelish = DUELISH.includes(game);
+  const room = { id: rid(6), game, duelish, bf: game === 'real' || game === 'box', ents: new Map(), phase: game === 'ops' ? 'warm' : duelish ? 'wait' : 'lobby', until: now() + (game === 'ops' ? 5000 : duelish ? (opts.priv ? DUEL.privWait : DUEL.wait) : 20000), created: now(), builds: new Map(), score: { atk: 0, def: 0 }, round: 0,
+    seed: game === 'royale' ? 'nebula-royale-' + Math.floor(Math.random() * 5) : game === 'duel' ? 'court' : duelish ? game : 'depot', ranked: !!opts.ranked, priv: opts.priv || null, allowed: opts.allowed || null, pot: opts.pot || 0, escrow: opts.escrow || null, botBoost: opts.botBoost || 0 };
+  room.map = game === 'ops' ? SH.opsMap() : game === 'duel' ? SH.duelMap() : room.bf ? SH.bfMap(game) : SH.royaleMap(room.seed); rooms.set(room.id, room);
   if (game === 'ops') { for (let i = 0; i < OPS_MAX; i++) ent(room, { bot: true, team: 'atk', name: BOT_NAMES[i] }); for (let i = 0; i < OPS_MAX; i++) ent(room, { bot: true, team: 'def', name: BOT_NAMES[i + 8] }); }
   if (!timer) timer = setInterval(tickAll, 50);
   return room;
@@ -369,18 +372,18 @@ function closeRoom(room) {
 async function join(conn, u, game, opts = {}) {
   if (!GAMES.includes(game)) return; await shared();
   leave(conn, u);
-  const ranked = !!opts.ranked; let room = null;
+  const ranked = !!opts.ranked && !['real', 'box'].includes(game); let room = null; // build fights are casual only
   if (opts.room) { room = rooms.get(String(opts.room)); if (!room || room.game !== game || (room.allowed && !room.allowed.includes(u.id)) || room.phase === 'end') { conn.send({ t: 'ar_closed', why: 'gone' }); return; } }
-  else room = [...rooms.values()].find((r) => r.game === game && !r.priv && r.ranked === ranked && (game === 'ops' ? r.phase !== 'end' && humans(r).length < OPS_MAX * 2 : game === 'duel' ? r.phase === 'wait' && humans(r).length < 2 : r.phase === 'lobby' && humans(r).length < ROYALE_MAX));
+  else room = [...rooms.values()].find((r) => r.game === game && !r.priv && r.ranked === ranked && (game === 'ops' ? r.phase !== 'end' && humans(r).length < OPS_MAX * 2 : DUELISH.includes(game) ? r.phase === 'wait' && humans(r).length < 2 : r.phase === 'lobby' && humans(r).length < ROYALE_MAX));
   if (!room) { const boost = ranked ? 0.08 + require('./ranked').avgTier([u], game) * 0.05 : 0; room = await newRoom(game, { ranked, botBoost: boost }); }
   let e;
   if (game === 'ops') { // take a bot's place on the team with fewer people
     const team = humans(room).filter((x) => x.team === 'atk').length <= humans(room).filter((x) => x.team === 'def').length ? 'atk' : 'def';
     const bot = [...room.ents.values()].find((x) => x.bot && x.team === team); if (bot) { room.ents.delete(bot.id); if (room.carrier === bot.id) room.carrier = u.id; send(room, { t: 'ar_gone', id: bot.id }); }
     e = ent(room, { uid: u.id, conn, team }); Object.assign(e, { x: bot ? bot.x : 0, z: bot ? bot.z : 30, y: 0, yaw: bot ? bot.yaw : 0, alive: room.phase === 'warm' || room.phase === 'buy' || (bot ? bot.alive : false), hp: bot ? bot.hp : 100, money: bot ? bot.money : 800, inv: bot ? bot.inv : [{ w: 'pistol', r: 0 }], w: bot ? bot.w : 'pistol', armor: bot ? bot.armor : 0, kills: bot ? bot.kills : 0, deaths: bot ? bot.deaths : 0 });
-  } else if (game === 'duel') {
+  } else if (DUELISH.includes(game)) {
     const taken = [...room.ents.values()].map((x) => x.team); const team = taken.includes('atk') ? 'def' : 'atk'; const s = room.map.spawns[team][0];
-    e = ent(room, { uid: u.id, conn, team }); Object.assign(e, { x: s.x, z: s.z, y: 0, yaw: s.yaw, alive: true, hp: 100, inv: [{ w: 'pistol', r: 0 }], w: 'pistol' });
+    e = ent(room, { uid: u.id, conn, team }); Object.assign(e, { x: s.x, z: s.z, y: 0, yaw: s.yaw, alive: true, hp: 100, inv: room.bf ? SH.BF_LOADOUT.map((x) => Object.assign({}, x)) : [{ w: 'pistol', r: 0 }], w: room.bf ? 'shotgun' : 'pistol', mats: room.bf ? SH.BF_MATS : 0 });
   } else { e = ent(room, { uid: u.id, conn }); e.alive = true; }
   conn.data.arena = room.id;
   conn.send({ t: 'ar_hello', room: room.id, game, you: e.id, seed: room.seed, phase: room.phase, until: room.until, score: room.score, round: room.round, carrier: room.carrier, core: room.core, coreDrop: room.coreDrop, ship: room.ship || null, storm: room.storm || null, ranked: room.ranked, pot: room.pot || 0, priv: !!room.priv,
@@ -390,19 +393,19 @@ async function join(conn, u, game, opts = {}) {
 function leave(conn, u) {
   const room = conn.data && conn.data.arena && rooms.get(conn.data.arena); if (!room) return; conn.data.arena = null;
   const e = room.ents.get(u.id); if (!e || e.conn !== conn) return; room.ents.delete(u.id); send(room, { t: 'ar_gone', id: u.id });
-  const started = room.game === 'ops' ? room.phase !== 'warm' && room.phase !== 'end' && !room.done : room.game === 'duel' ? room.phase !== 'wait' && room.phase !== 'end' : room.phase !== 'lobby' && room.phase !== 'end';
+  const started = room.game === 'ops' ? room.phase !== 'warm' && room.phase !== 'end' && !room.done : room.duelish ? room.phase !== 'wait' && room.phase !== 'end' : room.phase !== 'lobby' && room.phase !== 'end';
   // leaving a ranked match half way counts as a heavy loss (not for Royale players who were already eliminated)
   if (room.ranked && started && !e.rkDone && (room.game !== 'royale' || e.alive)) { try { require('./ranked').result(u, room.game, { abandon: true }); } catch (err) { console.error('[arena] abandon', err); } }
   if (room.game === 'ops' && room.phase !== 'end') { const b = ent(room, { bot: true, team: e.team, name: BOT_NAMES[Math.floor(rand(0, BOT_NAMES.length))] }); Object.assign(b, { x: e.x, z: e.z, y: 0, alive: e.alive, hp: e.hp, inv: e.inv, w: e.w, money: e.money, armor: e.armor }); if (room.carrier === u.id) room.carrier = b.id; send(room, { t: 'ar_ent', e: meta(b) }); }
   // a duel: whoever stays wins by forfeit (and takes the pot)
-  if (room.game === 'duel' && started && !room.done) { const other = [...room.ents.values()].find((x) => x.team !== e.team); if (other) { room.phase = 'live'; duelFinish(room, other.team, 'forfeit'); } }
+  if (room.duelish && started && !room.done) { const other = [...room.ents.values()].find((x) => x.team !== e.team); if (other) { room.phase = 'live'; duelFinish(room, other.team, 'forfeit'); } }
   if (!humans(room).length) closeRoom(room);
 }
 let snapT = 0;
 function tickAll() {
   const dt = 0.05; snapT++;
   for (const room of rooms.values()) {
-    try { if (room.game === 'ops') opsTick(room, dt); else if (room.game === 'duel') duelTick(room); else royaleTick(room, dt); } catch (err) { console.error('[arena] tick', err); }
+    try { if (room.game === 'ops') opsTick(room, dt); else if (room.duelish) duelTick(room); else royaleTick(room, dt); } catch (err) { console.error('[arena] tick', err); }
     if (snapT % 2 === 0 && rooms.has(room.id)) { const list = [...room.ents.values()].map(snap); const extra = room.game === 'ops' ? { pl: room.plant ? room.plant.id : null } : room.game === 'royale' ? { st: room.storm ? [Math.round(room.storm.cx), Math.round(room.storm.cz), Math.round(room.storm.r * 10) / 10] : null } : {}; send(room, Object.assign({ t: 'ar_s', l: list }, extra)); }
   }
   if (!rooms.size) { clearInterval(timer); timer = null; }
@@ -467,13 +470,17 @@ function onMessage(conn, u, m) {
   else if (m.t === 'ar_harvest' && room.game === 'royale' && e.alive) {
     const t = now(); if (t - (e.last.harvest || 0) < 450) return; e.last.harvest = t; const tr = room.map.trees[Math.trunc(num(m.i, 0, 9999))]; const rk = m.rock !== undefined && room.map.rocks[Math.trunc(num(m.rock, 0, 9999))];
     const obj = tr || rk; if (!obj || Math.hypot(obj.x - e.x, obj.z - e.z) > obj.r + 3) return; e.mats = Math.min(999, e.mats + (rk ? 12 : 8)); send1(e, { t: 'ar_you', mats: e.mats });
-  } else if (m.t === 'ar_build' && room.game === 'royale' && e.alive && !e.inShip) {
-    const k = ['wall', 'floor', 'ramp'].includes(m.k) ? m.k : null; if (!k || e.mats < SH.BUILD_COST || room.builds.size > 1500) return;
+  } else if (m.t === 'ar_build' && (room.game === 'royale' || (room.bf && room.phase === 'live')) && e.alive && !e.inShip) {
+    const k = ['wall', 'floor', 'ramp', 'cone'].includes(m.k) ? m.k : null; if (!k || e.mats < SH.BUILD_COST || room.builds.size > 1500) return;
     const p = { id: rid(6), k, gx: Math.trunc(num(m.gx, -60, 60)), gy: Math.trunc(num(m.gy, 0, 12)), gz: Math.trunc(num(m.gz, -60, 60)), dir: Math.trunc(num(m.dir, 0, 3)), hp: SH.BUILD_HP, owner: e.id };
     if (Math.hypot(p.gx * SH.CELL - e.x, p.gz * SH.CELL - e.z) > 10 || Math.abs(p.gy * SH.CELL - e.y) > 9) return;
     if ([...room.builds.values()].some((q) => q.k === p.k && q.gx === p.gx && q.gy === p.gy && q.gz === p.gz && (q.k !== 'wall' || q.dir === p.dir))) return;
     e.mats -= SH.BUILD_COST; room.builds.set(p.id, p); send(room, { t: 'ar_build', p }); send1(e, { t: 'ar_you', mats: e.mats });
-  } else if (m.t === 'ar_hitbuild' && room.game === 'royale' && e.alive) { const t = now(); if (t - (e.last.pick || 0) < 400) return; e.last.pick = t; hitBuild(room, String(m.id || ''), 40); }
+  } else if (m.t === 'ar_edit' && (room.game === 'royale' || (room.bf && room.phase === 'live')) && e.alive) {
+    // 13.6: edit your own wall into a door / window / arch (or back to a full wall)
+    const p = room.builds.get(String(m.id || '')); if (!p || p.k !== 'wall' || p.owner !== e.id) return; if (Math.hypot(p.gx * SH.CELL - e.x, p.gz * SH.CELL - e.z) > 9) return;
+    const ed = SH.WALL_EDITS.includes(m.ed) ? m.ed : null; if ((p.ed || null) === ed) return; if (ed) p.ed = ed; else delete p.ed; send(room, { t: 'ar_bedit', id: p.id, ed });
+  } else if (m.t === 'ar_hitbuild' && (room.game === 'royale' || room.bf) && e.alive) { const t = now(); if (t - (e.last.pick || 0) < 400) return; e.last.pick = t; hitBuild(room, String(m.id || ''), 40); }
   else if (m.t === 'ar_slot') { const i = Math.trunc(num(m.i, 0, 4)); if (e.inv[i]) { e.slot = i; e.w = e.inv[i].w; } }
 }
 function onClose(conn, u) { if (conn.data && conn.data.arena) leave(conn, u); }

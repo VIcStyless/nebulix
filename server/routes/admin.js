@@ -27,7 +27,7 @@ function dirSize(dir) {
 
 function adminView(u) {
   return Object.assign(publicUser(u), {
-    email: u.email, verified: !!u.verified, coins: u.coins, proUntil: u.proUntil || 0, banned: u.banned || null, mutedUntil: u.mutedUntil && u.mutedUntil > now() ? u.mutedUntil : 0, warnings: (u.warnings || []).length,
+    email: u.email, verified: !!u.verified, coins: u.coins, infinite: !!u.infinite, proUntil: u.proUntil || 0, banned: u.banned || null, mutedUntil: u.mutedUntil && u.mutedUntil > now() ? u.mutedUntil : 0, warnings: (u.warnings || []).length,
     lastSeen: (Object.values(S.sessions).filter((s) => s.uid === u.id).sort((a, b) => b.last - a.last)[0] || {}).last || 0,
     sessions: Object.values(S.sessions).filter((s) => s.uid === u.id).length, themes: u.themesPublished || 0, uploadBytes: u.uploadBytes || 0,
   });
@@ -69,12 +69,35 @@ module.exports = function register(r) {
     return { total: list.length, users: list.slice(0, 50).map(adminView) };
   });
 
+  // 13.6: donations up to a trillion coins at once; the person gets a notice
+  const GIFT_MAX = 1_000_000_000_000;
+  const giftNotice = (u, d, by) => hub.push(u.id, { t: 'notice', text: `You received ${d.toLocaleString('en')} coins from @${by.username}`, es: `Has recibido ${d.toLocaleString('es')} monedas de @${by.username}` });
   r.post('/api/admin/users/:id/coins', { auth: true, role: 'admin', limit: [60, 60000, 'user'] }, async (c) => {
     const t = target(c); const d = c.body.delta;
-    if (!Number.isInteger(d) || d === 0 || Math.abs(d) > 1000000) throw new HttpError(400, 'bad_amount', 'Enter a whole number of coins');
+    if (!Number.isSafeInteger(d) || d === 0 || Math.abs(d) > GIFT_MAX) throw new HttpError(400, 'bad_amount', 'Enter a whole number of coins (up to 1,000,000,000,000)');
     if (!econ.adjust(t, d, 'admin')) throw new HttpError(400, 'insufficient', 'The user does not have that many coins');
     audit('coins', c.user.id, `${t.username} ${d > 0 ? '+' : ''}${d} ${String(c.body.reason || '').slice(0, 80)}`);
+    if (d > 0 && t.id !== c.user.id) giftNotice(t, d, c.user);
     return { user: adminView(t) };
+  });
+  // unlimited wallet (owner only): every purchase succeeds and the balance stays full. Turning it off restores the old balance.
+  r.post('/api/admin/users/:id/infinite', { auth: true, role: 'admin', limit: [30, 60000, 'user'] }, async (c) => {
+    if (c.user.role !== 'owner') throw new HttpError(403, 'owner_only', 'Only the owner can give unlimited coins');
+    const t = target(c); const on = !!c.body.on;
+    if (on && !t.infinite) { t.coinsBefore = t.coins; t.infinite = true; econ.adjust(t, 0, 'admin:infinite'); }
+    else if (!on && t.infinite) { delete t.infinite; t.coins = Math.max(0, Math.min(econ.MAX_COINS, Number(t.coinsBefore) || 0)); delete t.coinsBefore; econ.adjust(t, 0, 'admin:infinite-off'); }
+    audit('coins', c.user.id, `${t.username} infinite ${on ? 'ON' : 'OFF'}`);
+    if (on && t.id !== c.user.id) hub.push(t.id, { t: 'notice', text: 'You now have unlimited coins', es: 'Ahora tienes monedas infinitas' });
+    return { user: adminView(t) };
+  });
+  // give coins to everyone online, or to every account
+  r.post('/api/admin/coins/bulk', { auth: true, role: 'admin', limit: [6, 600000, 'user'] }, async (c) => {
+    const amount = c.body.amount; const scope = c.body.scope === 'all' ? 'all' : 'online';
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 1_000_000_000) throw new HttpError(400, 'bad_amount', 'Enter between 1 and 1,000,000,000 coins');
+    const list = Object.values(S.users).filter((u) => !u.deleted && !(u.banned && (!u.banned.until || u.banned.until > now())) && (scope === 'all' || hub.online(u.id)));
+    for (const u of list) { econ.adjust(u, amount, 'admin:bulk'); if (u.id !== c.user.id) giftNotice(u, amount, c.user); }
+    audit('coins', c.user.id, `bulk +${amount} to ${list.length} (${scope})`);
+    return { count: list.length, amount, scope };
   });
 
   r.post('/api/admin/users/:id/pro', { auth: true, role: 'admin', limit: [60, 60000, 'user'] }, async (c) => {

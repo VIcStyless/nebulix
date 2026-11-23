@@ -70,12 +70,29 @@ export function royaleMap(seed = 'nebula-royale-1') {
 export const STORM = [{ wait: 50, shrink: 40, r: 110, dps: 1 }, { wait: 40, shrink: 35, r: 70, dps: 2 }, { wait: 35, shrink: 30, r: 40, dps: 4 }, { wait: 30, shrink: 25, r: 20, dps: 6 }, { wait: 25, shrink: 25, r: 6, dps: 9 }, { wait: 20, shrink: 20, r: 0, dps: 12 }];
 // building: 4 m grid. wall on a cell edge (dir 0 = north/south edge along x, 1 = along z), floor at a level, ramp rising toward dir 0..3
 export const CELL = 4; export const BUILD_HP = 150; export const BUILD_COST = 10;
-// collision boxes for a piece (ramps are handled with a height function)
-export function pieceBox(p) {
+// collision boxes for a piece (ramps and cones are handled with a height function).
+// 13.6: walls can be edited into a door, a window or an arch: the wall is cut into the solid parts that remain.
+export const WALL_EDITS = ['door', 'window', 'arch'];
+const EDIT_RECTS = { // [u0, u1, v0, v1] in metres along the wall (-2..2) and up (0..4)
+  door: [[-2, -0.67, 0, 4], [0.67, 2, 0, 4], [-0.67, 0.67, 2.7, 4]],
+  window: [[-2, 2, 0, 1.6], [-2, 2, 2.7, 4], [-2, -0.67, 1.6, 2.7], [0.67, 2, 1.6, 2.7]],
+  arch: [[-2, -1.33, 0, 4], [1.33, 2, 0, 4], [-1.33, 1.33, 2.7, 4]],
+};
+export function pieceBoxes(p) {
   const x = p.gx * CELL, z = p.gz * CELL, y = p.gy * CELL;
-  if (p.k === 'wall') return p.dir === 0 ? { x, z: z - CELL / 2, w: CELL, d: 0.3, h: CELL, y } : { x: x - CELL / 2, z, w: 0.3, d: CELL, h: CELL, y };
-  if (p.k === 'floor') return { x, z, w: CELL, d: CELL, h: 0.3, y: y - 0.15 };
-  return null; // ramp
+  if (p.k === 'wall') {
+    const rects = (p.ed && EDIT_RECTS[p.ed]) || [[-2, 2, 0, 4]];
+    return rects.map(([u0, u1, v0, v1]) => { const u = (u0 + u1) / 2, len = u1 - u0; return p.dir === 0 ? { x: x + u, z: z - CELL / 2, w: len, d: 0.3, h: v1 - v0, y: y + v0 } : { x: x - CELL / 2, z: z + u, w: 0.3, d: len, h: v1 - v0, y: y + v0 }; });
+  }
+  if (p.k === 'floor') return [{ x, z, w: CELL, d: CELL, h: 0.3, y: y - 0.15 }];
+  return []; // ramp, cone
+}
+export function pieceBox(p) { return pieceBoxes(p)[0] || null; }
+// a cone (roof) is a low pyramid over one cell: height of its surface at (x, z), or null when outside it
+export const CONE_H = 1.8;
+export function coneY(p, x, z) {
+  const cx = p.gx * CELL, cz = p.gz * CELL; const m = Math.max(Math.abs(x - cx), Math.abs(z - cz)); if (m > CELL / 2) return null;
+  return p.gy * CELL + CONE_H * (1 - m / (CELL / 2));
 }
 // height of a ramp at (x, z), or null when outside it
 export function rampY(p, x, z) {
@@ -114,3 +131,17 @@ export function duelMap() {
 }
 // Royale consumables (13.0): med kit heals 50 (up to 100), shield cell adds 50 armor (up to 100)
 export const HEALS = { med: { n: ['Med kit', 'Botiquín'], hp: 50, cd: 2.5, ic: '✚', key: 'h' }, sh: { n: ['Shield cell', 'Célula de escudo'], armor: 50, cd: 2.5, ic: '🛡', key: 'j' } };
+
+// ---------- Build fights (13.6): 1 vs 1 on an open grass field, everyone builds ----------
+// "real" (Realistics): spawn close to each other in the open. "box" (Box fight): each player starts inside a 1×1 box.
+// Every round: shotgun + assault rifle + SMG, full shield and 500 materials; builds are cleared; first to 5.
+export const BF_LOADOUT = [{ w: 'shotgun', r: 3 }, { w: 'rifle', r: 3 }, { w: 'smg', r: 2 }];
+export const BF_MATS = 500;
+export function bfMap(kind) {
+  const B = []; const W = 40, D = 40; const box = (x, z, w, d, h, m) => B.push({ x, z, w, d, h, y: 0, m });
+  box(0, -D, W * 2, 1, 3, 'metal'); box(0, D, W * 2, 1, 3, 'metal'); box(-W, 0, 1, D * 2, 3, 'metal'); box(W, 0, 1, D * 2, 3, 'metal');
+  const sx = kind === 'box' ? 2 * CELL : 3 * CELL; // box: centre of cell gx = ±2 · realistics: 24 m apart
+  return { boxes: B, spawns: { atk: [{ x: -sx, z: 0, yaw: -Math.PI / 2 }], def: [{ x: sx, z: 0, yaw: Math.PI / 2 }] }, sites: {}, size: { w: W, d: D }, name: kind === 'box' ? 'Box Fight' : 'Realistics', flat: true };
+}
+// the four walls of the 1×1 box around a spawn (Box fight)
+export function spawnBox(gx, gz) { return [{ k: 'wall', gx, gy: 0, gz, dir: 0 }, { k: 'wall', gx, gy: 0, gz: gz + 1, dir: 0 }, { k: 'wall', gx, gy: 0, gz, dir: 1 }, { k: 'wall', gx: gx + 1, gy: 0, gz, dir: 1 }]; }
