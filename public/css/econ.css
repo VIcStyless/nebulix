@@ -126,3 +126,24 @@
 .wl-inv { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .wl-invc { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 12px; background: var(--surface2, var(--hover)); } .wl-invc b { font-size: 1.4rem; }
 @media (max-width: 760px) { .wl-bal { text-align: left; } }
+/* 13.7: Baccarat, Video Poker, Hi-Lo */
+.cx-bac-sides { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+.cx-bac-side { display: grid; gap: 2px; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--line, #ffffff22); background: var(--surface2, #1a1c21); color: inherit; cursor: pointer; }
+.cx-bac-side span { font-size: 12px; opacity: .75; }
+.cx-bac-side.on { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 16%, transparent); }
+.cx-vpwrap { display: grid; gap: 14px; justify-items: center; }
+.cx-vptable { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 2px 14px; width: min(560px, 100%); padding: 10px 14px; border-radius: 12px; background: #0b1d3a; color: #fde68a; font-size: 13px; }
+.cx-vptable div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 4px; border-radius: 6px; }
+.cx-vptable div.on { background: #fde68a; color: #0b1d3a; font-weight: 800; }
+.cx-hand.cx-vp { gap: 10px; }
+.cx-vpcard { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; }
+.cx-vpcard.held .cx-card { transform: translateY(-10px); box-shadow: 0 0 0 3px var(--accent), 0 10px 20px #0007; }
+.cx-hold { min-height: 16px; font: 800 11px system-ui; letter-spacing: 1px; color: var(--accent); }
+.cx-hilo { display: grid; gap: 12px; justify-items: center; }
+.cx-hltop { display: flex; align-items: center; gap: 22px; }
+.cx-hlcur .cx-card { width: 96px; height: 138px; } .cx-hlcur .cx-card .cx-s { font-size: 44px; }
+.cx-hlcur .cx-card.lost { box-shadow: 0 0 0 3px #ef4444, 0 10px 20px #0007; }
+.cx-hlmult { font: 800 34px ui-monospace, monospace; color: var(--accent); }
+.cx-hltrail { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 52px; }
+.cx-card.mini { width: 36px; height: 52px; border-radius: 6px; } .cx-card.mini .cx-s { font-size: 16px; } .cx-card.mini .cx-r { font-size: 11px; top: 3px; left: 4px; } .cx-card.mini .cx-r2 { display: none; }
+.cx-hlbtns { display: grid; gap: 8px; } .cx-hlbtns small { opacity: .8; font-weight: 600; }

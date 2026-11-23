@@ -10,7 +10,7 @@ import { sfx } from '../sfx.js';
 import { EXTRA, mountExtra } from './casino-more.js';
 import { makeFx, fx3dOn } from '../casino-fx3d.js';
 
-const GAMES = [['horses', 'Horse racing', 'trophy'], ['coinflip', 'Coin Flip', 'coins'], ['dice', 'Dice', 'cube'], ['slots', 'Slots', 'star'], ['roulette', 'Roulette', 'dice'], ['blackjack', 'Blackjack', 'layers'], ['crash', 'Crash', 'zap'], ['mines', 'Mines', 'target'], ['plinko', 'Plinko', 'activity'], ['wheel', 'Wheel', 'refresh'], ['keno', 'Keno', 'hash'], ['limbo', 'Limbo', 'zap'], ['jackpot', 'Jackpot', 'trophy']];
+const GAMES = [['horses', 'Horse racing', 'trophy'], ['coinflip', 'Coin Flip', 'coins'], ['dice', 'Dice', 'cube'], ['slots', 'Slots', 'star'], ['roulette', 'Roulette', 'dice'], ['blackjack', 'Blackjack', 'layers'], ['baccarat', 'Baccarat', 'layers'], ['videopoker', 'Video Poker', 'grid'], ['hilo', 'Hi-Lo', 'up'], ['crash', 'Crash', 'zap'], ['mines', 'Mines', 'target'], ['plinko', 'Plinko', 'activity'], ['wheel', 'Wheel', 'refresh'], ['keno', 'Keno', 'hash'], ['limbo', 'Limbo', 'zap'], ['jackpot', 'Jackpot', 'trophy']];
 const NEW_GAMES = new Set(['wheel', 'keno', 'limbo']);
 // games the in-browser verifier can recompute (jackpot shows its own seed in its history)
 const VERIFY = ['coinflip', 'dice', 'slots', 'roulette', 'crash', 'plinko', 'mines', 'blackjack'];

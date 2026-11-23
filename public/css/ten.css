@@ -307,3 +307,6 @@
 .vm-dbtn { display: grid; justify-items: center; gap: 2px; width: 64px; padding: 7px 4px; border: 0; border-radius: 10px; background: transparent; color: inherit; cursor: pointer; font-size: 10px; }
 .vm-dbtn:hover { background: color-mix(in oklab, var(--accent, #d4ff3f) 16%, transparent); }
 @media (max-width: 760px) { .vm-droid { flex-direction: column; } .vm-droid-bar { flex-direction: row; flex-wrap: wrap; justify-content: center; } }
+/* VM screen size (13.7): fit stretches the picture to the window; 1× / 1.5× / 2× keep exact pixels and scroll */
+.vm-screen[data-scale="fit"] canvas { width: 100%; height: auto; max-height: 78vh; object-fit: contain; }
+.vm-screen:not([data-scale="fit"]) canvas { max-width: none; }

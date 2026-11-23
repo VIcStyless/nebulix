@@ -291,7 +291,7 @@ function playLimbo(u, params) {
   return { game: 'limbo', bet, mult, payout, net, result: { point, target }, nonce, balance: u.coins };
 }
 // big wins go to Nebulix Live (and the casino's live ticker)
-const GNAME = { wheel: ['Wheel', 'Rueda'], keno: ['Keno', 'Keno'], limbo: ['Limbo', 'Limbo'], crash: ['Crash', 'Crash'], plinko: ['Plinko', 'Plinko'], slots: ['Slots', 'Tragaperras'], roulette: ['Roulette', 'Ruleta'], mines: ['Mines', 'Minas'], dice: ['Dice', 'Dados'], horses: ['Horse racing', 'Carreras de caballos'], blackjack: ['Blackjack', 'Blackjack'], coinflip: ['Coin Flip', 'Cara o cruz'] };
+const GNAME = { baccarat: ['Baccarat', 'Bacará'], videopoker: ['Video Poker', 'Video póker'], hilo: ['Hi-Lo', 'Hi-Lo'], wheel: ['Wheel', 'Rueda'], keno: ['Keno', 'Keno'], limbo: ['Limbo', 'Limbo'], crash: ['Crash', 'Crash'], plinko: ['Plinko', 'Plinko'], slots: ['Slots', 'Tragaperras'], roulette: ['Roulette', 'Ruleta'], mines: ['Mines', 'Minas'], dice: ['Dice', 'Dados'], horses: ['Horse racing', 'Carreras de caballos'], blackjack: ['Blackjack', 'Blackjack'], coinflip: ['Coin Flip', 'Cara o cruz'] };
 const lastBig = new Map();
 function bigWin(u, game, bet, mult, payout) {
   try {
@@ -311,7 +311,7 @@ function dailySpin(u) {
 }
 const dailyState = (u) => ({ prizes: DAILY_PRIZES, used: !!(u.casinoDaily && u.casinoDaily.day === dayKey()) });
 
-const EXTRA_SINGLE = { crash: playCrash, plinko: playPlinko, horses: playHorses, wheel: playWheel, keno: playKeno, limbo: playLimbo };
+const EXTRA_SINGLE = { baccarat: (u, p) => playBaccarat(u, p), crash: playCrash, plinko: playPlinko, horses: playHorses, wheel: playWheel, keno: playKeno, limbo: playLimbo };
 
 // ---- Mines: 5×5 grid. Bet is taken at the start; cash out any time after a safe pick. ----
 const MINES_EDGE = 0.98;
@@ -400,7 +400,96 @@ function bjAction(u, action) {
   throw new HttpError(400, 'bad_action', 'Hit, stand or double');
 }
 
-function roundsOf(u) { const r = u.round || {}; return { mines: r.mines ? minesView(r.mines, false) : null, bj: r.bj ? bjView(r.bj, false) : null }; }
+
+// ================= 13.7: Baccarat, Video Poker (Jacks or Better) and Hi-Lo =================
+// ---- Baccarat: infinite-deck shoe from the seed, standard third-card rules. Player 2×, Banker 1.95×, Tie 9× (Player/Banker bets push on a tie). ----
+const bacVal = (c) => (c.r === 'A' ? 1 : ['10', 'J', 'Q', 'K'].includes(c.r) ? 0 : Number(c.r));
+const bacTotal = (cards) => cards.reduce((a, c) => a + bacVal(c), 0) % 10;
+function baccaratDeal(fl) {
+  let i = 0; const draw = () => cardOf(fl[i++]);
+  const P = [draw(), draw()]; const B = [draw(), draw()]; let p = bacTotal(P), b = bacTotal(B);
+  if (p < 8 && b < 8) {
+    let p3 = null; if (p <= 5) { p3 = draw(); P.push(p3); }
+    const v = p3 ? bacVal(p3) : null;
+    const bankerDraws = p3 === null ? b <= 5 : b <= 2 || (b === 3 && v !== 8) || (b === 4 && v >= 2 && v <= 7) || (b === 5 && v >= 4 && v <= 7) || (b === 6 && (v === 6 || v === 7));
+    if (bankerDraws) B.push(draw()); p = bacTotal(P); b = bacTotal(B);
+  }
+  return { player: P, banker: B, p, b, win: p > b ? 'player' : b > p ? 'banker' : 'tie' };
+}
+const BAC_PAY = { player: 2, banker: 1.95, tie: 9 };
+function playBaccarat(u, params) {
+  const side = String(params.side || ''); if (!BAC_PAY[side]) throw new HttpError(400, 'bad_side', 'Bet on Player, Banker or Tie');
+  const bet = checkBet(u, params.bet, { gap: 400 });
+  const { fl, nonce } = nextFloats(u, 6); const r = baccaratDeal(fl);
+  const mult = r.win === side ? BAC_PAY[side] : r.win === 'tie' ? 1 : 0; const payout = Math.floor(bet * mult);
+  econ.adjust(u, payout - bet, 'casino:baccarat'); const net = record(u, bet, payout, mult); bigWin(u, 'baccarat', bet, mult, payout);
+  return { game: 'baccarat', bet, mult, payout, net, result: Object.assign({ side }, r), nonce, balance: u.coins };
+}
+
+// ---- Video Poker, Jacks or Better (9/6 table): a shuffled 52-card deck from the seed; deal 5, hold any, draw once. ----
+const VP_PAY = [['royal', 800], ['sflush', 50], ['four', 25], ['full', 9], ['flush', 6], ['straight', 4], ['three', 3], ['twopair', 2], ['jacks', 1]];
+const rankN = (r) => (r === 'A' ? 14 : r === 'K' ? 13 : r === 'Q' ? 12 : r === 'J' ? 11 : Number(r));
+function vpHand(cards) {
+  const ns = cards.map((c) => rankN(c.r)).sort((a, b) => a - b); const flush = cards.every((c) => c.s === cards[0].s);
+  const uniq = [...new Set(ns)]; const wheel = uniq.length === 5 && ns.join() === '2,3,4,5,14'; const straight = uniq.length === 5 && (ns[4] - ns[0] === 4 || wheel);
+  const counts = Object.values(ns.reduce((m, n) => ((m[n] = (m[n] || 0) + 1), m), {})).sort((a, b) => b - a);
+  const pairHigh = Object.entries(ns.reduce((m, n) => ((m[n] = (m[n] || 0) + 1), m), {})).some(([n, k]) => k === 2 && Number(n) >= 11);
+  if (straight && flush && ns[0] === 10) return 'royal'; if (straight && flush) return 'sflush'; if (counts[0] === 4) return 'four'; if (counts[0] === 3 && counts[1] === 2) return 'full';
+  if (flush) return 'flush'; if (straight) return 'straight'; if (counts[0] === 3) return 'three'; if (counts[0] === 2 && counts[1] === 2) return 'twopair'; if (counts[0] === 2 && pairHigh) return 'jacks'; return null;
+}
+const vpMult = (hand) => (hand ? VP_PAY.find((x) => x[0] === hand)[1] : 0);
+function deck52(fl) { const d = [...Array(52).keys()]; for (let i = 51; i > 0; i--) { const j = Math.floor(fl[51 - i] * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d.map((n) => ({ r: RANKS[n % 13], s: SUITS[Math.floor(n / 13)] })); }
+const vpView = (r, done) => ({ bet: r.bet, cards: r.cards, held: r.held || [], hand: vpHand(r.cards), nonce: r.nonce, done: !!done });
+function vpDeal(u, params) {
+  if (u.round && u.round.vp) throw new HttpError(409, 'in_round', 'Finish your current hand first');
+  const bet = checkBet(u, params.bet); const { fl, nonce } = nextFloats(u, 51);
+  if (!econ.adjust(u, -bet, 'casino:videopoker')) throw new HttpError(402, 'no_funds', 'Not enough coins');
+  const deck = deck52(fl); u.round = Object.assign(u.round || {}, { vp: { bet, deck, cards: deck.slice(0, 5), nonce, t: now() } }); S.store.touch('users');
+  return { round: vpView(u.round.vp, false), balance: u.coins };
+}
+function vpDraw(u, params) {
+  const r = u.round && u.round.vp; if (!r) throw new HttpError(409, 'no_round', 'Deal a hand first');
+  const held = [...new Set((Array.isArray(params.held) ? params.held : []).map((x) => Math.trunc(Number(x))).filter((x) => x >= 0 && x < 5))];
+  let k = 5; r.cards = r.cards.map((c, i) => (held.includes(i) ? c : r.deck[k++])); r.held = held;
+  const hand = vpHand(r.cards); const mult = vpMult(hand); const payout = Math.floor(r.bet * mult);
+  delete u.round.vp; if (payout > 0) econ.adjust(u, payout, 'casino:videopoker'); const net = record(u, r.bet, payout, mult); bigWin(u, 'videopoker', r.bet, mult, payout);
+  return { round: vpView(r, true), hand, mult, payout, net, balance: u.coins };
+}
+
+// ---- Hi-Lo: guess if the next card is higher-or-equal or lower-or-equal (A low … K high). Each right guess multiplies by 0.98 / chance. ----
+const hlRank = (c) => (c.r === 'A' ? 1 : rankN(c.r));
+const hlChance = (rank, dir) => (dir === 'hi' ? (14 - rank) / 13 : rank / 13);
+const hlStep = (rank, dir) => Math.floor((0.98 / hlChance(rank, dir)) * 10000) / 10000;
+const hlView = (r) => { const c = r.cards[r.cards.length - 1]; const rk = hlRank(c); return { bet: r.bet, cards: r.cards, mult: Math.floor(r.mult * 100) / 100, steps: r.steps, hi: rk === 13 ? null : hlStep(rk, 'hi'), lo: rk === 1 ? null : hlStep(rk, 'lo'), pHi: hlChance(rk, 'hi'), pLo: hlChance(rk, 'lo'), nonce: r.nonce }; };
+function hlStart(u, params) {
+  if (u.round && u.round.hl) throw new HttpError(409, 'in_round', 'Finish your current Hi-Lo round first');
+  const bet = checkBet(u, params.bet); const { fl, nonce } = nextFloats(u, 60);
+  if (!econ.adjust(u, -bet, 'casino:hilo')) throw new HttpError(402, 'no_funds', 'Not enough coins');
+  u.round = Object.assign(u.round || {}, { hl: { bet, fl, i: 1, cards: [cardOf(fl[0])], mult: 1, steps: 0, skips: 0, nonce, t: now() } }); S.store.touch('users');
+  return { round: hlView(u.round.hl), balance: u.coins };
+}
+function hlEnd(u, r, payout) { delete u.round.hl; if (payout > 0) econ.adjust(u, payout, 'casino:hilo'); const mult = payout / r.bet; const net = record(u, r.bet, payout, mult); bigWin(u, 'hilo', r.bet, mult, payout); return { payout, net, mult }; }
+function hlGuess(u, params) {
+  const r = u.round && u.round.hl; if (!r) throw new HttpError(409, 'no_round', 'Start a Hi-Lo round first');
+  const dir = String(params.dir || ''); if (!['hi', 'lo', 'skip'].includes(dir)) throw new HttpError(400, 'bad_guess', 'Guess higher, lower or skip');
+  if (r.i >= r.fl.length) return hlCashout(u);
+  const prev = hlRank(r.cards[r.cards.length - 1]);
+  if (dir === 'skip') { if (r.skips >= 3) throw new HttpError(400, 'no_skips', 'You can skip 3 cards per round'); r.skips++; r.cards.push(cardOf(r.fl[r.i++])); S.store.touch('users'); return { round: hlView(r), balance: u.coins }; }
+  if ((dir === 'hi' && prev === 13) || (dir === 'lo' && prev === 1)) throw new HttpError(400, 'bad_guess', 'That guess cannot win');
+  const c = cardOf(r.fl[r.i++]); const n = hlRank(c); r.cards.push(c);
+  const ok = dir === 'hi' ? n >= prev : n <= prev;
+  if (!ok) { const end = hlEnd(u, r, 0); return Object.assign({ lost: true, round: hlView(r), balance: u.coins }, end); }
+  r.mult *= hlStep(prev, dir); r.steps++; S.store.touch('users');
+  if (r.mult >= 10000) return hlCashout(u);
+  return { round: hlView(r), balance: u.coins };
+}
+function hlCashout(u) {
+  const r = u.round && u.round.hl; if (!r) throw new HttpError(409, 'no_round', 'No Hi-Lo round in progress');
+  if (!r.steps) throw new HttpError(400, 'no_steps', 'Guess at least once first');
+  const end = hlEnd(u, r, Math.floor(r.bet * Math.min(10000, r.mult))); return Object.assign({ cashed: true, round: hlView(r), balance: u.coins }, end);
+}
+
+function roundsOf(u) { const r = u.round || {}; return { mines: r.mines ? minesView(r.mines, false) : null, bj: r.bj ? bjView(r.bj, false) : null, vp: r.vp ? vpView(r.vp, false) : null, hl: r.hl ? hlView(r.hl) : null }; }
 
 // ---- Jackpot: shared pot. Everyone deposits; one ticket per coin; the winner is drawn from a committed seed. ----
 const JP_WINDOW = 45000; const JP_SOLO_TIMEOUT = 10 * 60000; const JP_FEE = 0.02; const JP_MAX_DEPOSIT = 1_000_000_000_000_000;
@@ -459,4 +548,4 @@ function startJackpot() { if (jpTimer) return; jpState(); jpTimer = setInterval(
 
 const EXTRA_CFG = { wheel: WHEEL, keno: KENO, limboMax: LIMBO_MAX, horses: HORSES, crashMax: CRASH_MAX, plinko: PLINKO, minesEdge: MINES_EDGE, jackpot: { fee: JP_FEE, window: JP_WINDOW, max: JP_MAX_DEPOSIT } };
 
-module.exports = { dailySpin, dailyState, WHEEL, KENO, kenoDraw, bigWin, HORSES, horseRace, minesStart, minesPick, minesCashout, bjStart, bjAction, roundsOf, jpPublic, jpDeposit, startJackpot, crashPoint, plinkoPath, minesLayout, minesMult, cardOf, handValue, EXTRA_CFG, PLINKO, play, setLimits, fairPublic, setClientSeed, rotate, leaderboard, floatsFrom, slotSymbol, slotsPayMult, rouletteWin, diceMult, SLOT_SYMBOLS, SLOT_PAY, COIN_MULT, TWO_CHERRY, MIN_BET, MAX_BET };
+module.exports = { vpDeal, vpDraw, vpHand, VP_PAY, hlStart, hlGuess, hlCashout, baccaratDeal, BAC_PAY, dailySpin, dailyState, WHEEL, KENO, kenoDraw, bigWin, HORSES, horseRace, minesStart, minesPick, minesCashout, bjStart, bjAction, roundsOf, jpPublic, jpDeposit, startJackpot, crashPoint, plinkoPath, minesLayout, minesMult, cardOf, handValue, EXTRA_CFG, PLINKO, play, setLimits, fairPublic, setClientSeed, rotate, leaderboard, floatsFrom, slotSymbol, slotsPayMult, rouletteWin, diceMult, SLOT_SYMBOLS, SLOT_PAY, COIN_MULT, TWO_CHERRY, MIN_BET, MAX_BET };

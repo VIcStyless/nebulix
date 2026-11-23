@@ -8,7 +8,7 @@
 import { h, mount, fmt, ls } from '../util.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
-import { toast, toastErr, modal, confirmBox, promptBox } from '../ui.js';
+import { toast, toastErr, modal, confirmBox, promptBox, openMenu } from '../ui.js';
 
 const L = (p) => (document.documentElement.lang === 'es' ? p[1] : p[0]);
 const TEMPLATES = [
@@ -128,7 +128,10 @@ export default {
       const termEl = h('div.vm-term'); const status = h('span.tiny.muted', t('Starting…')); const ips = h('span.tiny.muted'); let paused = false;
       const pauseBtn = h('button.btn.sm', { onClick: () => { if (!emu) return; if (paused) { emu.run(); paused = false; mount(pauseBtn, icon('pause', 14)); status.textContent = t('Running'); } else { emu.stop(); paused = true; mount(pauseBtn, icon('play', 14)); status.textContent = t('Paused'); } }, title: t('Pause') }, icon('pause', 14));
       mount(box, h('div.vm-run', h('div.vm-bar', h('button.btn.sm.ghost', { onClick: () => powerOff() }, icon('back', 14), t('Machines')), h('b', v.name), status, h('span.grow'), ips, pauseBtn,
-        serial ? null : h('button.btn.sm', { title: 'Ctrl+Alt+Del', onClick: () => emu && emu.keyboard_send_scancodes([0x1d, 0x38, 0x53, 0xd3, 0xb8, 0x9d]) }, 'Ctrl+Alt+Del'),
+        serial ? null : h('button.btn.sm', { title: t('Send keys'), onClick: (e) => keysMenu(e.currentTarget) }, icon('grid', 14), t('Keys')),
+        serial ? null : h('button.btn.sm', { title: t('Type text into the machine'), onClick: () => pasteText() }, icon('copy', 14), t('Paste')),
+        serial ? null : h('button.btn.sm', { title: t('Screen size'), onClick: (e) => scaleMenu(e.currentTarget) }, icon('fullscreen', 14), h('span.vm-scale', scaleLabel())),
+        serial ? null : h('button.btn.sm', { title: t('Screenshot'), onClick: () => vmShot() }, icon('image', 14)),
         serial ? null : h('button.btn.sm', { title: t('Capture the mouse (Esc releases it)'), onClick: () => { try { emu.lock_mouse(); } catch {} } }, icon('mouse', 14)),
         serial ? null : h('button.btn.sm', { title: t('Change CD'), onClick: () => changeCd() }, icon('save', 14), t('CD')),
         v.temp ? null : h('button.btn.sm', { onClick: () => snapshot() }, icon('layers', 14), t('Snapshot')),
@@ -163,6 +166,18 @@ export default {
           h('aside.vm-droid-bar', btn('back', 'back', t('Back')), btn('home', 'home', t('Home')), btn('recents', 'layers', t('Recent apps')), btn('menu', 'more', t('Menu')), btn('volup', 'up', t('Volume +')), btn('voldown', 'down', t('Volume −')),
             h('button.vm-dbtn', { title: t('Screenshot'), onClick: shot }, icon('image', 18), h('span', t('Screenshot'))), h('button.vm-dbtn', { title: t('Capture the mouse (Esc releases it)'), onClick: () => { try { emu.lock_mouse(); } catch {} } }, icon('mouse', 18), h('span', t('Mouse'))), h('button.vm-dbtn', { title: t('Full screen'), onClick: () => { try { emu.screen_go_fullscreen(); } catch {} } }, icon('fullscreen', 18), h('span', t('Full screen')))));
       }
+      // ---- 13.7: special keys, typing text in, screen size and screenshots ----
+      const SC = { ctrl: [0x1d, 0x9d], alt: [0x38, 0xb8], shift: [0x2a, 0xaa], win: [[0xe0, 0x5b], [0xe0, 0xdb]], del: [[0xe0, 0x53], [0xe0, 0xd3]], tab: [0x0f, 0x8f], esc: [0x01, 0x81], f4: [0x3e, 0xbe], enter: [0x1c, 0x9c] };
+      const down = (k) => [].concat(Array.isArray(SC[k][0]) ? SC[k][0] : [SC[k][0]]); const up = (k) => [].concat(Array.isArray(SC[k][1]) ? SC[k][1] : [SC[k][1]]);
+      const combo = (...ks) => { if (!emu) return; const seq = ks.flatMap(down).concat(ks.slice().reverse().flatMap(up)); try { emu.keyboard_send_scancodes(seq); } catch {} };
+      const fkey = (n) => { const code = n <= 10 ? 0x3a + n : n === 11 ? 0x57 : 0x58; try { emu && emu.keyboard_send_scancodes([code, code | 0x80]); } catch {} };
+      function keysMenu(anchor) { openMenu([{ label: 'Ctrl + Alt + Del', icon: 'power', onClick: () => combo('ctrl', 'alt', 'del') }, { label: 'Alt + Tab', icon: 'layers', onClick: () => combo('alt', 'tab') }, { label: 'Alt + F4', icon: 'x', onClick: () => combo('alt', 'f4') }, { label: t('Windows key'), icon: 'grid', onClick: () => combo('win') }, { label: 'Ctrl + Esc', icon: 'grid', onClick: () => combo('ctrl', 'esc') }, { label: 'Esc', icon: 'back', onClick: () => combo('esc') }, { hr: true }].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => ({ label: 'F' + n, icon: 'zap', onClick: () => fkey(n) }))), anchor); }
+      async function pasteText() { if (!emu) return; let txt = ''; try { txt = await navigator.clipboard.readText(); } catch {} const v = await promptBox(t('Type text into the machine'), { label: t('The text is typed key by key (letters, numbers and common symbols).'), value: txt.slice(0, 2000), multiline: true }); if (!v) return; try { emu.keyboard_send_text(String(v).slice(0, 4000)); toast(t('Typing {n} characters…', { n: Math.min(4000, v.length) }), 'good'); } catch (e) { toastErr(e); } }
+      function scaleLabel() { const s = ls('vm.scale') || 'fit'; return s === 'fit' ? t('Fit') : s + '×'; }
+      function applyScale() { const s = ls('vm.scale') || 'fit'; screenEl.dataset.scale = s; try { if (emu && s !== 'fit') emu.screen_set_scale(Number(s), Number(s)); else if (emu) emu.screen_set_scale(1, 1); } catch {} const lab = box.querySelector('.vm-scale'); if (lab) lab.textContent = scaleLabel(); }
+      function scaleMenu(anchor) { openMenu(['fit', '1', '1.5', '2'].map((s) => ({ label: s === 'fit' ? t('Fit to window') : s + '×', icon: (ls('vm.scale') || 'fit') === s ? 'check' : 'monitor', onClick: () => { ls('vm.scale', s); applyScale(); } })), anchor); }
+      function vmShot() { const c = screenEl.querySelector('canvas'); const txt = screenEl.querySelector('div'); if (c && c.style.display !== 'none' && c.width) { const a = h('a', { href: c.toDataURL('image/png'), download: (v.name || 'vm').replace(/[^\w.-]+/g, '_') + '-' + Date.now() + '.png' }); a.click(); } else if (txt && txt.textContent.trim()) { const a = h('a', { href: URL.createObjectURL(new Blob([txt.innerText], { type: 'text/plain' })), download: 'vm-screen-' + Date.now() + '.txt' }); a.click(); } else toast(t('Nothing on the screen yet'), 'info'); }
+      setTimeout(applyScale, 0);
       function changeCd() { const fi = h('input', { type: 'file', accept: '.iso', onChange: async () => { const f = fi.files[0]; if (!f || !emu) return; try { await emu.set_cdrom({ buffer: f, async: f.size > 64 * 1048576 }); toast(t('CD inserted: {n}', { n: f.name }), 'good'); } catch (e) { toastErr(e); } } }); modal({ title: t('CD/DVD drive'), cls: 'narrow', body: h('p.small', t('Insert another ISO (for example drivers or programs) or eject the current one.')), actions: [{ label: t('Eject'), value: 'e', onClick: () => { try { emu.eject_cdrom(); toast(t('CD ejected'), 'good'); } catch {} } }, { label: t('Insert ISO…'), kind: 'primary', onClick: () => fi.click() }] }); }
       async function snapshot() { if (!emu) return; const n = await promptBox(t('Snapshot name'), { value: t('Snapshot {n}', { n: v.snaps.length + 1 }) }); if (!n) return; try { const st = await emu.save_state(); const sid = uid(); await dbSet('snap:' + v.id + ':' + sid, st); v.snaps.push({ id: sid, name: n.slice(0, 60), t: Date.now(), size: st.byteLength }); saveVms(vms); toast(t('Snapshot taken ({s})', { s: fmt.bytes(st.byteLength) }), 'good'); } catch (e) { toastErr(e); } }
       async function powerOff() {

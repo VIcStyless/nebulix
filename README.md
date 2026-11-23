@@ -54,13 +54,13 @@ Funciona en cualquier navegador moderno (también en **Chromebooks** y **móvile
 Proxy web con bloqueo de anuncios y rastreadores, pestañas, perfiles y **Nebulix VPN** (identidad genérica y protección contra fugas WebRTC dentro de Nebulix).
 
 ### 🎮 Juegos
-**Nebulix Arena**: battle royale con construcción y edición, 5 contra 5, duelos y peleas de construcción 1 contra 1 (**Realistas** y **Pelea en caja**), con bots, clasificatoria y menú de ajustes completo. También **Nebula Worlds** (mundos 3D), casino 3D con monedas virtuales, torneos, ligas, World Boss y arcade.
+**Nebulix Arena**: battle royale con construcción y edición, 5 contra 5, duelos y peleas de construcción 1 contra 1 (**Realistas** y **Pelea en caja**), con bots, clasificatoria y menú de ajustes completo. También **Nebula Worlds** (mundos 3D), casino 3D con monedas virtuales (ruleta, blackjack, bacará, video póker, Hi-Lo, crash, mines, plinko y más), torneos, ligas, World Boss y arcade.
 
 ### 🕹️ Consolas retro
 NES, SNES, Game Boy / GBA, DS, N64, PlayStation, Saturn, Mega Drive, Sega CD, 32X, 3DO, Atari, Neo Geo Pocket, Commodore 64, Amiga y más, con tus propios archivos.
 
 ### 🖥️ Máquinas virtuales
-Un PC x86 emulado en el navegador: Linux con terminal real, Damn Small Linux, FreeDOS, KolibriOS, OpenBSD, Oberon, **Android-x86**, y Windows 98 / 2000 / XP o ReactOS con tu propia ISO. Hasta **2 GB de RAM**, discos de **32 GB**, instantáneas, **pantalla de BIOS** y un **reproductor de Android** con botones de Atrás, Inicio y Apps recientes.
+Un PC x86 emulado en el navegador: Linux con terminal real, Damn Small Linux, FreeDOS, KolibriOS, OpenBSD, Oberon, **Android-x86**, y Windows 98 / 2000 / XP o ReactOS con tu propia ISO. Hasta **2 GB de RAM**, discos de **32 GB**, instantáneas, **pantalla de BIOS**, menú de teclas especiales, pegar texto, capturas y un **reproductor de Android** con botones de Atrás, Inicio y Apps recientes.
 
 </td>
 <td width="50%" valign="top">

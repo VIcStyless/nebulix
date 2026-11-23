@@ -2,6 +2,14 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    v: '13.7', date: '2026-11-23', title: { en: 'Baccarat, Video Poker, Hi-Lo, new AI models and better virtual machines', es: 'Bacará, video póker, Hi-Lo, nuevos modelos de IA y mejores máquinas virtuales' },
+    changes: [
+      { type: 'new', en: "Casino: Baccarat (Player 2×, Banker 1.95×, Tie 9× with the real third-card rules), Video Poker Jacks or Better (deal, hold, draw; royal flush pays 800×) and Hi-Lo (guess higher or lower, the multiplier grows with every right card, cash out any time). All provably fair and dealt by the server.", es: "Casino: Bacará (Jugador 2×, Banca 1,95×, Empate 9× con las reglas reales de la tercera carta), Video póker Jotas o más (reparte, guarda, cambia; la escalera real paga 800×) y Hi-Lo (adivina más alta o más baja, el multiplicador sube con cada acierto y te retiras cuando quieras). Todos con juego justo verificable y repartidos por el servidor." },
+      { type: 'new', en: "Nova AI: two more free models, DeepSeek V4 Flash and MiniMax M2.7 (long answers, code and reasoning). If one is busy, Nova moves to the next on its own.", es: "Nova IA: dos modelos gratis más, DeepSeek V4 Flash y MiniMax M2.7 (respuestas largas, código y razonamiento). Si uno está ocupado, Nova pasa sola al siguiente." },
+      { type: 'improved', en: "Virtual machines: a Keys menu (Ctrl+Alt+Del, Alt+Tab, Alt+F4, Windows key, F1–F12), type text into the machine from your clipboard, screen size (fit, 1×, 1.5×, 2×) and screenshots for every machine.", es: "Máquinas virtuales: menú de Teclas (Ctrl+Alt+Supr, Alt+Tab, Alt+F4, tecla Windows, F1–F12), escribir texto en la máquina desde tu portapapeles, tamaño de pantalla (ajustar, 1×, 1,5×, 2×) y capturas en todas las máquinas." },
+    ],
+  },
+  {
     v: '13.6', date: '2026-11-23', title: { en: 'Build fights 1v1, a new Arena HUD and BIOS for virtual machines', es: 'Peleas de construcción 1v1, nuevo HUD de la Arena y BIOS en las máquinas virtuales' },
     changes: [
       { type: 'new', en: "Arena: two new 1 vs 1 build-fight modes. Realistics: you spawn close to your rival on an open field. Box Fight: every round starts inside your own box. Shotgun, rifle, SMG, full shield and 500 materials each round; first to 5.", es: "Arena: dos modos nuevos 1 contra 1 con construcción. Realistas: apareces cerca de tu rival en campo abierto. Pelea en caja: cada ronda empiezas dentro de tu propia caja. Escopeta, rifle, subfusil, escudo lleno y 500 materiales por ronda; gana quien llegue a 5." },

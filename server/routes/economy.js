@@ -56,6 +56,11 @@ module.exports = function register(r) {
   r.post('/api/casino/mines/cashout', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.minesCashout(c.user));
   r.post('/api/casino/blackjack/deal', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.bjStart(c.user, c.body));
   r.post('/api/casino/blackjack/:action', { auth: true, verified: true, limit: [300, 60000, 'user'] }, async (c) => casino.bjAction(c.user, c.params.action));
+  r.post('/api/casino/videopoker/deal', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.vpDeal(c.user, c.body));
+  r.post('/api/casino/videopoker/draw', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.vpDraw(c.user, c.body));
+  r.post('/api/casino/hilo/start', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.hlStart(c.user, c.body));
+  r.post('/api/casino/hilo/guess', { auth: true, verified: true, limit: [300, 60000, 'user'] }, async (c) => casino.hlGuess(c.user, c.body));
+  r.post('/api/casino/hilo/cashout', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => casino.hlCashout(c.user));
   r.get('/api/casino/jackpot', { auth: true, limit: [120, 60000, 'user'] }, async (c) => ({ jackpot: casino.jpPublic(c.user) }));
   r.post('/api/casino/jackpot/join', { auth: true, verified: true, limit: [30, 60000, 'user'] }, async (c) => casino.jpDeposit(c.user, c.body));
   casino.startJackpot();

@@ -65,6 +65,8 @@ const PRESETS = [
 // from the model checker; "auto" tries the healthy ones in order and moves on when one is busy.
 const FREE = [
   { id: 'gpt-oss', label: 'GPT-OSS 20B', by: 'OpenAI (open weights)', host: 'Pollinations', kind: 'openai', url: 'https://text.pollinations.ai/openai', model: 'openai', tags: ['reasoning', 'general'], ctx: 4096 },
+  { id: 'deepseek-v4', label: 'DeepSeek V4 Flash', by: 'DeepSeek (open weights)', host: 'LLM7', kind: 'openai', url: 'https://api.llm7.io/v1/chat/completions', model: 'DeepSeek-V4-Flash-0731', tags: ['reasoning', 'code', 'general'], browser: true, ctx: 16384 },
+  { id: 'minimax-m2', label: 'MiniMax M2.7', by: 'MiniMax (open weights)', host: 'LLM7', kind: 'openai', url: 'https://api.llm7.io/v1/chat/completions', model: 'minimax-m2.7', tags: ['reasoning', 'code'], browser: true, ctx: 16384 },
   { id: 'gemma-27b', label: 'Gemma 3 27B', by: 'Google (open weights)', host: 'LLM7', kind: 'openai', url: 'https://api.llm7.io/v1/chat/completions', model: 'gemma-3-27b', tags: ['general', 'writing'], browser: true, ctx: 4096 },
   { id: 'codestral', label: 'Codestral', by: 'Mistral AI', host: 'LLM7', kind: 'openai', url: 'https://api.llm7.io/v1/chat/completions', model: 'codestral-latest', tags: ['code'], browser: true, ctx: 8192 },
   { id: 'mistral-nemo', label: 'Mistral Nemo 12B', by: 'Mistral AI', host: 'LLM7', kind: 'openai', url: 'https://api.llm7.io/v1/chat/completions', model: 'mistral-Nemo-Instruct-2407', tags: ['general', 'fast'], browser: true, ctx: 4096 },
