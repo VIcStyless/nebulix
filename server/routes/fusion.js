@@ -8,6 +8,7 @@ module.exports = function register(r) {
   r.get('/api/fusion', { auth: true }, async (c) => fu.state(c.user));
   r.get('/api/fusion/board', { auth: true }, async (c) => ({ board: fu.board(c.user) }));
   r.post('/api/fusion/combine', { auth: true, verified: true, limit: [40, 60000, 'user'] }, async (c) => fu.combine(c.user, c.body.a, c.body.b));
+  r.get('/api/race', { auth: true }, async (c) => require('../race').view(c.user));
   r.post('/api/dash/complete', { auth: true, verified: true, limit: [20, 60000, 'user'] }, async (c) => {
     const id = String(c.body.level || ''); if (!DASH[id]) throw new HttpError(400, 'bad_level', 'Unknown level');
     const u = c.user; const d = (u.dash = u.dash || { done: {}, day: {} }); const today = dayKey(); let coins = 0;

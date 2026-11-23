@@ -524,3 +524,10 @@ html.dc-on #app, html.dc-on .nvf-fab, html.dc-on .toasts { visibility: hidden !i
 .dsh-win { display: grid; gap: 8px; justify-items: center; padding: 26px 34px; border-radius: 18px; background: #000c; color: #fff; text-align: center; }
 .dsh-tools { display: flex; flex-wrap: wrap; gap: 4px; }
 .dsh-cv.ed { cursor: crosshair; grid-row: auto; }
+.md-fig { margin: 10px 0; } .md-upimg { max-width: 100%; border-radius: 10px; display: block; }
+/* ---------- Mods (13.8) ---------- */
+.mods-tabs { display: flex; gap: 4px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.mods-tabs > button:not(.btn) { border: 0; padding: 8px 14px; border-radius: 10px; background: transparent; color: inherit; font-weight: 700; cursor: pointer; opacity: .75; }
+.mods-tabs > button.on { opacity: 1; background: color-mix(in oklab, var(--accent) 16%, transparent); }
+.mods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+.mod-card { display: grid; gap: 6px; align-content: start; } .mod-card.on { border-color: var(--accent); } .mod-card p { margin: 0; }

@@ -12,6 +12,7 @@ function adjust(u, delta, reason) {
   // The owner can be given a bottomless wallet (u.infinite, set with scripts/infinite-coins.js): every spend succeeds and the balance stays full.
   if (u.infinite) u.coins = MAX_COINS;
   else { if (u.coins + delta < 0) return false; u.coins = Math.min(MAX_COINS, u.coins + delta); }
+  try { require('./race').record(u, delta, reason); } catch {} // 13.8 weekly coin race
   u.tx = u.tx || [];
   u.tx.unshift({ t: now(), d: delta, r: reason, b: u.coins });
   if (u.tx.length > 60) u.tx.length = 60;

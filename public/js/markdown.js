@@ -127,6 +127,8 @@ export function renderMarkdown(text, { go, done = true, special } = {}) {
       const l = lines[i];
       if (!l.trim()) { i++; continue; }
       const im = /^\s*!\[([^\]]{0,600})\]\((https:\/\/image\.pollinations\.ai\/[^)\s]{1,1500})\)\s*$/.exec(l); if (im) { out.push(imageCard(im[2], im[1])); i++; continue; }
+      // 13.8: pictures uploaded to Nebulix (study notes, posts): only our own /uploads/ addresses
+      const up = /^\s*!\[([^\]]{0,300})\]\((\/uploads\/[A-Za-z0-9_-]{6,80}\.(?:png|jpe?g|webp|gif))\)\s*$/.exec(l); if (up) { out.push(h('figure.md-fig', h('img.md-upimg', { src: up[2], alt: up[1], loading: 'lazy' }), up[1] ? h('figcaption.tiny.muted', up[1]) : null)); i++; continue; }
       const hm = /^(#{1,6})\s+(.*)$/.exec(l); if (hm) { out.push(h('h' + Math.min(6, hm[1].length + 1) + '.md-h', inline(hm[2], { go }))); i++; continue; }
       if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { out.push(h('hr.md-hr')); i++; continue; }
       if (/^\s*>/.test(l)) { const q = []; while (i < lines.length && /^\s*>/.test(lines[i])) q.push(lines[i++].replace(/^\s*>\s?/, '')); out.push(h('blockquote.md-q', renderMarkdown(q.join('\n'), { go, done }))); continue; }

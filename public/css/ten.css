@@ -322,3 +322,6 @@
 .pk-banklink:hover { border-color: var(--accent); }
 .adm-lock.on { border-color: #ef4444; background: color-mix(in oklab, #ef4444 10%, var(--surface, #131418)); }
 .adm-online { display: grid; gap: 6px; } .adm-orow { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; background: var(--surface2, #1a1c21); }
+.wl-race-me { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; } .wl-race-me div { display: grid; padding: 10px; border-radius: 12px; background: var(--surface2, #1a1c21); } .wl-race-me b { font-size: 20px; }
+.wl-race-prizes { display: flex; gap: 6px; flex-wrap: wrap; } .wl-race-list { display: grid; gap: 4px; }
+.wl-race-row { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: var(--surface2, #1a1c21); } .wl-race-row.me { outline: 2px solid var(--accent); }

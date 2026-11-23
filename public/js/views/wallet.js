@@ -38,11 +38,22 @@ export default {
     const shortcuts = h('div.wl-quick',
       [['gift', t('Daily reward'), () => ctx.go('home', { daily: 1 })], ['trophy', t('Missions & achievements'), () => ctx.go('progress')], ['bag', t('Shop'), () => ctx.go('market')], ['clip', t('Work'), () => ctx.go('work')], ['chart', t('Invest'), () => ctx.go('invest')], ['dice', t('Casino'), () => ctx.go('casino')]]
         .map(([ic, l, fn]) => h('button.wl-q', { type: 'button', onClick: fn }, icon(ic, 18), h('span', l))));
-    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['bank', t('Bank'), 'chart'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
+    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['bank', t('Bank'), 'chart'], ['race', t('Weekly race'), 'trophy'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
     mount(inner, h('div.page-title', h('div', h('h2', t('Wallet')), h('p', t('Your coins, transfers, pets, chests and items in one place.'))), balEl), shortcuts, tabs, body);
     paintBal();
 
-    function paint() { paintBal(); ({ overview, bank, send, pets, chests, inv }[tab] || overview)(); }
+    function paint() { paintBal(); ({ overview, bank, race, send, pets, chests, inv }[tab] || overview)(); }
+    // 13.8: weekly coin race — earned coins only (playing, studying, missions); prizes for the top 10 every Monday
+    async function race() {
+      mount(body, loading()); let r; try { r = await api.get('/api/race'); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); return; }
+      const left = Math.max(0, r.ends - Date.now()); const d = Math.floor(left / 86400000), hh = Math.floor((left % 86400000) / 3600000);
+      mount(body, h('div.grid.cols-2', { style: 'margin-top:14px' },
+        h('div.card', h('h3', icon('trophy', 18), ' ', t('Weekly coin race')), h('p.small.muted', t('Earn coins by playing, studying and doing missions. Transfers, trades, the casino and gifts do not count. The top 10 win prizes when the week ends.')),
+          h('div.wl-race-me', h('div', h('span.tiny.muted', t('Your coins this week')), h('b', fmt.num(r.me.n))), h('div', h('span.tiny.muted', t('Your position')), h('b', r.me.rank ? '#' + r.me.rank : '—')), h('div', h('span.tiny.muted', t('Ends in')), h('b', t('{d} d {h} h', { d, h: hh })))),
+          h('div.wl-race-prizes', r.prizes.slice(0, 5).map((p, i) => h('span.pill', '#' + (i + 1) + ' · ' + fmt.coins(p)))),
+          r.last && r.last.winners.length ? h('p.tiny.muted', t('Last week: {list}', { list: r.last.winners.map((w, i) => '#' + (i + 1) + ' @' + (w.user ? w.user.username : '?')).join(' · ') })) : null),
+        h('div.card', h('h3', t('Leaderboard')), r.top.length ? h('div.wl-race-list', r.top.map((x) => h('div.wl-race-row' + (x.user.id === S.me.id ? '.me' : ''), h('b', '#' + x.rank), h('span.grow', x.user.displayName || x.user.username), h('span.coin', fmt.coins(x.n)), x.prize ? h('span.pill', '+' + fmt.coins(x.prize)) : null))) : h('p.muted', t('Nobody has earned coins this week yet. Be the first!')))));
+    }
     // 13.8: the Nebulix Bank lives in the Wallet now (it used to be in Advantages)
     async function bank() {
       mount(body, loading()); let d; try { d = await api.get('/api/perks'); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); return; }

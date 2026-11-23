@@ -22,6 +22,10 @@ const STATIONS = [
   ['coinflip', 'Coinflip', 0, 6, 2.4, 2.4, 'podium'],
   ['jackpot', 'Jackpot', 0, -22, 6, 3, 'vault'],
   ['bar', 'Bar', -18, 8, 8, 2.4, 'bar'],
+  // 13.8: the new card tables
+  ['baccarat', 'Baccarat', -6, 15, 5, 3, 'blackjack'],
+  ['hilo', 'Hi-Lo', 7, 15, 3.4, 3.4, 'table'],
+  ['videopoker', 'Video Poker', 18, 12, 4, 1.5, 'screen'],
 ];
 const GAME_LABEL = Object.fromEntries(STATIONS.map((s) => [s[0], s[1]]));
 const HALF = 26;

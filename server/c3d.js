@@ -9,7 +9,7 @@ const room = new Map(); // uid -> { conn, x, z, ry, w, game, say, sayAt, joined 
 const moveLim = new Limiter(40, 2000); const sayLim = new Limiter(6, 10000);
 let dirty = new Set(); let timer = null;
 const num = (v, lo, hi) => { v = Number(v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0; };
-const GAMES = new Set(['slots', 'roulette', 'blackjack', 'crash', 'plinko', 'mines', 'dice', 'coinflip', 'jackpot', 'horses', 'bar', 'booths', '']);
+const GAMES = new Set(['slots', 'roulette', 'blackjack', 'crash', 'plinko', 'mines', 'dice', 'coinflip', 'jackpot', 'horses', 'bar', 'booths', 'baccarat', 'hilo', 'videopoker', '']);
 
 function who(u) { return { id: u.id, username: u.username, displayName: u.displayName || u.username, pro: isPro(u), av3: u.av3 || null, role: u.role }; }
 function state(id, p) { return { id, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, ry: Math.round(p.ry * 100) / 100, w: p.w ? 1 : 0, g: p.game || '' }; }
