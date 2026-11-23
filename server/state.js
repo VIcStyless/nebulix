@@ -27,16 +27,18 @@ const hub = {
   online(uid) { return this.conns.has(uid); },
   count() { return this.conns.size; },
   push(uid, msg) {
-    const s = this.conns.get(uid); if (!s) return;
+    const s = this.conns.get(uid); if (!s) { offlinePush(uid, msg); return; }
     const str = JSON.stringify(msg);
     for (const c of s) c.send(str);
   },
   pushMany(uids, msg) {
     const str = JSON.stringify(msg);
-    for (const uid of uids) { const s = this.conns.get(uid); if (s) for (const c of s) c.send(str); }
+    for (const uid of uids) { const s = this.conns.get(uid); if (s) for (const c of s) c.send(str); else offlinePush(uid, msg); }
   },
 };
 S.hub = hub;
+// 13.8: whoever is offline gets the important ones as a Web Push notification (if they turned it on)
+function offlinePush(uid, msg) { try { if (msg && ['notice', 'notify', 'ar_invite', 'dm'].includes(msg.t) && S.users[uid] && S.users[uid].push && S.users[uid].push.length) require('./webpush').maybe(uid, msg); } catch (e) { console.error('[push]', e.message); } }
 
 function init() {
   S.store = new Store(cfg.dataDir);

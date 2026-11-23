@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { S, bus, patchMe } from '../state.js';
 import { icon } from '../icons.js';
 import { avatarEl, nameEl, badgesEl } from '../cosmetics.js';
-import { toastErr, confetti } from '../ui.js';
+import { toast, toastErr, confetti } from '../ui.js';
 import { sfx } from '../sfx.js';
 import { GAMES, siteLogo } from '../sites.js';
 import { focusWidget } from '../widgets/focus.js';
@@ -85,10 +85,10 @@ export default {
     const grad = 'conic-gradient(' + wheelVals.map((v, i) => `${v === 150 ? ac : i % 2 ? c1 : c2} ${i * step}deg ${(i + 1) * step}deg`).join(',') + ')';
     const wheel = h('div.wheel', { style: { background: grad } }, wheelVals.map((v, i) => h('div.wheel-seg' + (v === 150 ? '.hot' : ''), { style: { transform: `rotate(${i * step + step / 2}deg)` } }, v)));
     const result = h('div.small', { style: 'min-height:1.4em' });
-    const streakBar = h('div.streak'); const streakTxt = h('div.tiny.muted');
+    const streakBar = h('div.streak'); const streakTxt = h('div.tiny.muted'); const shieldEl = h('div.row.streak-shield', { style: 'gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px' }); let shieldSig = '';
     const claimBtn = h('button.btn.primary.block', { onClick: claim }, t('Spin & claim'));
     const dailyCard = h('section.card.s4', h('div.card-head', h('h3', icon('gift', 16), t('Daily reward'))),
-      h('div.daily', h('div.wheel-wrap', h('div.wheel-ptr'), wheel, h('div.wheel-hub', icon('coins', 16))), h('div.daily-info', streakBar, streakTxt, result)), h('div', { style: 'margin-top:14px' }, claimBtn));
+      h('div.daily', h('div.wheel-wrap', h('div.wheel-ptr'), wheel, h('div.wheel-hub', icon('coins', 16))), h('div.daily-info', streakBar, streakTxt, shieldEl, result)), h('div', { style: 'margin-top:14px' }, claimBtn));
     const paintDaily = () => {
       if (!daily) return;
       const left = Math.max(0, (daily.nextAt - Date.now()) / 1000); const can = daily.can || left <= 0;
@@ -97,6 +97,7 @@ export default {
       const n = Math.min(7, daily.streak || 0);
       streakBar.replaceChildren(...Array.from({ length: 7 }, (_, i) => h('i' + (i < n ? '.on' : ''))));
       streakTxt.textContent = daily.streak > 0 ? t('{n}-day streak · +{b} bonus', { n: daily.streak, b: daily.bonus }) : t('Claim daily to build a streak bonus.');
+      const sig = [daily.freezes, daily.freezeMax, daily.saving].join(); if (daily.freezeMax && sig !== shieldSig) shieldSig = sig, mount(shieldEl, h('span.tiny', icon('shield', 13), ' ' + t('Streak shields: {n}/{m}', { n: daily.freezes || 0, m: daily.freezeMax })), daily.saving ? h('span.pill', t('A shield is saving your streak')) : null, (daily.freezes || 0) < daily.freezeMax ? h('button.btn.sm.ghost', { title: t('Protects your streak if you miss a day'), onClick: async (e) => { e.currentTarget.disabled = true; try { const r = await api.post('/api/economy/daily/shield'); daily = Object.assign({}, daily, r.daily); patchMe({ coins: r.coins }); toast(t('Streak shield bought'), 'good'); } catch (err) { toastErr(err); } paintDaily(); } }, t('Buy · {p} coins', { p: daily.freezePrice })) : null);
     };
     async function claim() {
       if (spinning) return; spinning = true; claimBtn.disabled = true; result.textContent = '';
@@ -109,7 +110,7 @@ export default {
           spinning = false; sfx.big(); confetti();
           result.replaceChildren(h('span.coin', '+' + fmt.num(r.total)), h('div.tiny.muted', t('{b} from the wheel + {n} streak bonus', { b: r.base, n: r.bonus })));
           patchMe({ coins: r.coins });
-          daily = { can: false, nextAt: Date.now() + 20 * 3600 * 1000, streak: r.streak, bonus: Math.min(r.streak + 1, 7) * 3 }; paintDaily(); loadTx();
+          daily = Object.assign({}, daily, { can: false, nextAt: Date.now() + 20 * 3600 * 1000, streak: r.streak, bonus: Math.min(r.streak + 1, 7) * 3, freezes: Math.max(0, (daily.freezes || 0) - (daily.saving || 0)), saving: 0 }); paintDaily(); loadTx();
         }, reduce() ? 80 : 4300);
       } catch (e) { spinning = false; toastErr(e); loadDaily(); }
     }

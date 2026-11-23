@@ -83,8 +83,9 @@ async function play(root, ctx, game, opts = {}) {
   let cfg = arCfg(); let cfgOpen = false;
   const box = h('div.ar-game' + (fp ? '.ops-mode' : '.royale-mode') + (duelish ? '.duel-mode' : '') + (bf ? '.bf-mode' : '')); const hud = h('div.ar-hud'); const feedEl = h('div.ar-feed'); const center = h('div.ar-center'); const overlay = h('div.ar-ov'); const cross = h('div.ar-cross'); const hitm = h('div.ar-hitm'); const hurt = h('div.ar-hurt'); const mini = h('canvas.ar-mini', { width: 170, height: 170 });
   mount(root, h('div.ar-wrap', h('div.ar-top', h('button.btn.sm.ghost', { onClick: () => ctx.go('arena') }, icon('back', 14), 'Arena'), h('b.grow', ops ? 'Nebula Ops · ' + t('Assault') : duel ? t('Duels') + ' · Prism Court' : bf ? (game === 'box' ? 'Box Fight 1v1' : 'Realistics 1v1') : 'Nebula Royale', opts.ranked ? h('span.pill.ar-rkq', icon('trophy', 11), ' ' + t('Ranked')) : null), h('span.tiny.muted', t('Esc frees the mouse')), h('button.btn.sm.ghost', { title: t('Settings') + ' (P)', onClick: () => openCfg() }, icon('gear', 15), t('Settings'))), box));
+  const qcEl = h('div.ar-qcw.hide'); let qcOpen = false; const specEl = h('div.ar-spec.hide');
   const compass = h('canvas.ar-compass', { width: 420, height: 40 }); const fpsEl = h('div.ar-fps'); const cfgEl = h('div.ar-cfg.hide');
-  box.append(hud, center, feedEl, cross, hitm, hurt, mini, compass, fpsEl, overlay, cfgEl);
+  box.append(hud, center, feedEl, cross, hitm, hurt, mini, compass, fpsEl, qcEl, specEl, overlay, cfgEl);
   let THREE, AV; try { ({ THREE, AV } = await load3d()); } catch (e) { mount(box, h('p', e.message)); return () => {}; }
   let renderer; try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); } catch { mount(box, h('p', t('3D is not available'))); return () => {}; }
   const tier = cfg.quality !== 'auto' ? cfg.quality : autoTier(renderer); const shadows = tier !== 'low';
@@ -236,6 +237,7 @@ async function play(root, ctx, game, opts = {}) {
   onWs('ar_build', (m) => { addBuild(m.p); }); onWs('ar_unbuild', (m) => removeBuild(m.id)); onWs('ar_bhp', () => {}); onWs('ar_bedit', (m) => editBuild(m.id, m.ed)); onWs('ar_bclear', () => { for (const id of [...builds.keys()]) removeBuild(id); });
   onWs('ar_out', (m) => { dead = true; me.alive = false; banner(t('Eliminated'), t('Place #{n}', { n: m.place }) + (m.by ? ' · ' + t('by {n}', { n: m.by }) : '') + (m.rk ? ` · ${m.rk.delta > 0 ? '+' : ''}${m.rk.delta} RP` : ''), '#fca5a5'); });
   onWs('ar_drop', (m) => addDrop(m)); onWs('ar_undrop', (m) => { const d = drops.get(m.id); if (d) { scene.remove(d.g); drops.delete(m.id); } });
+  onWs('ar_qc', (m) => { const q = SH.QUICK[m.i]; if (!q) return; const el = h('div.ar-k.ar-qc', h('b', { style: colorOf(m.id) }, m.n), h('span', ' ' + L2(q))); feedEl.prepend(el); setTimeout(() => el.remove(), 6000); while (feedEl.children.length > 7) feedEl.lastChild.remove(); if (m.id !== myId) snd('tick'); });
   onWs('ar_emote', (m) => { if (m.id === myId) return; const e = ents.get(m.id); if (e) e.emote = { k: m.k, t: 0 }; });
   onWs('ar_closed', (m) => { if (ended && royale) return; toast(m && m.why === 'gone' ? t('That duel is not available any more.') : t('The match is over.'), 'info'); ctx.go('arena'); });
   onWs('ar_fx', (m) => { const e = ents.get(m.id); if (!e) return; if (m.to) tracer(new THREE.Vector3(e.obj.position.x, e.obj.position.y + 1.4, e.obj.position.z), new THREE.Vector3(m.to[0], m.to[1], m.to[2]), '#fde68a'); const d = Math.hypot(e.obj.position.x - me.x, e.obj.position.z - me.z); if (d < 60 && Math.random() < 0.7) snd('tick'); });
@@ -274,6 +276,11 @@ async function play(root, ctx, game, opts = {}) {
     if (k === 'p' && !e.repeat) { openCfg(); return; }
     if (['w', 'a', 's', 'd', ' ', 'shift', 'c'].includes(k) && locked()) e.preventDefault(); keys.add(k);
     if (k === 'r') { if (me.buildMode) { me.rot = (me.rot + 1) % 4; } else reload(); }
+    // quick chat wheel (13.8): N opens it, 1–8 sends a preset phrase
+    if (qcOpen && /^[1-8]$/.test(k)) { ws.send({ t: 'ar_qc', i: Number(k) - 1 }); qcOpen = false; qcEl.classList.add('hide'); return; }
+    if (k === 'n' && !e.repeat) { qcOpen = !qcOpen; mount(qcEl, h('b', t('Quick chat')), SH.QUICK.map((q, i) => h('div', h('i', String(i + 1)), L2(q)))); qcEl.classList.toggle('hide', !qcOpen); return; }
+    if (dead && tp && !ended && (k === ' ' || k === 'arrowright')) { specNext(1); return; }
+    if (dead && tp && !ended && k === 'arrowleft') { specNext(-1); return; }
     if (k === ' ') { if (me.inShip) ws.send({ t: 'ar_jump' }); else if (me.onGround && me.alive) { me.vy = 7; me.onGround = false; } }
     if (k === 'e') { holdE = holdE || performance.now(); if (royale) openNearChest(); }
     if (royale && (k === 'h' || k === 'j') && me.alive && !me.inShip) { const kk = k === 'h' ? 'med' : 'sh'; if (me.heals[kk] > 0) { ws.send({ t: 'ar_use', k: kk }); snd('click'); } else toast(t('You have none — find them in chests'), 'info', 1300); }
@@ -423,6 +430,7 @@ async function play(root, ctx, game, opts = {}) {
     snd(m.won || m.place === 1 ? 'big' : 'lose');
   }
   function die() { me.alive = false; dead = true; me.buildMode = false; if (ops) banner(t('You were eliminated'), t('Spectating your team'), '#fca5a5'); }
+  function specNext(d) { const alive = [...ents.values()].filter((e) => e.alive); if (!alive.length) return; const i = alive.findIndex((e) => e.meta.id === spectate); spectate = alive[(i + d + alive.length) % alive.length].meta.id; snd('tick'); }
   // ---------- compass (13.6) ----------
   const cg = compass.getContext('2d'); const DIRS = getLang() === 'es' ? ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'] : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   function paintCompass() {
@@ -506,7 +514,15 @@ async function play(root, ctx, game, opts = {}) {
     }
     // ---- camera ----
     const eye = (me.crouch > 0.5 ? 1.15 : SH.EYE);
-    if (dead && ops) { const mates = [...ents.values()].filter((e) => e.alive && e.meta.team === myTeam); const s = mates.find((e) => e.meta.id === spectate) || mates[0]; if (s) { spectate = s.meta.id; cam.position.set(s.obj.position.x, s.obj.position.y + SH.EYE, s.obj.position.z); cam.rotation.set(0, s.obj.rotation.y + Math.PI, 0, 'YXZ'); } }
+    // spectating after being eliminated (13.8): follow the other players in third person; Space / arrows switch
+    let spec = false;
+    if (dead && tp && !ended && !me.alive) {
+      const alive = [...ents.values()].filter((e) => e.alive); const s = alive.find((e) => e.meta.id === spectate) || alive[0];
+      if (s) { spec = true; spectate = s.meta.id; const o = s.obj.position; const yaw = s.obj.rotation.y - Math.PI; cam.position.set(o.x + Math.sin(yaw) * 4.6, o.y + 2.6, o.z + Math.cos(yaw) * 4.6); cam.lookAt(o.x, o.y + 1.5, o.z); specEl.classList.remove('hide'); specEl.textContent = t('Spectating {n}', { n: s.meta.name }) + ' · ' + t('Space: next player'); }
+      else specEl.classList.add('hide');
+    } else specEl.classList.add('hide');
+    if (spec) { if (myObj) myObj.visible = false; }
+    else if (dead && ops) { const mates = [...ents.values()].filter((e) => e.alive && e.meta.team === myTeam); const s = mates.find((e) => e.meta.id === spectate) || mates[0]; if (s) { spectate = s.meta.id; cam.position.set(s.obj.position.x, s.obj.position.y + SH.EYE, s.obj.position.z); cam.rotation.set(0, s.obj.rotation.y + Math.PI, 0, 'YXZ'); } }
     else if (fp) { cam.position.set(me.x, me.y + eye, me.z); cam.rotation.set(me.pitch, me.yaw, 0, 'YXZ'); vm.visible = me.alive && !me.scoped; vm.position.y = -0.22 + Math.sin(ts * 8) * 0.006 * (keys.size ? 1 : 0); vm.position.z = -0.45 + me.cd * 0.3; }
     else {
       const dist2 = aim ? 2.2 : 4.4; const back = new THREE.Vector3(Math.sin(me.yaw) * Math.cos(me.pitch), Math.sin(me.pitch) * -1 + 0.25, Math.cos(me.yaw) * Math.cos(me.pitch));

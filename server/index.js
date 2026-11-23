@@ -6,6 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const crypto = require('crypto');
 const net = require('net');
 const cfg = require('./config');
 const { Router, dispatch } = require('./router');
@@ -59,8 +60,32 @@ function sendBig(req, res, abs, st, type) {
       }
       res.writeHead(200, Object.assign({ 'Content-Length': st.size }, base)); if (req.method === 'HEAD') return res.end(); return fs.createReadStream(abs).pipe(res);
     }
+// 13.8: all the stylesheets of index.html served as one file (one request instead of 18). Rebuilt when any of them changes.
+let cssBundle = null;
+function buildCssBundle(html) {
+  const hrefs = [...html.matchAll(/<link rel="stylesheet" href="(\/css\/[a-z0-9-]+\.css)">\n?/g)].map((m) => m[1]); if (hrefs.length < 2) return null;
+  const files = hrefs.map((h) => path.join(cfg.publicDir, h)); let stamp = '';
+  try { stamp = files.map((f) => { const s = fs.statSync(f); return s.size + ':' + Math.floor(s.mtimeMs); }).join('|'); } catch { return null; }
+  if (cssBundle && cssBundle.stamp === stamp) return cssBundle;
+  const raw = Buffer.from(files.map((f, i) => '/* ' + hrefs[i] + ' */\n' + fs.readFileSync(f, 'utf8')).join('\n'));
+  const hash = crypto.createHash('sha1').update(raw).digest('hex').slice(0, 10);
+  cssBundle = { stamp, hrefs, url: '/css/bundle-' + hash + '.css', raw, etag: '"b' + hash + '"', gz: zlib.gzipSync(raw, { level: 9 }), br: zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } }) };
+  return cssBundle;
+}
+function cssStamp() { try { return cssBundle.hrefs.map((h) => { const s = fs.statSync(path.join(cfg.publicDir, h)); return s.size + ':' + Math.floor(s.mtimeMs); }).join('|'); } catch { return ''; } }
+function bundleHtml(raw) {
+  const html = raw.toString('utf8'); const b = buildCssBundle(html); if (!b) return raw;
+  let first = true; const out = html.replace(/<link rel="stylesheet" href="\/css\/[a-z0-9-]+\.css">\n?/g, () => { if (!first) return ''; first = false; return '<link rel="stylesheet" href="' + b.url + '">\n'; });
+  return Buffer.from(out);
+}
 function serveStatic(req, res, pathname) {
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { Allow: 'GET, HEAD' }); return res.end(); }
+  if (/^\/css\/bundle-[0-9a-f]{10}\.css$/.test(pathname) && cssBundle && pathname === cssBundle.url) {
+    const b = cssBundle; const ae = String(req.headers['accept-encoding'] || ''); const h = { 'Content-Type': 'text/css; charset=utf-8', ETag: b.etag, 'Cache-Control': 'public, max-age=31536000, immutable', Vary: 'Accept-Encoding' };
+    if (req.headers['if-none-match'] === b.etag) { res.writeHead(304, h); return res.end(); }
+    let body = b.raw; if (/\bbr\b/.test(ae)) { body = b.br; h['Content-Encoding'] = 'br'; } else if (/\bgzip\b/.test(ae)) { body = b.gz; h['Content-Encoding'] = 'gzip'; }
+    h['Content-Length'] = body.length; res.writeHead(200, h); return res.end(req.method === 'HEAD' ? undefined : body);
+  }
   let rel;
   try { rel = decodeURIComponent(pathname); } catch { res.writeHead(400); return res.end(); }
   if (rel.includes('\0') || rel.includes('\\')) { res.writeHead(400); return res.end(); }
@@ -76,7 +101,7 @@ function serveStatic(req, res, pathname) {
     // big files (disk images for the virtual machines): streamed from disk with Range support, never held in memory
     if (st.size > 4 * 1048576) return sendBig(req, res, abs, st, type);
     let ent = fileCache.get(abs);
-    const fresh = ent && ent.mtime === st.mtimeMs && ent.size === st.size;
+    const fresh = ent && ent.mtime === st.mtimeMs && ent.size === st.size && (rel !== '/index.html' || !cssBundle || ent.css === cssStamp());
     const send = () => {
       const h = Object.assign({ 'Content-Type': type, ETag: ent.etag, 'Cache-Control': ext === '.html' || ext === '.js' || ext === '.css' || ext === '.mjs' || ext === '.json' ? 'no-cache' : 'public, max-age=86400' }, appHeaders());
       if (ext !== '.html') { delete h['Content-Security-Policy']; delete h['X-Frame-Options']; delete h['Cross-Origin-Opener-Policy']; delete h['Permissions-Policy']; }
@@ -95,10 +120,12 @@ function serveStatic(req, res, pathname) {
     if (fresh) return send();
     fs.readFile(abs, (e2, raw) => {
       if (e2) return notFound(res);
+      if (rel === '/index.html') { try { raw = bundleHtml(raw); } catch (err) { console.error('[css bundle]', err.message); } }
       ent = { mtime: st.mtimeMs, size: st.size, raw, etag: `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`, gz: null, br: null };
       if (COMPRESSIBLE.has(ext) && raw.length > 1024) {
         try { const big = raw.length > 1048576; ent.gz = zlib.gzipSync(raw, { level: big ? 5 : 9 }); ent.br = zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: big ? 4 : 9 } }); } catch {} // big files (emulator, disk images): fast settings so the server never stalls
       }
+      if (rel === '/index.html' && cssBundle) ent.css = cssBundle.stamp;
       fileCache.set(abs, ent);
       send();
     });

@@ -2,6 +2,16 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    v: '13.8', date: '2026-11-23', title: { en: 'Push notifications, installable app, spectating and streak shields', es: 'Notificaciones push, app instalable, modo espectador y protectores de racha' },
+    changes: [
+      { type: 'new', en: "Push notifications (Settings → Privacy): messages, 1v1 challenges, gifts and friend requests reach you even with Nebulix closed. Encrypted end to end to your browser; message text is never included.", es: "Notificaciones push (Ajustes → Privacidad): los mensajes, retos 1v1, regalos y solicitudes de amistad te llegan aunque Nebulix esté cerrado. Van cifradas hasta tu navegador y nunca incluyen el texto de los mensajes." },
+      { type: 'new', en: "Nebulix is now a full installable app (Install from the browser menu) with a proper offline page.", es: "Nebulix ya es una app instalable completa (Instalar desde el menú del navegador) con su página sin conexión." },
+      { type: 'new', en: "Arena: spectate the remaining players after you are eliminated (Space to switch) and a quick chat with preset phrases (N, then 1–8).", es: "Arena: mira a los jugadores que quedan cuando te eliminan (Espacio para cambiar) y chat rápido con frases predefinidas (N y luego 1–8)." },
+      { type: 'new', en: "Streak shields: buy up to 2 for 750 coins each; each one saves your daily streak for one missed day.", es: "Protectores de racha: compra hasta 2 por 750 monedas cada uno; cada uno salva tu racha diaria durante un día que no entres." },
+      { type: 'improved', en: "Faster loading: the 18 stylesheets now arrive as one compressed file that the browser keeps.", es: "Carga más rápida: las 18 hojas de estilo llegan ahora como un solo archivo comprimido que el navegador guarda." },
+    ],
+  },
+  {
     v: '13.7', date: '2026-11-23', title: { en: 'Baccarat, Video Poker, Hi-Lo, new AI models and better virtual machines', es: 'Bacará, video póker, Hi-Lo, nuevos modelos de IA y mejores máquinas virtuales' },
     changes: [
       { type: 'new', en: "Casino: Baccarat (Player 2×, Banker 1.95×, Tie 9× with the real third-card rules), Video Poker Jacks or Better (deal, hold, draw; royal flush pays 800×) and Hi-Lo (guess higher or lower, the multiplier grows with every right card, cash out any time). All provably fair and dealt by the server.", es: "Casino: Bacará (Jugador 2×, Banca 1,95×, Empate 9× con las reglas reales de la tercera carta), Video póker Jotas o más (reparte, guarda, cambia; la escalera real paga 800×) y Hi-Lo (adivina más alta o más baja, el multiplicador sube con cada acierto y te retiras cuando quieras). Todos con juego justo verificable y repartidos por el servidor." },

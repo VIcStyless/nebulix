@@ -145,3 +145,6 @@ export function bfMap(kind) {
 }
 // the four walls of the 1×1 box around a spawn (Box fight)
 export function spawnBox(gx, gz) { return [{ k: 'wall', gx, gy: 0, gz, dir: 0 }, { k: 'wall', gx, gy: 0, gz: gz + 1, dir: 0 }, { k: 'wall', gx, gy: 0, gz, dir: 1 }, { k: 'wall', gx: gx + 1, gy: 0, gz, dir: 1 }]; }
+
+// Quick chat (13.8): preset phrases only, so there is nothing to moderate. N opens the wheel, 1–8 sends.
+export const QUICK = [['Nice shot!', '¡Buen tiro!'], ['Good game', 'Buena partida'], ['Help!', '¡Ayuda!'], ['Enemy here!', '¡Enemigo aquí!'], ['Thanks!', '¡Gracias!'], ['Need materials', 'Necesito materiales'], ['On my way', 'Voy para allá'], ['Well played', 'Bien jugado']];

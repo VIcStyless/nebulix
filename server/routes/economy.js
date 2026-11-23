@@ -10,6 +10,7 @@ module.exports = function register(r) {
     return { coins: u.coins, tx: u.tx || [], daily: econ.dailyState(u), stats: u.stats || {} };
   });
 
+  r.post('/api/economy/daily/shield', { auth: true, verified: true, limit: [10, 60000, 'user'] }, async (c) => ({ daily: econ.buyFreeze(c.user), coins: c.user.coins }));
   r.post('/api/economy/daily', { auth: true, verified: true, limit: [10, 60000, 'user'] }, async (c) => {
     return econ.claimDaily(c.user);
   });

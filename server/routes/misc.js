@@ -15,6 +15,12 @@ const reachLim = new Limiter(40, 60000);
 
 module.exports = function register(r) {
   r.get('/api/health', async () => ({ ok: true, brand: cfg.brand, creator: cfg.creator, version: cfg.VERSION, t: now() }));
+  // ---- Web Push (13.8) ----
+  const wp = require('../webpush');
+  r.get('/api/push/key', { auth: true }, async (c) => ({ key: wp.publicKey(), on: !!(c.user.push && c.user.push.length) && !(c.user.settings && c.user.settings.push === false) }));
+  r.post('/api/push/subscribe', { auth: true, limit: [20, 600000, 'user'] }, async (c) => { if (!wp.subscribe(c.user, c.body && c.body.sub)) throw new HttpError(400, 'bad_sub', 'This browser cannot receive notifications from Nebulix'); if (c.user.settings && c.user.settings.push === false) { c.user.settings.push = true; S.store.touch('users'); } return { ok: true }; });
+  r.post('/api/push/unsubscribe', { auth: true, limit: [20, 600000, 'user'] }, async (c) => { wp.unsubscribe(c.user, String((c.body && c.body.endpoint) || '')); return { ok: true }; });
+  r.post('/api/push/test', { auth: true, limit: [5, 600000, 'user'] }, async (c) => { const es = c.user.lang === 'es'; const n = await wp.send(c.user.id, { title: 'Nebulix', body: es ? 'Las notificaciones funcionan.' : 'Notifications are working.', url: '/#/settings', tag: 'test' }); if (!n) throw new HttpError(400, 'no_push', 'No device could receive it'); return { sent: n }; });
 
   r.get('/api/nerd/ping', async () => ({ t: now() }));
 

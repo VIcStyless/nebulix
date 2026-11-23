@@ -466,6 +466,7 @@ function onMessage(conn, u, m) {
     openChest(room, e, i);
   } else if (m.t === 'ar_pick' && room.game === 'royale' && e.alive) pickDrop(room, e, String(m.id || ''));
   else if (m.t === 'ar_use' && room.game === 'royale') useHeal(room, e, m.k === 'sh' ? 'sh' : 'med');
+  else if (m.t === 'ar_qc') { const t = now(); const i = Math.trunc(num(m.i, -1, 99)); if (!SH.QUICK[i] || t - (e.last.qc || 0) < 1500) return; e.last.qc = t; send(room, { t: 'ar_qc', id: e.id, n: e.name, i }); }
   else if (m.t === 'ar_emote') { const t = now(); if (t - (e.last.emote || 0) < 2500 || !e.alive) return; const k = String(m.k || ''); const own = (e.lk && e.lk.emotes || []).some((x) => x.k === k) || k === 'wave'; if (!own) return; e.last.emote = t; send(room, { t: 'ar_emote', id: e.id, k }); }
   else if (m.t === 'ar_harvest' && room.game === 'royale' && e.alive) {
     const t = now(); if (t - (e.last.harvest || 0) < 450) return; e.last.harvest = t; const tr = room.map.trees[Math.trunc(num(m.i, 0, 9999))]; const rk = m.rock !== undefined && room.map.rocks[Math.trunc(num(m.rock, 0, 9999))];

@@ -6,3 +6,5 @@
     var l = localStorage.getItem('nbx.lang'); if (l) document.documentElement.lang = l;
   } catch (e) {}
 })();
+// 13.8: service worker (installable app, offline page, push notifications).
+(function () { try { if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) { addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); }); } } catch (e) {} })();

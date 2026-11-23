@@ -236,13 +236,23 @@ const WHEEL = [10, 15, 20, 25, 30, 40, 60, 150];
 const WHEEL_W = [20, 20, 18, 14, 12, 9, 5, 2];
 const DAY = 86400000;
 
+const FREEZE_MAX = 2; const FREEZE_PRICE = 750;
+function buyFreeze(u) {
+  const d = u.daily || (u.daily = { last: 0, streak: 0 }); const have = d.freezes || 0;
+  if (have >= FREEZE_MAX) throw new HttpError(400, 'max_freezes', 'You already have the most streak shields');
+  if (!adjust(u, -FREEZE_PRICE, 'streak-shield')) throw new HttpError(402, 'no_funds', 'Not enough coins');
+  d.freezes = have + 1; S.store.touch('users'); return dailyState(u);
+}
 function dailyState(u) {
   const d = u.daily || { last: 0, streak: 0 };
   const since = now() - d.last;
   const can = since >= 20 * 3600 * 1000;
-  const streakAlive = since < 48 * 3600 * 1000;
+  // 13.8 streak shields: each one covers one missed day (bought with coins, up to FREEZE_MAX)
+  const freezes = Math.max(0, Math.min(FREEZE_MAX, (u.daily && u.daily.freezes) || 0));
+  const missed = d.last && since >= 48 * 3600 * 1000 ? Math.ceil((since - 48 * 3600 * 1000) / DAY) : 0;
+  const streakAlive = since < 48 * 3600 * 1000 || (missed > 0 && missed <= freezes);
   const streak = streakAlive ? d.streak : 0;
-  return { can, nextAt: can ? 0 : d.last + 20 * 3600 * 1000, streak, bonus: Math.min(streak + (can ? 1 : 0), 7) * 3, wheel: WHEEL };
+  return { can, nextAt: can ? 0 : d.last + 20 * 3600 * 1000, streak, bonus: Math.min(streak + (can ? 1 : 0), 7) * 3, wheel: WHEEL, freezes, freezeMax: FREEZE_MAX, freezePrice: FREEZE_PRICE, saving: streakAlive && missed > 0 ? missed : 0 };
 }
 
 function claimDaily(u) {
@@ -256,7 +266,7 @@ function claimDaily(u) {
   const base = WHEEL[idx] * require('./boosts').dailyMult(u);
   adjust(u, base + bonus, 'daily');
   const gems = (streak % 7 === 0 ? 5 : 1) * (isPro(u) ? 2 : 1); adjustGems(u, gems, 'daily');
-  u.daily = { last: now(), streak };
+  u.daily = { last: now(), streak, freezes: Math.max(0, st.freezes - st.saving) };
   S.store.touch('users');
   require('./progress').award(u, 'daily', 1, { streak });
   return { index: idx, base, bonus, streak, total: base + bonus, coins: u.coins, gems, gemsTotal: u.gems };
@@ -264,4 +274,4 @@ function claimDaily(u) {
 
 // give an item without charging (shop, gifts, rewards)
 function grant(u, id) { const it = byId.get(id); if (!it) return false; u.inv = u.inv || {}; if (u.inv[id]) return false; u.inv[id] = now(); S.store.touch('users'); return true; }
-module.exports = { grant, LOCK_CATS, L_SETS, adjustGems, buyGems, GEM_RATE, GEM_DAY, MAX_GEMS, adjust, items, byId, buy, equip, claimDaily, dailyState, hasPerk, requirePerk, WHEEL, MAX_COINS };
+module.exports = { buyFreeze, grant, LOCK_CATS, L_SETS, adjustGems, buyGems, GEM_RATE, GEM_DAY, MAX_GEMS, adjust, items, byId, buy, equip, claimDaily, dailyState, hasPerk, requirePerk, WHEEL, MAX_COINS };

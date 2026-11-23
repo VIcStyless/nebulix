@@ -310,3 +310,11 @@
 /* VM screen size (13.7): fit stretches the picture to the window; 1× / 1.5× / 2× keep exact pixels and scroll */
 .vm-screen[data-scale="fit"] canvas { width: 100%; height: auto; max-height: 78vh; object-fit: contain; }
 .vm-screen:not([data-scale="fit"]) canvas { max-width: none; }
+/* Arena 13.8: quick chat wheel and spectating label */
+.ar-qcw { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px; background: #000c; color: #fff; font-size: 13px; z-index: 3; pointer-events: none; }
+.ar-qcw.hide { display: none; }
+.ar-qcw b { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #a3e635; margin-bottom: 4px; }
+.ar-qcw i { display: inline-block; width: 18px; margin-right: 6px; text-align: center; font: 800 11px ui-monospace, monospace; font-style: normal; border-radius: 4px; background: #ffffff22; }
+.ar-k.ar-qc { background: #1e3a8acc; }
+.ar-spec { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 6px 14px; border-radius: 10px; background: #000b; color: #fff; font-size: 14px; font-weight: 700; pointer-events: none; }
+.ar-spec.hide { display: none; }
