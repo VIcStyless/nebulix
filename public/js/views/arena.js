@@ -82,7 +82,7 @@ async function play(root, ctx, game, opts = {}) {
   const ops = game === 'ops'; const duel = game === 'duel'; const royale = game === 'royale'; const bf = game === 'real' || game === 'box'; const duelish = duel || bf; const tp = royale || bf; const canBuild = royale || bf; const fp = !tp;
   let cfg = arCfg(); let cfgOpen = false;
   const box = h('div.ar-game' + (fp ? '.ops-mode' : '.royale-mode') + (duelish ? '.duel-mode' : '') + (bf ? '.bf-mode' : '')); const hud = h('div.ar-hud'); const feedEl = h('div.ar-feed'); const center = h('div.ar-center'); const overlay = h('div.ar-ov'); const cross = h('div.ar-cross'); const hitm = h('div.ar-hitm'); const hurt = h('div.ar-hurt'); const mini = h('canvas.ar-mini', { width: 170, height: 170 });
-  mount(root, h('div.ar-wrap', h('div.ar-top', h('button.btn.sm.ghost', { onClick: () => ctx.go('arena') }, icon('back', 14), 'Arena'), h('b.grow', ops ? 'Nebula Ops · ' + t('Assault') : duel ? t('Duels') + ' · Prism Court' : bf ? (game === 'box' ? 'Box Fight 1v1' : 'Realistics 1v1') : 'Nebula Royale', opts.ranked ? h('span.pill.ar-rkq', icon('trophy', 11), ' ' + t('Ranked')) : null), h('span.tiny.muted', t('Esc frees the mouse')), h('button.btn.sm.ghost', { title: t('Settings') + ' (P)', onClick: () => openCfg() }, icon('gear', 15), t('Settings'))), box));
+  mount(root, h('div.ar-wrap', h('div.ar-top', h('button.btn.sm.ghost', { onClick: () => ctx.go('arena') }, icon('back', 14), 'Arena'), h('b.grow', ops ? 'Nebula Ops · ' + t('Assault') : duel ? t('Duels') + ' · Prism Court' : bf ? (game === 'box' ? 'Box Fight 1v1' : 'Realistics 1v1') : 'Nebula Royale', opts.ranked ? h('span.pill.ar-rkq', icon('trophy', 11), ' ' + t('Ranked')) : null), h('span.tiny.muted', t('Esc frees the mouse')), h('button.btn.sm.ghost', { title: t('Full screen'), onClick: () => { try { if (document.fullscreenElement) document.exitFullscreen(); else box.requestFullscreen({ navigationUI: 'hide' }).then(() => { try { renderer.domElement.requestPointerLock(); } catch {} }).catch(() => {}); } catch {} } }, icon('fullscreen', 15), t('Full screen')), h('button.btn.sm.ghost', { title: t('Settings') + ' (P)', onClick: () => openCfg() }, icon('gear', 15), t('Settings'))), box));
   const qcEl = h('div.ar-qcw.hide'); let qcOpen = false; const specEl = h('div.ar-spec.hide');
   const compass = h('canvas.ar-compass', { width: 420, height: 40 }); const fpsEl = h('div.ar-fps'); const cfgEl = h('div.ar-cfg.hide');
   box.append(hud, center, feedEl, cross, hitm, hurt, mini, compass, fpsEl, qcEl, specEl, overlay, cfgEl);
@@ -481,8 +481,9 @@ async function play(root, ctx, game, opts = {}) {
     mg.restore(); mg.fillStyle = '#fde047'; mg.beginPath(); mg.moveTo(S2 / 2, S2 / 2 - 7); mg.lineTo(S2 / 2 - 5, S2 / 2 + 5); mg.lineTo(S2 / 2 + 5, S2 / 2 + 5); mg.fill();
   }
   // ---------- loop ----------
-  const resize = () => { const W = box.clientWidth || 900; const H = Math.max(360, Math.min(innerHeight - 120, W * 0.62)); box.style.height = H + 'px'; renderer.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); };
-  const ro = new ResizeObserver(resize); ro.observe(box); resize();
+  // 13.8: the game fills the window (and the whole screen with the Full screen button)
+  const resize = () => { const W = box.clientWidth || 900; const fs = document.fullscreenElement === box; const top = box.getBoundingClientRect().top; const H = fs ? innerHeight : Math.max(360, innerHeight - Math.max(0, top) - 16); box.style.height = H + 'px'; renderer.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); };
+  const ro = new ResizeObserver(resize); ro.observe(box); resize(); addEventListener('resize', resize); document.addEventListener('fullscreenchange', resize);
   let fpsN = 0, fpsT = performance.now();
   let last = performance.now(); let raf = 0; let live = true; let sendT = 0; let hudT = 0; let miniT = 0;
   function frame() {
@@ -576,5 +577,5 @@ async function play(root, ctx, game, opts = {}) {
     renderer.render(scene, cam);
   }
   frame();
-  return () => { live = false; cancelAnimationFrame(raf); ro.disconnect(); ws.send({ t: 'ar_leave' }); if (locked()) document.exitPointerLock(); offs.forEach((f) => f()); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('keyup', onKeyUp2); document.removeEventListener('mouseup', onUp); document.removeEventListener('mousemove', onMove); scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); renderer.dispose(); try { renderer.forceContextLoss(); } catch {} };
+  return () => { live = false; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('resize', resize); document.removeEventListener('fullscreenchange', resize); if (document.fullscreenElement === box) document.exitFullscreen().catch(() => {}); ws.send({ t: 'ar_leave' }); if (locked()) document.exitPointerLock(); offs.forEach((f) => f()); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('keyup', onKeyUp2); document.removeEventListener('mouseup', onUp); document.removeEventListener('mousemove', onMove); scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); renderer.dispose(); try { renderer.forceContextLoss(); } catch {} };
 }

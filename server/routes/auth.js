@@ -158,7 +158,7 @@ module.exports = function register(r) {
         brand: cfg.brand, creator: cfg.creator, version: cfg.VERSION, proxyOrigin: cfg.proxyOrigin, appOrigin: cfg.appOrigin,
         payments: p.enabled(), proLabels: p.labelsFor(c.user),
         ai: require('./ai').mode(), mail: mail.mode(), canMail: !noMail(), guestProxy: cfg.allowGuestProxy, signups: cfg.signupsOpen,
-        fairNote: true, gamesDomain: !!cfg.gamesOrigin, gamesOrigin: cfg.gamesOrigin,
+        fairNote: true, gamesDomain: !!cfg.gamesOrigin, gamesOrigin: cfg.gamesOrigin, lockdown: !!(S.meta && S.meta.lockdown && S.meta.lockdown.on),
       },
     };
   });

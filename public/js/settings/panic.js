@@ -5,6 +5,7 @@ import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast, segEl, switchEl, settingRow, field } from '../ui.js';
 import * as panic from '../panic.js';
+import { disguiseOn, setDisguise, showDecoy } from '../decoy.js';
 
 const KEY_CHOICES = [['`', '` / º'], ['\\', '\\'], ['Escape', 'Esc'], ['F2', 'F2'], ['F4', 'F4'], ['F8', 'F8'], ['F9', 'F9'], ['Pause', 'Pause'], ['', t('Off')]];
 
@@ -23,7 +24,14 @@ export default {
     const cloakSel = h('select.select', panic.CLOAKS.map(([k, label]) => h('option', { value: k, selected: k === s.cloak }, t(label))));
     cloakSel.addEventListener('change', () => { panic.save({ cloak: cloakSel.value }); toast(t('Tab disguise updated'), 'good', 1500); });
 
+    // 13.8 disguise mode: Nebulix opens as a study page; your secret code opens it
+    const dzBox = h('div');
+    const paintDz = () => { const on = disguiseOn(); const code = h('input.input', { type: 'password', placeholder: t('Secret code (4+ characters)'), autocomplete: 'new-password' });
+      mount(dzBox, settingRow(t('Disguise mode'), t('When you open Nebulix on this device, it shows an ordinary study notes page. Type your secret code (in its search box, or anywhere) to enter. Only a hash of the code is kept.'), switchEl(on, async (v) => { if (v) { if (!(await setDisguise(true, code.value))) { toast(t('Choose a code of at least 4 characters first'), 'err'); paintDz(); return; } toast(t('Disguise on. Next time, type your code on the study page.'), 'good'); } else { await setDisguise(false); toast(t('Disguise off'), 'good'); } paintDz(); })),
+        on ? h('div.row', { style: 'gap:8px' }, h('button.btn.sm', { onClick: () => showDecoy({ reason: 'disguise' }) }, icon('eye', 14), t('Preview'))) : code); };
+    paintDz();
     mount(host,
+      h('section.card', h('h3', icon('book', 18), t('Disguise mode')), dzBox),
       h('section.card',
         h('h3', icon('alert', 18), t('Panic button')),
         h('p.muted.small', t('One tap — or your chosen key — instantly replaces this tab with a safe page. Back will not return to Nebulix. The button is the alert icon in the top bar; it also works while you are browsing a website.')),

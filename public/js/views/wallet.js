@@ -38,11 +38,27 @@ export default {
     const shortcuts = h('div.wl-quick',
       [['gift', t('Daily reward'), () => ctx.go('home', { daily: 1 })], ['trophy', t('Missions & achievements'), () => ctx.go('progress')], ['bag', t('Shop'), () => ctx.go('market')], ['clip', t('Work'), () => ctx.go('work')], ['chart', t('Invest'), () => ctx.go('invest')], ['dice', t('Casino'), () => ctx.go('casino')]]
         .map(([ic, l, fn]) => h('button.wl-q', { type: 'button', onClick: fn }, icon(ic, 18), h('span', l))));
-    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
+    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['bank', t('Bank'), 'chart'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
     mount(inner, h('div.page-title', h('div', h('h2', t('Wallet')), h('p', t('Your coins, transfers, pets, chests and items in one place.'))), balEl), shortcuts, tabs, body);
     paintBal();
 
-    function paint() { paintBal(); ({ overview, send, pets, chests, inv }[tab] || overview)(); }
+    function paint() { paintBal(); ({ overview, bank, send, pets, chests, inv }[tab] || overview)(); }
+    // 13.8: the Nebulix Bank lives in the Wallet now (it used to be in Advantages)
+    async function bank() {
+      mount(body, loading()); let d; try { d = await api.get('/api/perks'); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); return; }
+      const set = (r) => { if (r && r.bank) d.bank = r.bank; if (r && r.coins !== undefined) patchMe({ coins: r.coins }); if (alive && tab === 'bank') draw(); };
+      const draw = () => {
+        const b = d.bank; const pct = Math.min(100, (b.bal / b.cap) * 100); const amt = h('input.input', { type: 'text', inputmode: 'decimal', placeholder: '10k, 1m…' });
+        const go = (path, all) => async (e) => { const n = all ? 'all' : parseCoins(amt.value); if (!all && !(n > 0)) { toast(t('Enter an amount'), 'err'); return; } if (all && !(await confirmBox(t('Withdraw everything ({n} coins)?', { n: fmt.num(b.bal) })))) return; busy(e.target.closest('button'), async () => { try { set(await api.post(path, { amount: n })); paintBal(); toast(path.endsWith('deposit') ? t('Deposited') : t('Withdrawn'), 'good'); } catch (err) { toastErr(err); } }); };
+        mount(body, h('section.pk-bank', { style: 'margin-top:14px' },
+          h('div.pk-bank-l', h('div.eyebrow', icon('coins', 13), ' ', t('Nebulix Bank')), h('div.pk-bank-bal', { title: fmt.num(b.bal) }, fmt.coins(b.bal)), h('div.small.muted', t('Earns {r}% a day, paid every hour. About {n} coins a day right now.', { r: (b.rate * 100).toFixed(1), n: fmt.coins(b.perDay) })),
+            h('div.pk-bar', h('i', { style: { width: pct + '%' } })), h('div.tiny.muted', t('{a} of {b} vault capacity · {e} earned in interest', { a: fmt.coins(b.bal), b: fmt.coins(b.cap), e: fmt.coins(b.earned) }))),
+          h('div.pk-bank-r', amt, h('div.row', { style: 'gap:8px' }, h('button.btn.primary.grow', { onClick: go('/api/bank/deposit') }, icon('download', 14), t('Deposit')), h('button.btn.grow', { onClick: go('/api/bank/withdraw') }, icon('upload', 14), t('Withdraw'))),
+            h('button.btn.ghost.sm', { disabled: !b.bal, onClick: go('/api/bank/withdraw', true) }, t('Withdraw all')))),
+          h('p.tiny.muted', t('Upgrade the vault and the interest rate in Advantages → Permanent upgrades.')));
+      };
+      draw();
+    }
 
     function overview() {
       mount(body, h('div.grid.cols-2', { style: 'margin-top:14px' },

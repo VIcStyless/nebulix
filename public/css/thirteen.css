@@ -460,3 +460,19 @@ button.nst-kpi { cursor: pointer; } .nst-kpi b { display: block; font-size: 20px
 .nst-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; align-items: start; } .nst-tools section { display: grid; gap: 8px; }
 .nst-pomo { text-align: center; justify-items: center; } .nst-calcout { font: 700 18px ui-monospace, monospace; min-height: 24px; }
 @media (max-width: 700px) { .nst-split { grid-template-columns: 1fr; } .nst-liveopts { grid-template-columns: 1fr; } .nst-grades { grid-template-columns: repeat(2, 1fr); } .nst-bigpin { font-size: 44px; } }
+/* ---------- Disguise / lockdown study page (13.8) ---------- */
+html.dc-on #app, html.dc-on .nvf-fab, html.dc-on .toasts { visibility: hidden !important; }
+.dc { position: fixed; inset: 0; z-index: 2147483000; overflow: auto; background: #f6f7fb; color: #1f2937; font: 16px/1.6 "Segoe UI", system-ui, sans-serif; }
+.dc-top { position: sticky; top: 0; display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+.dc-logo { display: flex; align-items: center; gap: 8px; font-size: 18px; } .dc-logo span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #2563eb; color: #fff; }
+.dc-search { flex: 1; max-width: 520px; padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 999px; background: #f9fafb; font: inherit; color: #111; outline: none; }
+.dc-search:focus { border-color: #2563eb; background: #fff; }
+.dc-date { margin-left: auto; color: #6b7280; font-size: 14px; text-transform: capitalize; }
+.dc-main { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1100px; margin: 0 auto; padding: 24px; }
+.dc-side { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 76px; align-self: start; font-size: 14px; }
+.dc-side a { color: #374151; text-decoration: none; padding: 4px 8px; border-radius: 6px; } .dc-side a:hover { background: #e5e7eb; }
+.dc-task { color: #4b5563; padding-left: 8px; }
+.dc-doc { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px 36px; box-shadow: 0 1px 3px #0000000d; }
+.dc-doc h1 { margin: 0 0 4px; font-size: 28px; color: #111827; } .dc-meta { color: #6b7280; font-size: 14px; margin: 0 0 18px; }
+.dc-doc h2 { font-size: 20px; color: #1e3a8a; margin: 22px 0 6px; } .dc-doc li { margin: 4px 0; }
+@media (max-width: 760px) { .dc-main { grid-template-columns: 1fr; } .dc-side { position: static; } .dc-date { display: none; } }

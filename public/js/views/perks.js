@@ -11,7 +11,7 @@ const left = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const d = M
 
 export default {
   title: () => t('Advantages'),
-  async mount(root) {
+  async mount(root, ctx) {
     const inner = h('div.inner.pk'); mount(root, inner, loading());
     let d; let timer = 0;
     const set = (v) => { d = v; if (v.coins !== undefined) patchMe({ coins: v.coins }); paint(); };
@@ -32,18 +32,11 @@ export default {
         h('div.pk-ic', u.icon), h('div.grow', h('b', L(u.n)), h('div.small.muted', L(u.d)),
           h('div.pk-lv', Array.from({ length: u.max }, (_, i) => h('i' + (i < u.level ? '.on' : ''))), h('span.tiny.muted', t('Level {a}/{b}', { a: u.level, b: u.max })))),
         u.price == null ? h('span.pill', icon('check', 12), t('Max')) : h('button.btn' + (coinsNow >= u.price ? '.primary' : ''), { disabled: coinsNow < u.price, onClick: (e) => busy(e.currentTarget, async () => { set(await api.post('/api/perks/upgrade', { id: u.id })); toast(t('Upgraded!'), 'good'); }) }, t('Upgrade'), ' · ', h('span.coin', fmt.coins(u.price))));
-      const amt = h('input.input', { type: 'text', inputmode: 'decimal', placeholder: '10k, 1m…' });
-      const b = d.bank; const pct = Math.min(100, (b.bal / b.cap) * 100);
+      const b = d.bank;
       const cards = d.boosts.map(boostCard);
       mount(inner,
-        h('div.page-title.row', h('div.grow', h('h2', icon('zap', 22), ' ', t('Advantages')), h('p.muted', t('Spend your coins on real advantages: boosts, permanent upgrades and a bank that pays interest.'))), h('div.pk-bal', h('span.muted.tiny', t('Your coins')), h('span.coin', { title: fmt.num(coinsNow) }, fmt.coins(coinsNow)))),
-        h('section.pk-bank',
-          h('div.pk-bank-l', h('div.eyebrow', icon('coins', 13), ' ', t('Nebulix Bank')), h('div.pk-bank-bal', { title: fmt.num(b.bal) }, fmt.coins(b.bal)), h('div.small.muted', t('Earns {r}% a day, paid every hour. About {n} coins a day right now.', { r: (b.rate * 100).toFixed(1), n: fmt.coins(b.perDay) })),
-            h('div.pk-bar', h('i', { style: { width: pct + '%' } })), h('div.tiny.muted', t('{a} of {b} vault capacity · {e} earned in interest', { a: fmt.coins(b.bal), b: fmt.coins(b.cap), e: fmt.coins(b.earned) }))),
-          h('div.pk-bank-r', amt, h('div.row', { style: 'gap:8px' },
-            h('button.btn.primary.grow', { onClick: (e) => busy(e.currentTarget, async () => { const n = parseCoins(amt.value); if (!(n > 0)) { toast(t('Enter an amount'), 'err'); return; } set(await api.post('/api/bank/deposit', { amount: n })); amt.value = ''; toast(t('Deposited'), 'good'); }) }, icon('download', 14), t('Deposit')),
-            h('button.btn.grow', { onClick: (e) => busy(e.currentTarget, async () => { const n = parseCoins(amt.value); if (!(n > 0)) { toast(t('Enter an amount'), 'err'); return; } set(await api.post('/api/bank/withdraw', { amount: n })); amt.value = ''; toast(t('Withdrawn'), 'good'); }) }, icon('upload', 14), t('Withdraw'))),
-            h('button.btn.ghost.sm', { disabled: !b.bal, onClick: async (e) => { if (!(await confirmBox(t('Withdraw everything ({n} coins)?', { n: fmt.num(b.bal) })))) return; busy(e.target.closest('button'), async () => { set(await api.post('/api/bank/withdraw', { amount: 'all' })); }); } }, t('Withdraw all')))),
+        h('div.page-title.row', h('div.grow', h('h2', icon('zap', 22), ' ', t('Advantages')), h('p.muted', t('Spend your coins on real advantages: boosts and permanent upgrades.'))), h('div.pk-bal', h('span.muted.tiny', t('Your coins')), h('span.coin', { title: fmt.num(coinsNow) }, fmt.coins(coinsNow)))),
+        h('button.card.pk-banklink', { onClick: () => ctx.go('wallet', { tab: 'bank' }) }, icon('coins', 18), h('div.grow', h('b', t('Nebulix Bank')), h('div.small.muted', t('The bank is now in your Wallet: {n} saved, earning {r}% a day.', { n: fmt.coins(b.bal), r: (b.rate * 100).toFixed(1) }))), icon('link', 16)),
         h('h3.pk-h', icon('bolt', 17), ' ', t('Boosts'), h('span.tiny.muted', ' · ' + t('buy again to add more time'))), h('div.pk-grid', cards),
         h('h3.pk-h', icon('layers', 17), ' ', t('Permanent upgrades')), h('div.pk-grid', d.upgrades.map(upCard)),
         h('p.tiny.muted.pk-foot', t('Coins are virtual and have no real-money value. Boosts never change casino odds: cashback is paid after a losing round.')));

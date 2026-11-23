@@ -12,13 +12,15 @@ import { askNova, novaOnce } from './nova-core.js';
 const on = () => ls('nova.float') !== false;
 let fab = null; let panel = null; let msgs = []; let busy = false; let ctrl = null; let wired = false;
 let curRoute = 'home'; const route = () => curRoute;
-const hidden = () => !S.me || route() === 'nova' || document.documentElement.classList.contains('nbx-locked') || document.body.classList.contains('os-mode');
+// 13.8: never over games, emulators and machines (full-screen things), and it can be hidden with a right click
+const GAME_ROUTES = ['arena', 'casino3d', 'worlds', 'vm', 'terminal', 'retro', 'cloud', 'boss', 'play', 'arcade', 'arcade3d', 'avatar', 'study'];
+const hidden = () => !S.me || route() === 'nova' || GAME_ROUTES.includes(route()) || document.documentElement.classList.contains('nbx-locked') || document.body.classList.contains('os-mode');
 const selected = () => { const s = String(window.getSelection ? window.getSelection() : '').trim(); return s.length > 2 ? s.slice(0, 6000) : ''; };
 function pageText() { const root = document.querySelector('#app .view, #app main, #app') || document.body; return String(root.innerText || '').replace(/\n{3,}/g, '\n\n').slice(0, 7000); }
 
 function paintFab() {
   if (!on() || hidden()) { if (fab) fab.style.display = 'none'; if (panel && hidden()) closePanel(); return; }
-  if (!fab) { fab = h('button.nvf-fab', { type: 'button', title: 'Nova (Alt+N)', 'aria-label': 'Nova', onMousedown: (e) => e.preventDefault(), onClick: () => (panel ? closePanel() : openPanel()) }, icon('spark', 22)); document.body.append(fab); }
+  if (!fab) { fab = h('button.nvf-fab', { type: 'button', title: 'Nova (Alt+N)', 'aria-label': 'Nova', onMousedown: (e) => e.preventDefault(), onClick: () => (panel ? closePanel() : openPanel()), onContextmenu: (e) => { e.preventDefault(); openMenu([{ label: t('Hide the Nova button'), icon: 'eyeoff', onClick: () => { ls('nova.float', false); paintFab(); toast(t('Hidden. Turn it back on in Settings → Appearance, or press Alt+N.'), 'info', 4000); } }], fab); } }, icon('spark', 22)); document.body.append(fab); }
   fab.style.display = '';
 }
 function closePanel() { if (ctrl) ctrl.abort(); if (panel) { panel.classList.add('out'); const p = panel; setTimeout(() => p.remove(), 200); } panel = null; if (fab) fab.classList.remove('open'); }
@@ -95,7 +97,7 @@ export function initNovaFloat() {
   if (wired) { paintFab(); return; } wired = true;
   try { curRoute = (sessionStorage.getItem('nbx.route') || '#/home').replace(/^#\/?/, '').split(/[/?]/)[0] || 'home'; } catch {}
   bus.on('route', (name) => { curRoute = name || 'home'; setTimeout(paintFab, 30); }); setInterval(paintFab, 1500);
-  addEventListener('keydown', (e) => { if (e.altKey && !e.ctrlKey && (e.key === 'n' || e.key === 'N')) { if (hidden()) return; e.preventDefault(); panel ? closePanel() : openPanel(); } });
+  addEventListener('keydown', (e) => { if (e.altKey && !e.ctrlKey && (e.key === 'n' || e.key === 'N')) { if (hidden()) return; e.preventDefault(); if (!on()) { ls('nova.float', true); paintFab(); } panel ? closePanel() : openPanel(); } });
   document.addEventListener('focusin', (e) => { clearTimeout(hideT); if (okField(e.target)) showPill(e.target); else hidePill(); });
   document.addEventListener('focusout', () => { hideT = setTimeout(() => { if (!document.activeElement || !okField(document.activeElement)) hidePill(); }, 200); });
   document.addEventListener('input', (e) => { if (e.target === target) showPill(target); });

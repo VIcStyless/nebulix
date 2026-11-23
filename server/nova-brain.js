@@ -13,7 +13,16 @@ const STYLES = {
   sarcastic: ['Sarcastic', 'Sarcástico', 'Dry, witty and a little sarcastic, never mean, always ends up helping.'],
   pirate: ['Pirate', 'Pirata', 'Speaks like a cheerful space pirate (arr!), but the information stays accurate.'],
   brief: ['Brief', 'Breve', 'Extremely concise: one or two sentences, bullet points when listing.'],
+  // 13.8: "Nebulix AI" — Nova tuned to be the expert of Nebulix itself (a personality and knowledge pack on top of whichever model runs, not a separately trained model)
+  nebulix: ['Nebulix AI', 'Nebulix IA', 'You are Nebulix AI, the built-in expert of Nebulix, made by VicStyles. You know every section of Nebulix and always answer with the exact place to go as a link (#/route) and short step-by-step instructions. Proactive: suggest the next useful thing to try in Nebulix. Energetic, clear, never generic.'],
 };
+const NEBULIX_GUIDE = [
+  'Nebulix map (use these links): Home #/home · Study #/study (notes #/study/notes, flashcards #/study/cards, AI tutor #/study/tutor, live class quiz with PIN #/study/live, grades #/study/grades, exams #/study/exams, tools #/study/tools)',
+  'Play: Arena #/arena (Royale with building and edits, Ops 5v5, Duels, Realistics 1v1 and Box Fight 1v1; P opens settings, N quick chat), Competitive #/ranked, Retro consoles #/retro, Cloud gaming #/cloud, Worlds #/worlds, World Boss #/boss, Tournaments #/tournaments, Leagues #/leagues, Quiz #/quiz, Word of the day #/word, Casino #/casino (blackjack, baccarat, video poker, hi-lo, crash, mines, plinko, roulette, slots, keno, limbo, wheel, horses, jackpot), 3D Casino #/casino3d',
+  'Economy: Wallet #/wallet (bank tab, transfers, pets, chests), Shop & Locker #/shop, Market #/market, Advantages #/perks (boosts and upgrades), Work #/work, Invest #/invest, Plaza #/plaza. Daily reward and streak shields on Home.',
+  'Create: Nebulix Code #/code, Studio #/studio, Hub #/hub, Drive #/drive, Docs #/docs, Sheets #/sheets, Slides #/slides, Notes #/notes, Translator #/translate, Themes #/themes, Terminal #/terminal, Virtual machines #/vm (BIOS, keys menu, Android player #/vm/android), Security Lab #/security, VPN #/vpn, Links #/links.',
+  'Social: Community servers #/chat, Messages #/dm, Echo #/echo, Clips #/clips, TV #/tv, Lens #/lens, Forums #/forum, Clans #/clans, Squads #/squads, Events #/events. Settings #/settings (push notifications in Privacy, Nova button in Appearance).',
+].join('\n');
 const styleOf = (u) => (STYLES[u.nova && u.nova.style] ? u.nova.style : 'friendly');
 const memOf = (u) => (u.nova && Array.isArray(u.nova.mem) ? u.nova.mem : []);
 
@@ -37,6 +46,7 @@ function context(u) {
   const st = STYLES[styleOf(u)];
   return [
     `Personality: ${st[0]} — ${st[2]}`,
+    styleOf(u) === 'nebulix' ? NEBULIX_GUIDE : '',
     `User data (live, private to them): username @${u.username}, level ${lvl}, ${u.infinite ? 'unlimited' : u.coins} coins, ${u.gems || 0} gems, ${isPro(u) ? 'PRO member' : 'free plan'}${staff ? ', ' + staff : ''}${booth ? `, donation booth "${booth.title}" raised ${booth.raised}/${booth.goal}` : ''}.`,
     memOf(u).length ? 'Things the user asked you to remember: ' + memOf(u).map((m) => '"' + m + '"').join('; ') + '.' : '',
     `Nebulix features you can point to with links like [3D Casino](#/casino3d): Plaza (#/plaza: donation booths, player market, staff that earn coins, gems), 3D avatar (#/avatar), 3D Casino (#/casino3d), Arcade (#/arcade: Nebula Ops 3D shooter, Market Rush), Invest (#/invest), Wallet (#/wallet), Work (#/work), Casino (#/casino), Browser (#/browse, YouTube opens as Nebulix Tube), Themes (#/themes, incl. 3D themes), Settings → Appearance (menu layouts, app logos), account menu (switch between alt accounts).`,
@@ -77,7 +87,7 @@ function commands(u, text, lang) {
   if (/(qué|que) (recuerdas|sabes de mí|sabes de mi)|what do you (remember|know about me)/i.test(t)) { const mem = memOf(u); return mem.length ? L('Here is what I remember about you:\n', 'Esto es lo que recuerdo de ti:\n') + mem.map((x) => '- ' + x).join('\n') : L('Nothing yet. Tell me “remember that …”.', 'Nada todavía. Dime «recuerda que …».'); }
   // personality
   m = /(?:personalidad|modo|style|personality)\s+(amigable|friendly|gamer|profe|teacher|sarc[aá]stic[oa]?|sarcastic|pirata|pirate|breve|brief)/i.exec(t);
-  if (m) { const map = { amigable: 'friendly', friendly: 'friendly', gamer: 'gamer', profe: 'teacher', teacher: 'teacher', pirata: 'pirate', pirate: 'pirate', breve: 'brief', brief: 'brief' }; const k = map[m[1]] || (m[1].startsWith('sarc') ? 'sarcastic' : 'friendly'); setStyle(u, k); return flavor(L(`Personality switched to **${STYLES[k][0]}**.`, `Personalidad cambiada a **${STYLES[k][1]}**.`)); }
+  if (m) { const map = { nebulix: 'nebulix', amigable: 'friendly', friendly: 'friendly', gamer: 'gamer', profe: 'teacher', teacher: 'teacher', pirata: 'pirate', pirate: 'pirate', breve: 'brief', brief: 'brief' }; const k = map[m[1]] || (m[1].startsWith('sarc') ? 'sarcastic' : 'friendly'); setStyle(u, k); return flavor(L(`Personality switched to **${STYLES[k][0]}**.`, `Personalidad cambiada a **${STYLES[k][1]}**.`)); }
 
   return null;
 }

@@ -318,3 +318,7 @@
 .ar-k.ar-qc { background: #1e3a8acc; }
 .ar-spec { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 6px 14px; border-radius: 10px; background: #000b; color: #fff; font-size: 14px; font-weight: 700; pointer-events: none; }
 .ar-spec.hide { display: none; }
+.pk-banklink { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer; color: inherit; margin: 10px 0; }
+.pk-banklink:hover { border-color: var(--accent); }
+.adm-lock.on { border-color: #ef4444; background: color-mix(in oklab, #ef4444 10%, var(--surface, #131418)); }
+.adm-online { display: grid; gap: 6px; } .adm-orow { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; background: var(--surface2, #1a1c21); }

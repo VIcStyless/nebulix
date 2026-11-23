@@ -24,6 +24,7 @@ import { maybeShowWhatsNew, showWhatsNew } from './whatsnew.js';
 import { initHoverGlow } from './hover.js';
 import { buildNexus } from './nexus.js';
 import { appTile } from './apps-meta.js';
+import { maybeDisguise, showDecoy, releaseDecoy, decoyShowing } from './decoy.js';
 
 // Sidebar groups: [label, [[route, label, icon], …]]
 const NAV_GROUPS = [
@@ -382,11 +383,13 @@ async function consumeLink() {
 
 async function start() {
   let me;
+  { const dz = maybeDisguise(); if (dz) await dz; } // 13.8 disguise mode: a study page until the secret code is typed
   await consumeLink();
   try { me = await api.get('/api/me', { quiet: true }); } catch (e) { mount($('#app'), h('div.boot', h('div.boot-logo'), h('p', e.message), h('button.btn', { onClick: () => location.reload() }, t('Retry')))); return; }
   S.cfg = me.config;
   if (!me.user) { const { renderAuth } = await import('./views/auth.js'); const init = linkReset; linkReset = null; return renderAuth($('#app'), () => start(), init); }
   setMe(me.user); await afterLogin(); await buildShell(); updateBadges(); inbox.load(); panic.applyCloak();
+  if (S.cfg && S.cfg.lockdown && !isStaff()) showDecoy({ reason: 'lockdown' });
   if (desk) { const r = parseHash(); if (nav.hash && r.name !== 'desktop' && r.name !== 'home') route(); else setNav('#/desktop'); desk.restore(r.name); document.title = 'Nebulix OS'; return; }
   if (!nav.hash || nav.hash === '#/' || nav.hash === '#' || nav.hash === '#/desktop') { setNav('#/home'); route(); } else route();
   setTimeout(() => maybeShowWhatsNew(go), 900);
@@ -396,6 +399,8 @@ async function start() {
 bus.on('unauthorized', () => { if (S.me) { S.me = null; ws.close(); toast(t('Your session ended. Please log in again.'), 'err'); teardown(); start(); } });
 const coinTxt = (n) => (n >= 1e9 ? '∞' : fmt.coins(n)); // a full (bottomless) wallet shows as infinity
 bus.on('me', () => { const el = $('#coinbar'); if (el && S.me) { el.textContent = coinTxt(S.me.coins); el.title = fmt.num(S.me.coins); } const a = $('#acct'); if (a && S.me && a.classList.contains('side-acct')) a.replaceWith(accountCard()); });
+// 13.8 admin lockdown, live: everyone (except staff) switches to the study page, and back when it is lifted
+bus.on('ws:lockdown', (m) => { if (S.cfg) S.cfg.lockdown = !!m.on; if (m.on && S.me && !isStaff()) showDecoy({ reason: 'lockdown' }); else if (!m.on && decoyShowing()) releaseDecoy(); });
 bus.on('panic-key', (k) => { if (S.me && k === panic.settings().key) panic.panic(); });
 window.addEventListener('hashchange', () => { setNav(location.hash); route(); }); // only when someone types a #/… address by hand
 // Only opening Nebulix shows up in the browser history: every in-app link (#/…) replaces the current entry instead of adding one.

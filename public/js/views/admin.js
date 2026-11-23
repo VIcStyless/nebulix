@@ -15,7 +15,7 @@ export default {
   mount(root, ctx) {
     if (!isStaff()) { mount(root, h('div.page', h('div.empty', h('div.empty-art.ea-mark'), h('h3', t('Staff only'))))); return () => {}; }
     const TABS = [['overview', 'Overview', 'monitor', overview], ['users', 'Users', 'users', users], ['reports', 'Reports', 'flag', reports], ['content', 'Content', 'layers', content], ['modlog', 'Moderation log', 'clock', modlog]];
-    if (isAdmin()) TABS.splice(2, 0, ['coins', 'Coins', 'coins', coinsTab]);
+    if (isAdmin()) TABS.splice(2, 0, ['coins', 'Coins', 'coins', coinsTab], ['control', 'Control', 'power', controlTab]);
     if (isAdmin()) TABS.push(['ai', 'AI', 'bolt', aiTab], ['groles', 'Community roles', 'shield', groles], ['codes', 'PRO codes', 'gift', codes], ['announce', 'Announce', 'bell', announce], ['system', 'System', 'server', system]);
     let cleanup = null, token = 0;
     const body = h('div.adm-body');
@@ -318,4 +318,18 @@ async function coinsTab(box) {
     h('section.card', h('h3', icon('users', 18), ' ', t('Gift for everyone')), h('p.small.muted', t('Send the same amount to everyone online right now, or to every account (banned accounts are skipped).')),
       h('div.row', { style: 'gap:8px;flex-wrap:wrap' }, bulkAmt, h('button.btn', { onClick: bulk('online') }, t('Everyone online')), h('button.btn', { onClick: bulk('all') }, t('Every account'))))));
   paintAmounts(); paint();
+}
+
+// ---------- Control (13.8): lockdown for everyone and who is online ----------
+async function controlTab(box) {
+  let st = await api.get('/api/admin/lockdown'); const lockBox = h('div'); const onBox = h('div'); let timer = 0;
+  const paintLock = () => mount(lockBox, h('section.card.adm-lock' + (st.lockdown.on ? '.on' : ''), h('div.row', { style: 'gap:12px;align-items:center' }, icon('lock', 26), h('div.grow', h('h3', { style: 'margin:0' }, t('Lockdown mode')), h('p.small.muted', { style: 'margin:4px 0 0' }, t('Every open Nebulix (except staff) instantly switches to an ordinary study notes page, and stays there until you lift it. New visitors see it too.'))),
+    h('button.btn' + (st.lockdown.on ? '' : '.danger'), { onClick: async (e) => { const on = !st.lockdown.on; if (on && !(await confirmBox(t('Lock Nebulix for everyone online ({n}) now?', { n: st.online }), { ok: t('Lock now'), danger: true }))) return; busy(e.currentTarget, async () => { try { st = await api.post('/api/admin/lockdown', { on }); toast(on ? t('Lockdown on') : t('Lockdown lifted'), 'good'); paintLock(); } catch (err) { toastErr(err); } }); } }, st.lockdown.on ? t('Lift lockdown') : t('Lock everyone'))),
+    st.lockdown.on ? h('p.tiny', t('On since {d}', { d: fmt.rel(st.lockdown.at) })) : null));
+  async function loadOnline() {
+    try { const r = await api.get('/api/admin/online'); mount(onBox, h('section.card', h('h3', icon('users', 18), ' ', t('Online now') + ' · ' + r.users.length), r.users.length ? h('div.adm-online', r.users.map((u) => h('div.adm-orow', avatarEl(u, { size: 32, frame: false }), h('div.grow', h('b', u.displayName || u.username), h('div.tiny.muted', '@' + u.username + (u.tabs > 1 ? ' · ' + t('{n} tabs', { n: u.tabs }) : ''))), u.activity ? h('span.pill', u.activity.label || u.activity.kind) : h('span.tiny.muted', t('Browsing')), u.infinite ? h('span.pill.pro', '∞') : h('span.tiny', fmt.coins(u.coins))))) : h('p.muted', t('Nobody is online.')))); } catch (e) { mount(onBox, h('span.error', e.message)); }
+  }
+  mount(box, lockBox, onBox, h('p.tiny.muted', t('Nebulix never shows you other people’s screens: that would break their privacy. You see the same activity status their friends see.')));
+  paintLock(); loadOnline(); timer = setInterval(loadOnline, 10000);
+  return () => clearInterval(timer);
 }

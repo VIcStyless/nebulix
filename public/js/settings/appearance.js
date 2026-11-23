@@ -1,5 +1,5 @@
 // Settings → Appearance: pick a built-in theme, open the Theme Studio, and tune personal UI preferences (motion, density, text size, sounds…).
-import { h, mount } from '../util.js';
+import { h, mount, ls } from '../util.js';
 import { t } from '../i18n.js';
 import { api } from '../api.js';
 import { S, patchMe } from '../state.js';
@@ -38,6 +38,7 @@ export default {
         h('p.muted.small', t('Change the whole look of Nebulix — shapes, fonts and depth — on top of any colour theme.')),
         (() => { const row = h('div.set-designs', DESIGNS.map(([k, l]) => h('button.set-design' + (designNow() === k ? '.on' : ''), { type: 'button', dataset: { d: k }, onClick: (e) => { setDesign(k); row.querySelectorAll('.on').forEach((x) => x.classList.remove('on')); e.currentTarget.classList.add('on'); } }, h('span.sd-prev', h('i'), h('i'), h('i')), h('b.small', t(l))))); return row; })()),
       h('section.card', h('h3', icon('layout', 18), t('Menu layout & logo')),
+        settingRow(t('Nova button'), t('The floating AI button in the corner. It never shows over games. Alt+N opens Nova at any time.'), switchEl(ls('nova.float') !== false, (v) => { ls('nova.float', !!v); })),
         settingRow(t('Studio design'), t('A calm, flat look: neutral greys, one accent colour, no glows or animated backgrounds. It replaces your theme colours while it is on.'), switchEl(designNow() === 'studio', (v) => { setDesign(v ? 'studio' : 'seven'); toast(v ? t('Studio design on') : t('Studio design off'), 'good', 1500); })),
         settingRow(t('Menu layout'), t('Where the navigation lives on desktop: sidebar left or right, a top bar, a floating dock or compact icons.'),
           segEl(LAYOUTS.map(([k, l]) => [k, t(l)]), (() => { try { return JSON.parse(localStorage.getItem('nbx.layout')) || 'left'; } catch { return 'left'; } })(), (v) => setLayout(v))),

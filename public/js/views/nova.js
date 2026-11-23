@@ -162,7 +162,7 @@ function build(root, ctx) {
   // ---------- models ----------
   const modelName = () => (model === 'auto' ? t('Auto') : (models.find((m) => m.id === model) || { label: model }).label);
   const dot = (st) => h('span.nv2-mdot' + (!st ? '' : st.ok ? '.ok' : '.bad'));
-  async function loadModels() { try { const r = await api.get('/api/ai/models', { quiet: true }); models = r.free ? r.models : []; if (r.keyed) models = []; } catch { models = []; } paintHead(); }
+  async function loadModels() { try { const r = await api.get('/api/ai/models', { quiet: true }); models = r.free ? r.models : []; if (r.keyed) models = r.keyed.choices || []; } catch { models = []; } paintHead(); }
   function modelMenu(anchor) {
     const items = [
       { label: 'Nova · ' + t('Chat'), icon: mode === 'chat' ? 'check' : 'chat', onClick: () => setMode('chat') },

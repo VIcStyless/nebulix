@@ -50,7 +50,7 @@ function mode() {
   if ((e.provider === 'auto' || e.provider === 'free') && a.freeOn) return 'free';
   return 'local';
 }
-const modelFor = (m) => (m === 'ollama' ? ollamaModel() : m === 'free' ? cfg.ai.freeModel : eff().model || (m === 'anthropic' ? 'claude-sonnet-5-5' : 'gpt-4o-mini'));
+const modelFor = (m) => (m === 'ollama' ? ollamaModel() : m === 'free' ? cfg.ai.freeModel : eff().model || (m === 'anthropic' ? 'claude-opus-5-5' : 'gpt-4o-mini'));
 const freeBusy = { until: 0 }; // the keyless free tier allows about one reply every 45 s per server
 const MODEL_LABEL = (m) => (m === 'free' ? 'GPT-OSS 20B' : m === 'local' ? null : modelFor(m));
 // free keyed providers the owner can switch to in Admin → AI (OpenAI-compatible)
@@ -201,18 +201,23 @@ async function* sse(resp) {
   }
 }
 
-async function* anthropicStream(messages, signal, system = SYSTEM) {
-  const a = cfg.ai;
+// 13.8: with a Claude key, people pick the Claude model in Nova's menu (default Claude Opus 5.5). Server-side refusal
+// fallbacks are on ("default" routes by category); Claude Haiku 5.5 has none, so it goes without.
+const CLAUDE_MODELS = [['claude-opus-5-5', 'Claude Opus 5.5', 'Anthropic · most capable for everyday work'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5', 'Anthropic · fast and smart'], ['claude-haiku-5-5', 'Claude Haiku 5.5', 'Anthropic · fastest and cheapest'], ['claude-fable-5-2', 'Claude Fable 5.2', 'Anthropic · most powerful, slower and pricier']];
+async function* anthropicStream(messages, signal, system = SYSTEM, { model: pick, maxTokens = 16000 } = {}) {
+  const a = cfg.ai; const want = String(pick || '').replace(/^claude:/, ''); const model = CLAUDE_MODELS.some((x) => x[0] === want) ? want : modelFor('anthropic');
+  const fb = model !== 'claude-haiku-5-5';
   const resp = await fetch(a.anthropicBase.replace(/\/$/, '') + '/v1/messages', {
     method: 'POST', signal,
-    headers: { 'x-api-key': eff().anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: modelFor('anthropic'), max_tokens: 2048, system, messages, stream: true }),
+    headers: Object.assign({ 'x-api-key': eff().anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, fb ? { 'anthropic-beta': 'server-side-fallback-2026-07-01' } : {}),
+    body: JSON.stringify(Object.assign({ model, max_tokens: Math.max(4096, Math.min(64000, maxTokens * 2)), system, messages, stream: true }, fb ? { fallbacks: 'default' } : {})),
   });
   if (!resp.ok) { const err = new Error('AI provider error ' + resp.status); err.status = resp.status; throw err; }
   for await (const d of sse(resp)) {
     if (!d || d === '[DONE]') continue;
     let j; try { j = JSON.parse(d); } catch { continue; }
     if (j.type === 'content_block_delta' && j.delta && j.delta.type === 'text_delta') yield j.delta.text;
+    else if (j.type === 'message_delta' && j.delta && j.delta.stop_reason === 'refusal') yield '\n\n*(Claude declined to answer this request.)*';
     else if (j.type === 'error') throw new Error('AI provider error');
   }
 }
@@ -284,7 +289,7 @@ module.exports = function register(r) {
   const COPILOT_SYS = `You are Nova Copilot, a coding assistant inside Nebulix Studio (a code editor). Be precise and concise. When you return code that should replace the user's selection, give exactly ONE fenced code block with the full replacement and nothing else inside it.`;
   const cleanMsgs = (raw, n, len) => { let msgs = (Array.isArray(raw) ? raw : []).slice(-n).map((m) => ({ role: m && m.role === 'assistant' ? 'assistant' : 'user', content: String((m && m.content) || '').slice(0, len) })).filter((m) => m.content.trim()); while (msgs.length && msgs[0].role !== 'user') msgs.shift(); const norm = []; for (const m of msgs) { const p = norm[norm.length - 1]; if (p && p.role === m.role) p.content += '\n' + m.content; else norm.push({ ...m }); } return norm; };
   const quota = (u) => { const limit = (isPro(u) ? cfg.ai.proDaily : cfg.ai.freeDaily) + require('../boosts').novaExtra(u); u.ai = u.ai && u.ai.day === dayKey() ? u.ai : { day: dayKey(), n: 0 }; return limit; };
-  const genFor = (m, norm, signal, system, opts) => (m === 'anthropic' ? anthropicStream(norm, signal, system) : m === 'openai' || m === 'ollama' || m === 'free' ? openaiStream(norm, signal, system, m, opts) : null);
+  const genFor = (m, norm, signal, system, opts) => (m === 'anthropic' ? anthropicStream(norm, signal, system, opts) : m === 'openai' || m === 'ollama' || m === 'free' ? openaiStream(norm, signal, system, m, opts) : null);
 
   // web search for Nova: the top results from the Nebulix search engine, to cite as [1], [2]…
   async function webContext(u, q) {
@@ -357,7 +362,7 @@ module.exports = function register(r) {
         for (const f of freeOrder(String(c.body.model || 'auto'), kind).slice(0, 7)) { let any = false; try { for await (const d of freeStream(f, norm, ac.signal, system, { maxTokens: kind === 'chat' ? 4096 : 8192 })) { if (typeof d === 'string') { any = true; got = true; send({ d }); } else if (d && d.r) send({ r: d.r }); } answeredBy = f; return; } catch (e) { if (ac.signal.aborted) throw e; lastErr = e; if (any) { answeredBy = f; return; } } }
         throw lastErr || new Error('no free model');
       }
-      const gen = cmd ? (async function* () { yield cmd; })() : genFor(mm, norm, ac.signal, system, { maxTokens: kind === 'chat' ? 4096 : 8192 }) || localStream(norm, u.lang, u); for await (const d of gen) { if (typeof d === 'string') { got = true; send({ d }); } else if (d && d.r) send({ r: d.r }); } };
+      const gen = cmd ? (async function* () { yield cmd; })() : genFor(mm, norm, ac.signal, system, { maxTokens: kind === 'chat' ? 4096 : 8192, model: String(c.body.model || '') }) || localStream(norm, u.lang, u); for await (const d of gen) { if (typeof d === 'string') { got = true; send({ d }); } else if (d && d.r) send({ r: d.r }); } };
     try {
       await run(m);
       send({ done: true, left: limit - u.ai.n, mode: m, model: answeredBy ? answeredBy.label : MODEL_LABEL(m), modelId: answeredBy ? answeredBy.id : null, fallback: busyNote || undefined });
@@ -422,7 +427,7 @@ module.exports = function register(r) {
   });
   // the model list and the model checker
   const mview = () => allModels().map((f) => { const h = health.get(f.id); return { id: f.id, label: f.label, by: f.by, host: f.host, tags: f.tags, browser: !!f.browser, url: f.browser ? f.url : null, model: f.browser ? f.model : null, kind: f.kind, status: h ? { ok: h.ok, ms: h.ms, err: h.err, at: h.at, retryIn: h.ok ? 0 : Math.max(0, h.until - Date.now()) } : null }; });
-  r.get('/api/ai/models', { auth: true }, async () => (await refreshKeyed(), { mode: mode(), free: mode() === 'free', models: mview(), keyed: mode() !== 'free' && mode() !== 'local' ? { mode: mode(), model: modelFor(mode()) } : null }));
+  r.get('/api/ai/models', { auth: true }, async () => (await refreshKeyed(), { mode: mode(), free: mode() === 'free', models: mview(), keyed: mode() !== 'free' && mode() !== 'local' ? { mode: mode(), model: modelFor(mode()), choices: mode() === 'anthropic' ? CLAUDE_MODELS.map(([id, label, by]) => ({ id: 'claude:' + id, label, by, tags: [/haiku/.test(id) ? 'fast' : 'reasoning', 'code'] })) : [] } : null }));
   let lastCheck = 0; let checking = null;
   r.post('/api/ai/models/check', { auth: true, limit: [6, 600000, 'user'] }, async () => {
     if (!checking && Date.now() - lastCheck > 45000) { await refreshKeyed(); checking = Promise.all(allModels().map(checkFree)).finally(() => { lastCheck = Date.now(); checking = null; }); }

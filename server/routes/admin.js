@@ -90,6 +90,15 @@ module.exports = function register(r) {
     if (on && t.id !== c.user.id) hub.push(t.id, { t: 'notice', text: 'You now have unlimited coins', es: 'Ahora tienes monedas infinitas' });
     return { user: adminView(t) };
   });
+  // 13.8 lockdown: every open Nebulix (except staff) switches to a study page until it is lifted
+  r.get('/api/admin/lockdown', { auth: true, role: 'admin' }, async () => ({ lockdown: S.meta.lockdown || { on: false }, online: hub.count() }));
+  // who is online right now and what they are doing (the same activity their friends can see; private activity stays hidden)
+  r.get('/api/admin/online', { auth: true, role: 'staff' }, async () => ({ users: [...hub.conns.keys()].map((id) => S.users[id]).filter(Boolean).map((u) => { const a = hub.act.get(u.id); return Object.assign(adminView(u), { tabs: (hub.conns.get(u.id) || { size: 0 }).size, activity: a && !(u.settings && u.settings.showActivity === false) ? { kind: a.kind, label: a.label, t: a.t } : null }); }).slice(0, 300) }));
+  r.post('/api/admin/lockdown', { auth: true, role: 'admin', limit: [20, 60000, 'user'] }, async (c) => {
+    const on = !!c.body.on; S.meta.lockdown = { on, by: c.user.id, at: now() }; S.store.touch('meta');
+    const str = JSON.stringify({ t: 'lockdown', on }); for (const set of hub.conns.values()) for (const conn of set) conn.send(str);
+    audit('lockdown', c.user.id, on ? 'ON' : 'OFF'); return { lockdown: S.meta.lockdown, online: hub.count() };
+  });
   // give coins to everyone online, or to every account
   r.post('/api/admin/coins/bulk', { auth: true, role: 'admin', limit: [6, 600000, 'user'] }, async (c) => {
     const amount = c.body.amount; const scope = c.body.scope === 'all' ? 'all' : 'online';
