@@ -125,7 +125,7 @@ function serveStatic(req, res, pathname) {
       if (COMPRESSIBLE.has(ext) && raw.length > 1024) {
         try { const big = raw.length > 1048576; ent.gz = zlib.gzipSync(raw, { level: big ? 5 : 9 }); ent.br = zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: big ? 4 : 9 } }); } catch {} // big files (emulator, disk images): fast settings so the server never stalls
       }
-      if (rel === '/index.html' && cssBundle) ent.css = cssBundle.stamp;
+      if (rel === '/index.html' && cssBundle) { ent.css = cssBundle.stamp; ent.etag = ent.etag.slice(0, -1) + '-' + cssBundle.etag.slice(2, -1) + '"'; } // the page changes when the styles do
       fileCache.set(abs, ent);
       send();
     });
@@ -222,7 +222,7 @@ function register() {
   registered = true;
   router = new Router();
   authMod = require('./routes/auth'); chatMod = require('./routes/chat');
-  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links']) require('./routes/' + m)(router);
+  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links', 'study']) require('./routes/' + m)(router);
   engine = require('./proxy/engine');
 }
 

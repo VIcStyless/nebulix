@@ -44,6 +44,7 @@ export default {
           } catch (e) { toastErr(e); }
           paintPush();
         })),
+      on ? [['pushDm', t('Direct messages')], ['pushDuel', t('1v1 challenges')], ['pushNotice', t('Gifts, friends and other notices')]].map(([k, n]) => settingRow(n, '', switchEl(!(S.me.settings && S.me.settings[k] === false), async (v) => { try { const r = await api.patch('/api/profile', { settings: { [k]: v } }); patchMe({ settings: r.user.settings }); } catch (e) { toastErr(e); } }))) : null,
       on ? h('div.row', { style: 'justify-content:flex-end' }, h('button.btn.sm', { onClick: async (e) => { e.currentTarget.disabled = true; try { await api.post('/api/push/test'); toast(t('Test sent — it should appear in a few seconds'), 'good'); } catch (err) { toastErr(err); } } }, icon('bell', 14), t('Send a test'))) : null);
     }
     paintPush();

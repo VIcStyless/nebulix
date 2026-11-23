@@ -63,6 +63,7 @@ function cleanSettings(cur, inp, user = {}) {
   if (inp.showActivity !== undefined) s.showActivity = !!inp.showActivity;
   if (inp.showLibrary !== undefined) s.showLibrary = !!inp.showLibrary;
   if (inp.readReceipts !== undefined) s.readReceipts = !!inp.readReceipts;
+  for (const k of ['pushDm', 'pushDuel', 'pushNotice', 'pushStudy']) if (inp[k] !== undefined) s[k] = !!inp[k];
   if (inp.duels !== undefined) { if (!['everyone', 'friends', 'none'].includes(inp.duels)) throw new HttpError(400, 'bad_setting', 'Bad duel setting'); s.duels = inp.duels; }
   if (inp.activeTheme !== undefined) {
     if (inp.activeTheme === null) s.activeTheme = null;

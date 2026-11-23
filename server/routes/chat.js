@@ -130,6 +130,7 @@ function attachWs(conn, u) {
     else if (typeof m.t === 'string' && m.t.startsWith('c3d_')) require('../c3d').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('w3_')) require('../worlds').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('ar_')) require('../arena').onMessage(conn, u, m);
+    else if (typeof m.t === 'string' && m.t.startsWith('st_')) { if (m.t === 'st_rehost') { const g = require('../study').rejoinHost(conn, u); if (g) conn.send({ t: 'st_room', pin: g.pin, title: g.title, n: g.qs.length, host: true, phase: g.phase, players: [...g.players.values()].map((p) => p.name) }); } else require('../study').onMessage(conn, u, m); }
     else if (m.t === 'boss_hit') require('../boss').onMessage(conn, u, m);
     else if (m.t === 'act') { // live activity: "Listening to …", "Playing Nebula Snake", …
       const t = Date.now(); if (t - actAt < 1500) return; actAt = t;
@@ -167,6 +168,7 @@ function attachWs(conn, u) {
     if (conn.data.c3d) require('../c3d').leave(conn, u);
     if (conn.data.w3) require('../worlds').leave(conn, u);
     if (conn.data.arena) require('../arena').onClose(conn, u);
+    if (conn.data.study) require('../study').onClose(conn, u);
     const last = hub.remove(u.id, conn);
     if (last) hub.pushMany(peers(u), { t: 'presence', id: u.id, online: false });
   });

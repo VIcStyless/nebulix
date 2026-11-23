@@ -28,6 +28,7 @@ import { appTile } from './apps-meta.js';
 // Sidebar groups: [label, [[route, label, icon], …]]
 const NAV_GROUPS = [
   ['', [['home', 'Home', 'home'], ['live', 'Nebulix Live', 'activity'], ['season', 'Season', 'star'], ['browse', 'Browser', 'globe']]],
+  ['Learn', [['study', 'Study', 'book'], ['study/cards', 'Flashcards', 'layers'], ['study/tutor', 'AI tutor', 'spark'], ['study/live', 'Live class', 'users']]],
   ['Social', [['echo', 'Nebulix Echo', 'activity'], ['clips', 'Clips', 'zap'], ['tv', 'Nebulix TV', 'play'], ['lens', 'Nebulix Lens', 'image'], ['forum', 'Nebulix Foros', 'chat'], ['chat', 'Community', 'users'], ['dm', 'Messages', 'mail'], ['clans', 'Clans', 'shield'], ['squads', 'Squads', 'target'], ['events', 'Events', 'calendar']]],
   ['Play', [['games', 'Nebulix Games', 'gamepad'], ['arena', 'Nebulix Arena', 'target'], ['ranked', 'Competitive', 'trophy'], ['vault', 'Nebula Vault', 'bag'], ['retro', 'Retro consoles', 'gamepad'], ['cloud', 'Cloud gaming', 'monitor'], ['worlds', 'Nebula Worlds', 'cube'], ['boss', 'World Boss', 'zap'], ['tournaments', 'Tournaments', 'trophy'], ['leagues', 'Leagues', 'medal'], ['quiz', 'Nebulix Quiz', 'flag'], ['word', 'Word of the day', 'type'], ['play', 'Games', 'puzzle'], ['music', 'Pulse', 'music'], ['arcade', 'Arcade', 'gamepad'], ['library', 'Game library', 'layers'], ['casino', 'Casino', 'dice'], ['casino3d', '3D Casino', 'box3d']]],
   ['Economy', [['shop', 'Shop & Locker', 'bag'], ['wallet', 'Wallet', 'coins'], ['life', 'Life', 'heart'], ['work', 'Work', 'clip'], ['invest', 'Invest', 'chart'], ['perks', 'Advantages', 'zap'], ['market', 'Market', 'bag'], ['plaza', 'Plaza', 'gift'], ['avatar', 'My 3D avatar', 'box3d']]],
@@ -35,7 +36,7 @@ const NAV_GROUPS = [
 ];
 const NAV = NAV_GROUPS.flatMap((g) => g[1]);
 const LOADERS = {
-  home: () => import('./views/home.js'), browse: () => import('./views/browser.js'), chat: () => import('./views/chat.js'), dm: () => import('./views/dm.js'),
+  study: () => import('./views/study.js'), home: () => import('./views/home.js'), browse: () => import('./views/browser.js'), chat: () => import('./views/chat.js'), dm: () => import('./views/dm.js'),
   casino: () => import('./views/casino.js'), market: () => import('./views/market.js'), themes: () => import('./views/themes.js'), nova: () => import('./views/nova.js'),
   nerd: () => import('./views/nerd.js'), settings: () => import('./views/settings.js'), profile: () => import('./views/profile.js'), pro: () => import('./views/pro.js'),
   ext: () => import('./views/ext.js'), admin: () => import('./views/admin.js'), music: () => import('./views/music.js'), dj: () => import('./views/dj.js'),

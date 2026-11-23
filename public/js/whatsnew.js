@@ -7,6 +7,12 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['book', 'Nebulix Study', 'Notes from students, flashcards with spaced repetition, an AI tutor, live class quizzes, grades and exams.', 'study'],
+  ['users', 'Live class quizzes', 'Host a quiz from any deck: everyone joins with a 6-digit PIN and answers against the clock.', 'study/live'],
+  ['bell', 'Push notifications', 'Messages, 1v1 challenges and gifts reach you even with Nebulix closed. Turn them on in Settings.', 'settings/privacy'],
+  ['target', 'Arena: spectate and quick chat', 'Watch the remaining players after you are out, and send quick phrases with N.', 'arena'],
+  ['shield', 'Streak shields', 'Protect your daily streak if you miss a day.', 'home'],
+  ['dice', 'Baccarat, Video Poker and Hi-Lo', 'Three new card games in the casino.', 'casino'],
   ['gamepad', 'Retro consoles', 'NES, SNES, GBA, N64, PlayStation and more, with gamepad and save states.', 'retro'],
   ['window', 'Windows in virtual machines', 'Up to 2 GB of RAM, 32 GB disks and templates for Windows 98, 2000, XP and ReactOS.', 'vm'],
   ['lock', 'Nebulix VPN', 'One switch for maximum privacy while you browse inside Nebulix.', 'vpn'],

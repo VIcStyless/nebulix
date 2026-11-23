@@ -91,7 +91,8 @@ async function send(uid, data) {
 // turn a live message for someone who is offline into a notification (or nothing)
 function fromMessage(uid, msg) {
   const u = S.users[uid]; if (!u || !u.push || !u.push.length || !msg) return null;
-  const es = u.lang === 'es';
+  const es = u.lang === 'es'; const st = u.settings || {};
+  if ((msg.t === 'dm' && st.pushDm === false) || (msg.t === 'ar_invite' && st.pushDuel === false) || ((msg.t === 'notice' || msg.t === 'notify') && st.pushNotice === false)) return null;
   if (msg.t === 'notice' && (msg.text || msg.es)) return { title: 'Nebulix', body: String(es && msg.es ? msg.es : msg.text).slice(0, 200), url: '/#/home', tag: 'notice' };
   if (msg.t === 'notify' && msg.text) return { title: 'Nebulix', body: String(msg.text).slice(0, 200), url: '/#/' + (msg.link || 'home'), tag: msg.kind || 'notify' };
   if (msg.t === 'ar_invite' && msg.from) return { title: es ? 'Reto 1v1' : '1v1 challenge', body: (es ? '@' + msg.from.username + ' te reta a un duelo' : '@' + msg.from.username + ' challenges you to a duel') + (msg.bet ? (es ? ' · apuesta ' : ' · bet ') + msg.bet : ''), url: '/#/arena', tag: 'duel-' + msg.id };
