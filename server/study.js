@@ -71,7 +71,7 @@ function review(u, deckId, idx, grade) {
   // grade: 0 again · 1 hard · 2 good · 3 easy
   if (grade === 0) { c.reps = 0; c.ivl = 0; c.due = now() + 60000; c.ease = Math.max(1.3, c.ease - 0.2); }
   else { c.reps++; c.ivl = c.reps === 1 ? (grade === 3 ? 3 : 1) : c.reps === 2 ? (grade === 1 ? 3 : 6) : Math.round(c.ivl * (grade === 1 ? 1.2 : c.ease * (grade === 3 ? 1.3 : 1))); c.ease = Math.max(1.3, c.ease + (grade === 1 ? -0.15 : grade === 3 ? 0.15 : 0)); c.due = now() + c.ivl * 86400000; }
-  p[idx] = c; st.cards = (st.cards || 0) + 1; if (st.cards % 20 === 0) earn(u, 5, 'review'); S.store.touch('users');
+  p[idx] = c; st.cards = (st.cards || 0) + 1; try { require('./progress').award(u, 'study'); } catch {} if (st.cards % 20 === 0) earn(u, 5, 'review'); S.store.touch('users');
   if (!st.usedDecks) st.usedDecks = []; if (!st.usedDecks.includes(deckId)) { st.usedDecks.push(deckId); st.usedDecks = st.usedDecks.slice(-200); if (d.uid !== u.id) { d.uses = (d.uses || 0) + 1; S.store.touch('studydecks'); } }
   return { due: dueCount(u, d), card: c };
 }

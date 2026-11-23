@@ -153,6 +153,9 @@ export default {
     async function loadTx() { try { const r = await api.get('/api/economy/state'); paintKpis(r.stats); paintTx(r.tx); } catch {} }
 
     const anns = S.announcements || [];
+    // 13.8 spotlight: big shortcuts to what is new
+    const SPOT = [['study', 'book', 'Nebulix Study', 'Notes, flashcards and an AI tutor', '#2563eb', '#7c3aed'], ['fusion', 'spark', 'Nebula Fusion', 'Combine elements, discover new ones', '#9333ea', '#db2777'], ['dash', 'zap', 'Nebula Dash', 'A rhythm runner with a level editor', '#ea580c', '#e11d48'], ['wallet', 'trophy', 'Weekly race', 'Earn coins, win prizes on Monday', '#16a34a', '#0d9488'], ['mods', 'puzzle', 'Mods', 'Make Nebulix look your way', '#0891b2', '#4f46e5'], ['pro', 'crown', 'Premium', 'Three plans, more of everything', '#ca8a04', '#ea580c']];
+    const spot = h('section.card.s12.home-spot', h('div.card-head', h('h3', icon('star', 16), t('New in Nebulix'))), h('div.home-spot-grid', SPOT.map(([r, ic, n, d, c1, c2]) => h('a.home-spot-tile', { href: '#/' + r + (r === 'wallet' ? '?tab=race' : ''), style: { '--c1': c1, '--c2': c2 } }, h('span.home-spot-ic', icon(ic, 22)), h('b', t(n)), h('span', t(d))))));
     const annCard = anns.length ? h('section.card.s12', h('div.card-head', h('h3', icon('bell', 16), t('Announcements'))), h('div.col', { style: 'gap:8px' }, anns.slice(0, 2).map((a) => h('div.ann', h('div', h('b', a.title), h('div.small.muted', a.body), h('div.tiny.muted', fmt.rel(a.t))))))) : null;
 
     // ----- jump into a game (real site logos, fetched through the proxy) -----
@@ -170,7 +173,7 @@ export default {
         d.unclaimed ? h('span.ss-home-badge', t('{n} rewards waiting', { n: d.unclaimed })) : h('span.btn.sm', t('Open'))); }).catch(() => seasonCard.remove());
     const cc = commandCentre({ designNow, setDesign }); unsubs.push(() => cc.stop());
     mount(root, h('div.inner.home', hero, mailNudge, cc, seasonCard, kpis,
-      h('div.home-grid', annCard, apps, dailyCard, friendsCard, focusCard, activity, squadsCard, eventsCard),
+      h('div.home-grid', annCard, spot, apps, dailyCard, friendsCard, focusCard, activity, squadsCard, eventsCard),
       gamesCard,
       h('div.footer-credit', 'Nebulix · ', t('Created by') + ' ', h('b', 'VicStyles'))));
 

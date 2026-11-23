@@ -39,6 +39,9 @@ const EV = {
   pet: { xp: 2, cap: 20, cnt: 'petCare', cd: 3000 },
   life: { xp: 3, cap: 40, cnt: 'lifeActs', cd: 3000 },
   social: { xp: 2, cap: 30, cnt: 'socialPosts', cd: 5000 },
+  study: { xp: 3, cap: 60, cnt: 'studyActs', cd: 2000 }, // 13.8 Nebulix Study
+  fusion: { xp: 2, cap: 40, cnt: 'fusionFinds' }, // 13.8 Nebula Fusion (new elements)
+  dash: { xp: 20, cap: 100, cnt: 'dashClears' }, // 13.8 Nebula Dash level clears
   // reported by the browser — small, capped, and rate-limited so they cannot be farmed
   distro: { xp: 10, cap: 30, cnt: 'distros', client: true, cd: 20000 },
   bench: { xp: 8, cap: 24, cnt: 'benches', client: true, cd: 8000 },

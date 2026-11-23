@@ -14,7 +14,7 @@ module.exports = function register(r) {
     const u = c.user; const d = (u.dash = u.dash || { done: {}, day: {} }); const today = dayKey(); let coins = 0;
     if (!d.done[id]) { d.done[id] = Date.now(); coins = DASH[id]; } else if (d.day[id] !== today) { coins = 15; }
     d.day[id] = today; if (coins) require('../economy').adjust(u, coins, 'dash:' + id); S.store.touch('users');
-    try { require('../progress').award(u, 'win'); } catch {}
+    try { require('../progress').award(u, 'dash'); require('../progress').award(u, 'win'); } catch {}
     return { coins, first: coins === DASH[id] };
   });
 };

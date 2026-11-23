@@ -40,7 +40,7 @@ async function combine(u, a, b) {
     if (!c) { if (!r) return { result: null, aiOff: require('./routes/ai').mode() === 'local' }; c = w.combos[k] = { r, at: now(), by: u.id }; S.store.touch('fusion'); }
   }
   const r = c.r; const lk = r.toLowerCase(); let isNew = false; let first = false; let coins = 0;
-  if (!f.found.some((x) => x.toLowerCase() === lk)) { f.found.push(r); isNew = true; if (f.found.length > 5000) f.found = f.found.slice(-5000); }
+  if (!f.found.some((x) => x.toLowerCase() === lk)) { f.found.push(r); isNew = true; try { require('./progress').award(u, 'fusion'); } catch {} if (f.found.length > 5000) f.found = f.found.slice(-5000); }
   if (!w.els[lk]) { w.els[lk] = { n: r, by: u.id, at: now() }; first = true; f.firsts = (f.firsts || 0) + 1; S.store.touch('fusion'); }
   if (isNew) { const day = dayKey(); if (u.fusion.dayKey !== day) { u.fusion.dayKey = day; u.fusion.earned = 0; } const give = Math.min(first ? 15 : 2, 150 - (u.fusion.earned || 0)); if (give > 0) { u.fusion.earned = (u.fusion.earned || 0) + give; coins = give; try { require('./economy').adjust(u, give, 'fusion'); } catch {} } }
   S.store.touch('users');
