@@ -19,6 +19,8 @@ const APPS = [
     desc: 'An infinite-feeling whiteboard: smooth pen, highlighter, lines, arrows, boxes and circles, 8 colours, grid or dotted paper, dark mode and PNG export.' },
   { slug: 'writer', title: 'Markdown Writer', tags: ['official', 'writing', 'markdown', 'notes'], c: ['#f59e0b', '#a855f7'], glyph: 'text',
     desc: 'Write in Markdown with a live preview, several documents, focus mode, light and dark themes, word count and reading time, and .md download.' },
+  { slug: 'starter', kind: 'game', title: 'Starter game (template)', tags: ['official', 'template', 'game', 'gamedev'], c: ['#8b7bff', '#ffd166'], glyph: 'dots',
+    desc: 'The starter template for Hub creators: a tiny star-catching game that uses the Game API (player name, leaderboard, an achievement and a multiplayer room). Download it from Create games or remix it.' },
   { slug: 'palette', title: 'Palette Lab', tags: ['official', 'design', 'colors', 'palette'], c: ['#22d3ee', '#ff5fa8'], glyph: 'dots',
     desc: 'Generate colour palettes with Space: random, analogous, monochrome, triadic, complementary or pastel. Lock the colours you like, check contrast and copy the CSS.' },
 ];
@@ -48,7 +50,7 @@ function seed() {
     const sha = blobs.putBuffer(html).sha; const thumb = blobs.putBuffer(Buffer.from(coverSvg(a))).sha;
     let it = Object.values(items).find((x) => x.official === a.slug);
     if (!it) {
-      it = { id: rid(8), official: a.slug, owner, kind: 'app', title: a.title, desc: a.desc, tags: a.tags, created: now(), views: 0, likes: [], size: html.length, public: true, duration: 0,
+      it = { id: rid(8), official: a.slug, owner, kind: a.kind || 'app', title: a.title, desc: a.desc, tags: a.tags, created: now(), views: 0, likes: [], size: html.length, public: true, duration: 0,
         allowDownload: true, allowRemix: true, runMode: 'sandbox', files: { 'index.html': { sha, size: html.length } }, entry: 'index.html', version: 1,
         versions: [{ v: 1, at: now(), note: 'Published by Nebulix', size: html.length, files: 1 }], thumb, thumbType: 'image/svg+xml' };
       items[it.id] = it; changed = true;

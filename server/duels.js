@@ -9,7 +9,11 @@ const GAMES = {
   ttt: { name: 'Tic-Tac-Toe', turn: 45000 },
   c4: { name: 'Connect Four', turn: 45000 },
   rps: { name: 'Rock Paper Scissors', turn: 30000 },
+  // Nebulix 3.0: board games validated with the shared rules (server/rules.js)
+  chess: { name: 'Chess', turn: 120000 },
+  checkers: { name: 'Checkers', turn: 90000 },
 };
+const R = () => require('./rules');
 const PENDING_MS = 120000;
 const MAX_WAGER = 1000;
 const MAX_PENDING_OUT = 3;
@@ -38,6 +42,8 @@ const RPS_BEATS = { r: 's', p: 'r', s: 'p' };
 function initState(game, first) {
   if (game === 'ttt') return { board: Array(9).fill(null), turn: first };
   if (game === 'c4') return { board: Array(C4_W * C4_H).fill(null), turn: first };
+  if (game === 'chess') { const pos = R().chess.start(); return { pos, white: first, turn: first, seen: { [R().chess.key(pos)]: 1 }, last: null, moves: [] }; }
+  if (game === 'checkers') return { b: R().checkers.ckStart(), white: first, turn: first, quiet: 0, last: null };
   return { round: 1, picks: [null, null], score: [0, 0], history: [] };
 }
 
@@ -50,7 +56,9 @@ function viewFor(d, uid) {
     g.round = st.round; g.score = st.score; g.history = st.history;
     g.myPick = me === null ? null : st.picks ? st.picks[me] : null;
     g.theyPicked = me === null ? false : !!(st.picks && st.picks[1 - me]);
-  } else if (st.board) { g.board = st.board; g.turn = st.turn; g.line = d.line || null; }
+  } else if (d.game === 'chess' && st.pos) { g.pos = st.pos; g.turn = st.turn; g.white = st.white; g.last = st.last; g.moves = (st.moves || []).slice(-200); }
+  else if (d.game === 'checkers' && st.b) { g.b = st.b; g.turn = st.turn; g.white = st.white; g.last = st.last; }
+  else if (st.board) { g.board = st.board; g.turn = st.turn; g.line = d.line || null; }
   return {
     id: d.id, game: d.game, name: GAMES[d.game].name, a: publicUser(S.users[d.a]), b: publicUser(S.users[d.b]), wager: d.wager, status: d.status,
     me, created: d.created, started: d.started || 0, ended: d.ended || 0, deadline: d.status === 'active' ? d.turnStart + GAMES[d.game].turn : (d.status === 'pending' ? d.created + PENDING_MS : 0),
@@ -73,7 +81,7 @@ function canChallenge(a, b) {
 
 function create(u, body) {
   const game = String(body.game || '');
-  if (!GAMES[game]) throw new HttpError(400, 'bad_game', 'Pick Tic-Tac-Toe, Connect Four or Rock Paper Scissors');
+  if (!GAMES[game]) throw new HttpError(400, 'bad_game', 'Pick Tic-Tac-Toe, Connect Four, Rock Paper Scissors, Chess or Checkers');
   let target = body.to ? S.users[String(body.to)] : null;
   if (!target && body.username) { const id = S.byName.get(String(body.username).toLowerCase()); target = id ? S.users[id] : null; }
   if (!target || !target.verified || target.deleted) throw new HttpError(404, 'no_user', 'Player not found');
@@ -141,7 +149,32 @@ function move(u, id, body) {
   const d = get(id, u);
   if (d.status !== 'active') throw new HttpError(409, 'not_active', 'This duel is not running');
   const me = d.a === u.id ? 0 : 1; const st = d.st;
-  if (d.game === 'ttt' || d.game === 'c4') {
+  if (d.game === 'chess' || d.game === 'checkers') {
+    if (st.turn !== me) throw new HttpError(409, 'not_your_turn', 'Wait for your turn');
+    const side = me === st.white ? 'w' : 'b';
+    if (d.game === 'chess') {
+      const C = R().chess; if (st.pos.turn !== side) throw new HttpError(409, 'not_your_turn', 'Wait for your turn');
+      const from = Number(body.from), to = Number(body.to); const promo = String(body.promo || 'q').toLowerCase();
+      const m = C.legal(st.pos).find((x) => x.from === from && x.to === to && (!x.promo || x.promo.toLowerCase() === promo));
+      if (!m) throw new HttpError(400, 'bad_move', 'That move is not legal');
+      st.pos = C.make(st.pos, m); st.last = { from, to }; st.moves = (st.moves || []).concat({ from, to, piece: m.piece, cap: m.cap || null, promo: m.promo || null, castle: m.castle || null }).slice(-400);
+      const k = C.key(st.pos); st.seen[k] = (st.seen[k] || 0) + 1;
+      const next = C.legal(st.pos); const pcs = st.pos.b.filter(Boolean).map((p) => p.toLowerCase()).sort().join('');
+      if (!next.length) { if (C.inCheck(st.pos, st.pos.turn)) finish(d, me, 'checkmate'); else finish(d, null, 'stalemate'); }
+      else if (st.pos.half >= 100 || st.seen[k] >= 3 || ['kk', 'bkk', 'kkn'].includes(pcs)) finish(d, null, 'draw');
+      else { st.turn = 1 - me; d.turnStart = now(); }
+    } else {
+      const K = R().checkers; const path = Array.isArray(body.path) ? body.path.map(Number) : [];
+      const m = K.ckMoves(st.b, side).find((x) => x.path.length === path.length && x.path.every((v, i) => v === path[i]));
+      if (!m) throw new HttpError(400, 'bad_move', 'That move is not legal');
+      const man = st.b[m.path[0]] === side; st.b = K.ckApply(st.b, m); st.last = { path: m.path, caps: m.caps };
+      st.quiet = m.caps.length || man ? 0 : (st.quiet || 0) + 1;
+      const other = side === 'w' ? 'b' : 'w';
+      if (!K.ckMoves(st.b, other).length) finish(d, me, 'win');
+      else if (st.quiet >= 80) finish(d, null, 'draw');
+      else { st.turn = 1 - me; d.turnStart = now(); }
+    }
+  } else if (d.game === 'ttt' || d.game === 'c4') {
     if (st.turn !== me) throw new HttpError(409, 'not_your_turn', 'Wait for your turn');
     let cell;
     if (d.game === 'ttt') { cell = Number(body.cell); if (!Number.isInteger(cell) || cell < 0 || cell > 8 || st.board[cell] !== null) throw new HttpError(400, 'bad_move', 'Pick an empty square'); }

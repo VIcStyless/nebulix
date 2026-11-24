@@ -56,6 +56,7 @@ function solitaireGame(stage, hud, end, best, env) {
 
 // ================= CHECKERS =================
 // board: 32-free 8x8 array; 'w','W' (you, moving up), 'b','B' (CPU, moving down)
+// ---- rules:begin ---- (pure checkers rules + search: also loaded by the server for online duels)
 function ckStart() { const b = Array(64).fill(null); for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if ((r + c) % 2) { if (r < 3) b[r * 8 + c] = 'b'; else if (r > 4) b[r * 8 + c] = 'w'; } return b; }
 const own = (p, side) => p && p.toLowerCase() === side;
 function ckJumps(b, i, side, path = [i], caps = [], out = []) {
@@ -75,6 +76,7 @@ function ckEval(b) { let v = 0; for (let i = 0; i < 64; i++) { const p = b[i]; i
 function ckSearch(b, d, side, a, bb) { const ms = ckMoves(b, side); if (!ms.length) return side === 'b' ? -10000 - d : 10000 + d; if (!d) return ckEval(b);
   if (side === 'b') { let v = -Infinity; for (const m of ms) { v = Math.max(v, ckSearch(ckApply(b, m), d - 1, 'w', a, bb)); a = Math.max(a, v); if (a >= bb) break; } return v; }
   let v = Infinity; for (const m of ms) { v = Math.min(v, ckSearch(ckApply(b, m), d - 1, 'b', a, bb)); bb = Math.min(bb, v); if (a >= bb) break; } return v; }
+// ---- rules:end ----
 function checkersGame(stage, hud, end, best, env) {
   const board = h('div.arc-board.ck-board'); const grid = h('div.ck-grid'); board.append(grid); stage.append(board); const o = overlay(board);
   let b, sel = -1, legal = [], turn = 'w', level = 'medium', over = true, t0 = 0, last = null, plies = 0, quiet = 0;
@@ -98,3 +100,5 @@ function checkersGame(stage, hud, end, best, env) {
   return () => { over = true; };
 }
 export const CARD_FNS = { solitaire: solitaireGame, checkers: checkersGame };
+
+export const CK_RULES = { ckStart, ckMoves, ckApply, own };

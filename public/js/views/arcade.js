@@ -5,13 +5,13 @@ import { api, ws } from '../api.js';
 import { S, bus } from '../state.js';
 import { icon } from '../icons.js';
 import { avatarEl, nameEl } from '../cosmetics.js';
-import { tabsEl, segEl, toast, toastErr, loading, emptyState, confetti, busy } from '../ui.js';
+import { tabsEl, segEl, toast, toastErr, loading, emptyState, confetti, busy, modal } from '../ui.js';
 import { sfx } from '../sfx.js';
 import { MORE_GAMES, MORE_FNS } from './arcade-more.js';
 import { THREE_GAMES, THREE_FNS } from './arcade-3d.js';
 import { PLUS_GAMES, PLUS_FNS } from './arcade-plus.js';
-import { CHESS_GAMES, CHESS_FNS } from './arcade-chess.js';
-import { CARD_GAMES, CARD_FNS } from './arcade-cards.js';
+import { CHESS_GAMES, CHESS_FNS, CHESS_RULES } from './arcade-chess.js';
+import { CARD_GAMES, CARD_FNS, CK_RULES } from './arcade-cards.js';
 
 const GAMES = [
   ['snake', 'Nebula Snake', 'snake', 'Eat stars, grow, don\'t crash.', 'pts'], ['2048', '2048', 'grid', 'Slide and merge tiles to reach 2048.', 'pts'],
@@ -22,7 +22,11 @@ const GAMES = [
   ...CHESS_GAMES,
   ...CARD_GAMES,
 ];
-const DUELS = [['ttt', 'Tic-Tac-Toe', 'x'], ['c4', 'Connect Four', 'grid'], ['rps', 'Rock Paper Scissors', 'scissors']];
+const DUELS = [['ttt', 'Tic-Tac-Toe', 'x'], ['c4', 'Connect Four', 'grid'], ['rps', 'Rock Paper Scissors', 'scissors'], ['chess', 'Chess', 'grid'], ['checkers', 'Checkers', 'grid']];
+const CHESS_GLYPH = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+const CHESS_RULES_GLYPH = (side, p) => CHESS_GLYPH[side === 'w' ? p.toUpperCase() : p];
+let dSel = -1; // selected square in an online chess/checkers duel (kept across live updates)
+const BOARD_DUELS = ['chess', 'checkers'];
 const RPS_IC = { r: 'rock', p: 'paper', s: 'scissors' };
 const RPS = new Proxy({}, { get: (_, k) => ({ r: t('Rock'), p: t('Paper'), s: t('Scissors') })[k] });
 const css = (k, d) => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || d;
@@ -214,15 +218,34 @@ export default {
       let d; try { d = (await api.get('/api/duels/' + id)).duel; } catch (e) { openDuel = null; toastErr(e); return paintDuels(); }
       if (openDuel !== id || tab !== 'duels') return;
       const mi = d.me; const op = mi === 0 ? d.b : d.a; const myTurn = d.status === 'active' && d.state.turn === mi; const st = d.state || {};
-      if (d.game !== 'rps' && !st.board) st.board = new Array(d.game === 'c4' ? 42 : 9).fill(null); // pending: empty board preview
+      if (d.game === 'chess' && !st.pos) { st.pos = CHESS_RULES.start(); st.white = 0; } if (d.game === 'checkers' && !st.b) { st.b = CK_RULES.ckStart(); st.white = 0; }
+      if (d.game !== 'rps' && !BOARD_DUELS.includes(d.game) && !st.board) st.board = new Array(d.game === 'c4' ? 42 : 9).fill(null); // pending: empty board preview
       if (d.game === 'rps') { st.score = st.score || [0, 0]; st.history = st.history || []; }
       const act = async (body) => { try { const r = await api.post(`/api/duels/${d.id}/move`, body); renderDuel(r.duel); } catch (e) { toastErr(e); } };
       const header = h('div.duel-head', h('button.btn.ghost', { onClick: () => { openDuel = null; clearInterval(duelTimer); loadDuels().then(paint); setAct(null); } }, icon('back', 16), t('Duels')),
-        h('div.duel-vs', h('div.duel-p' + (d.status === 'active' && st.turn === 0 ? '.turn' : ''), avatarEl(d.a, { size: 40 }), h('b.small', d.a.displayName || d.a.username), d.game === 'rps' ? h('span.duel-sc', String(st.score[0])) : h('span.duel-mark.x', d.game === 'c4' ? '🔴' : '✕')),
+        h('div.duel-vs', h('div.duel-p' + (d.status === 'active' && st.turn === 0 ? '.turn' : ''), avatarEl(d.a, { size: 40 }), h('b.small', d.a.displayName || d.a.username), d.game === 'rps' ? h('span.duel-sc', String(st.score[0])) : BOARD_DUELS.includes(d.game) ? h('span.duel-mark', st.white === 0 ? (d.game === 'chess' ? '♔' : '⚪') : (d.game === 'chess' ? '♚' : '⚫')) : h('span.duel-mark.x', d.game === 'c4' ? '🔴' : '✕')),
           h('div.duel-mid', h('b', t(d.name)), d.wager ? h('span.coin.small', String(d.wager * 2)) : null, h('span.tiny.muted.duel-clock')),
-          h('div.duel-p' + (d.status === 'active' && st.turn === 1 ? '.turn' : ''), avatarEl(d.b, { size: 40 }), h('b.small', d.b.displayName || d.b.username), d.game === 'rps' ? h('span.duel-sc', String(st.score[1])) : h('span.duel-mark.o', d.game === 'c4' ? '🟡' : '◯'))));
+          h('div.duel-p' + (d.status === 'active' && st.turn === 1 ? '.turn' : ''), avatarEl(d.b, { size: 40 }), h('b.small', d.b.displayName || d.b.username), d.game === 'rps' ? h('span.duel-sc', String(st.score[1])) : BOARD_DUELS.includes(d.game) ? h('span.duel-mark', st.white === 1 ? (d.game === 'chess' ? '♔' : '⚪') : (d.game === 'chess' ? '♚' : '⚫')) : h('span.duel-mark.o', d.game === 'c4' ? '🟡' : '◯'))));
       let boardEl;
-      if (d.game === 'ttt') boardEl = h('div.ttt', st.board.map((v, i) => h('button.ttt-c' + (st.line && st.line.includes(i) ? '.win' : ''), { disabled: !myTurn || v !== null, onClick: () => act({ cell: i }) }, v === null ? '' : v === 0 ? '✕' : '◯')));
+      if (d.game === 'chess') {
+        const C = CHESS_RULES; const mySide = mi === st.white ? 'w' : 'b'; const canMove = myTurn && st.pos.turn === mySide; const legal = canMove ? C.legal(st.pos) : [];
+        const targets = legal.filter((m) => m.from === dSel); const chk = C.inCheck(st.pos, st.pos.turn) ? C.kingAt(st.pos, st.pos.turn) : -1; const order = [...Array(64).keys()]; if (mySide === 'b') order.reverse();
+        const go = async (to) => { const ms = targets.filter((m) => m.to === to); if (!ms.length) return false; let promo = 'q';
+          if (ms.length > 1) { promo = await modal({ title: t('Promote to'), body: h('p.small.muted', t('Pick the new piece')), actions: ['q', 'r', 'b', 'n'].map((p) => ({ label: CHESS_RULES_GLYPH(mySide, p), value: p, kind: p === 'q' ? 'primary' : '' })) }); if (!promo) return false; }
+          const from = ms[0].from; dSel = -1; act({ from, to, promo }); return true; };
+        boardEl = h('div.ch-wrap', h('div.ch-grid', order.map((i) => { const r = i >> 3, c = i & 7; const p = st.pos.b[i]; const tg = targets.find((m) => m.to === i);
+          return h('button.ch-sq' + ((r + c) % 2 ? '.dk' : '.lt') + (i === dSel ? '.sel' : '') + (st.last && (i === st.last.from || i === st.last.to) ? '.last' : '') + (i === chk ? '.check' : ''), { type: 'button', onClick: async () => { if (!canMove) return; if (tg) { await go(i); return; } dSel = p && C.side(p) === mySide ? i : -1; renderDuel(d); } },
+            p ? h('span.ch-pc' + (C.isW(p) ? '.w' : '.b'), CHESS_GLYPH[p]) : null, tg ? h('i.ch-dot' + (tg.cap ? '.cap' : '')) : null); })),
+          h('ol.ch-moves.duel-moves', Array.from({ length: Math.ceil((st.moves || []).length / 2) }, (_, k) => h('li', [st.moves[k * 2], st.moves[k * 2 + 1]].map((m) => h('span', m ? (m.castle ? (m.castle === 'K' ? 'O-O' : 'O-O-O') : (m.piece.toLowerCase() === 'p' ? '' : m.piece.toUpperCase()) + (m.cap ? 'x' : '') + 'abcdefgh'[m.to & 7] + (8 - (m.to >> 3)) + (m.promo ? '=' + m.promo.toUpperCase() : '')) : ''))))));
+      }
+      else if (d.game === 'checkers') {
+        const K = CK_RULES; const mySide = mi === st.white ? 'w' : 'b'; const legal = myTurn ? K.ckMoves(st.b, mySide) : []; const targets = legal.filter((m) => m.path[0] === dSel); const movable = new Set(legal.map((m) => m.path[0]));
+        const order = [...Array(64).keys()]; if (mySide === 'b') order.reverse(); const lastSet = new Set(st.last ? st.last.path : []);
+        boardEl = h('div.ck-grid', order.map((i) => { const dark = ((i >> 3) + (i & 7)) % 2; const p = st.b[i]; const tg = targets.filter((m) => m.path[m.path.length - 1] === i).sort((a, b) => b.caps.length - a.caps.length)[0];
+          return h('button.ck-sq' + (dark ? '.dk' : '.lt') + (i === dSel ? '.sel' : '') + (lastSet.has(i) ? '.last' : '') + (tg ? '.tgt' : ''), { type: 'button', disabled: !dark, onClick: () => { if (!myTurn) return; if (tg) { dSel = -1; act({ path: tg.path }); return; } dSel = movable.has(i) ? i : -1; renderDuel(d); } },
+            p ? h('span.ck-pc.' + (p.toLowerCase() === 'w' ? 'w' : 'b') + (p === p.toUpperCase() ? '.king' : '') + (movable.has(i) ? '.can' : ''), p === p.toUpperCase() ? '♛' : '') : null); }));
+      }
+      else if (d.game === 'ttt') boardEl = h('div.ttt', st.board.map((v, i) => h('button.ttt-c' + (st.line && st.line.includes(i) ? '.win' : ''), { disabled: !myTurn || v !== null, onClick: () => act({ cell: i }) }, v === null ? '' : v === 0 ? '✕' : '◯')));
       else if (d.game === 'c4') boardEl = h('div.c4', Array.from({ length: 7 }, (_, c) => h('button.c4-col', { disabled: !myTurn || st.board[c] !== null, onClick: () => act({ col: c }), 'aria-label': t('Column {n}', { n: c + 1 }) }, Array.from({ length: 6 }, (_, r) => { const v = st.board[r * 7 + c]; return h('span.c4-c' + (v === 0 ? '.p0' : v === 1 ? '.p1' : '') + (st.line && st.line.includes(r * 7 + c) ? '.win' : '')); }))));
       else boardEl = h('div.rps', d.status === 'active' ? (st.myPick ? h('p.center', t('You picked {p}. Waiting for {u}…', { p: RPS[st.myPick], u: op.displayName || op.username })) : h('div.row', { style: 'justify-content:center;gap:14px' }, Object.keys(RPS_IC).map((k) => h('button.rps-b', { title: RPS[k], 'aria-label': RPS[k], onClick: () => act({ pick: k }) }, icon(RPS_IC[k], 30), h('span.tiny', RPS[k]))))) : null,
         st.theyPicked && !st.myPick && d.status === 'active' ? h('p.center.small.muted', t('{u} already picked!', { u: op.displayName || op.username })) : null,
@@ -230,7 +253,7 @@ export default {
       let footer;
       if (d.status === 'pending') footer = mi === 1 ? h('div.row', { style: 'justify-content:center' }, h('button.btn.primary', { onClick: async () => { try { const r = await api.post(`/api/duels/${d.id}/accept`); renderDuel(r.duel); } catch (e) { toastErr(e); } } }, t('Accept') + (d.wager ? ` (${d.wager} 🪙)` : '')), h('button.btn', { onClick: async () => { await api.post(`/api/duels/${d.id}/decline`).catch(toastErr); openDuel = null; loadDuels().then(paint); } }, t('Decline'))) : h('div.row', { style: 'justify-content:center' }, h('span.muted', t('Waiting for {u} to accept…', { u: op.displayName || op.username })), h('button.btn.ghost', { onClick: async () => { await api.post(`/api/duels/${d.id}/decline`).catch(toastErr); openDuel = null; loadDuels().then(paint); } }, t('Cancel')));
       else if (d.status === 'active') footer = h('div.row', { style: 'justify-content:center' }, h('b', myTurn || (d.game === 'rps' && !st.myPick) ? t('Your move!') : t('{u} is thinking…', { u: op.displayName || op.username })), h('button.btn.ghost.sm', { onClick: async () => { try { const r = await api.post(`/api/duels/${d.id}/resign`); renderDuel(r.duel); } catch (e) { toastErr(e); } } }, '', t('Resign')));
-      else { const won = d.winner === S.me.id; footer = h('div.col', { style: 'align-items:center' }, h('div.duel-result.' + (d.draw ? 'draw' : won ? 'won' : 'lost'), d.draw ? t('Draw — stakes refunded') : won ? t('You won!') + (d.wager ? ` +${d.wager * 2} 🪙` : '') : t('You lost')), d.reason && d.reason !== 'win' ? h('span.tiny.muted', { timeout: t('Out of time'), resign: t('Resigned'), restart: t('Server restarted — refunded'), expired: t('Expired') }[d.reason] || '') : null, ['declined', 'canceled', 'expired'].includes(d.status) ? null : h('button.btn', { onClick: async () => { try { const r = await api.post(`/api/duels/${d.id}/rematch`); openDuel = r.duel.id; paint(); } catch (e) { toastErr(e); } } }, '', t('Rematch'))); if (won && !renderDuel.celebrated) { renderDuel.celebrated = d.id; confetti(innerWidth / 2, innerHeight / 3, 90); sfx.win(); } }
+      else { const won = d.winner === S.me.id; footer = h('div.col', { style: 'align-items:center' }, h('div.duel-result.' + (d.draw ? 'draw' : won ? 'won' : 'lost'), d.draw ? t('Draw — stakes refunded') : won ? t('You won!') + (d.wager ? ` +${d.wager * 2} 🪙` : '') : t('You lost')), d.reason && d.reason !== 'win' ? h('span.tiny.muted', { timeout: t('Out of time'), resign: t('Resigned'), restart: t('Server restarted — refunded'), expired: t('Expired'), checkmate: t('Checkmate'), stalemate: t('Stalemate — draw'), draw: t('Draw') }[d.reason] || '') : null, ['declined', 'canceled', 'expired'].includes(d.status) ? null : h('button.btn', { onClick: async () => { try { const r = await api.post(`/api/duels/${d.id}/rematch`); openDuel = r.duel.id; paint(); } catch (e) { toastErr(e); } } }, '', t('Rematch'))); if (won && !renderDuel.celebrated) { renderDuel.celebrated = d.id; confetti(innerWidth / 2, innerHeight / 3, 90); sfx.win(); } }
       mount(body, h('div.card.duel-card', header, h('div.duel-board', boardEl), footer));
       setAct(d.status === 'active' ? t('{g} vs {u}', { g: t(d.name), u: op.displayName || op.username }) : null, 'duel');
       const clockEl = body.querySelector('.duel-clock'); const tickC = () => { if (!d.deadline || !clockEl) return; const s = Math.max(0, Math.ceil((d.deadline - Date.now()) / 1000)); clockEl.textContent = d.status === 'active' ? s + 's' : d.status === 'pending' ? t('expires in {s}s', { s }) : ''; };

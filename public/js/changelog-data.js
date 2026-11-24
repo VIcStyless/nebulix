@@ -2,6 +2,26 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.6",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 5: online Chess and Checkers duels, and Create games",
+      "es": "Nebulix 3.0, fase 5: duelos online de Ajedrez y Damas, y Crear juegos"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Duels: play Chess (2 minutes per move) and Checkers (90 seconds per move) online against your friends, with or without a coin wager. The server checks every move with the same rules as the Arcade games.",
+        "es": "Duelos: juega al Ajedrez (2 minutos por jugada) y a las Damas (90 segundos por jugada) online contra tus amigos, con o sin apuesta de monedas. El servidor comprueba cada jugada con las mismas reglas que los juegos del Arcade."
+      },
+      {
+        "type": "new",
+        "en": "Create games (#/gamedev): a guide for Hub creators and a starter template that already uses the player name, a leaderboard, an achievement and a multiplayer room. The template is also an official Hub game you can play, read and remix.",
+        "es": "Crear juegos (#/gamedev): una guía para creadores del Hub y una plantilla inicial que ya usa el nombre del jugador, una clasificación, un logro y una sala multijugador. La plantilla también es un juego oficial del Hub que puedes jugar, leer y remezclar."
+      }
+    ]
+  },
+  {
     "v": "14.5",
     "date": "2026-11-24",
     "title": {

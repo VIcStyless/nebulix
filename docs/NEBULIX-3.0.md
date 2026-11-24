@@ -101,12 +101,23 @@ infrastructure each pending item needs). Status words mean:
    permissions; prompt before install and a banner on the game page. Tested end to end.
 4. **Creator docs:** `docs/GAME-API.md`.
 
+## 3e. What phase 5 added (v14.6.0)
+
+1. **Online Chess and Checkers duels** (`server/duels.js`): new duel games `chess` (120 s per move) and `checkers` (90 s).
+   Moves are validated on the server with **the same rules code** as the Arcade: `server/rules.js` loads the
+   `rules:begin … rules:end` part of `arcade-chess.js` / `arcade-cards.js` into an isolated `vm` context (perft verified on
+   the server: 20/400/8902). Checkmate, stalemate, threefold repetition, the 50-move rule, insufficient material, checkers
+   wins and draws; wagers use the existing escrow. Tested via the API with two accounts (illegal, out-of-turn and
+   opponent-piece moves rejected; Fool's mate ends in checkmate) and in the browser (flipped board for black).
+2. **Create games** (`#/gamedev`): creator guide (es/en) and a starter template. The template is the official Hub game
+   `server/hubapps/starter.html` (one copy): the page embeds it with the Game API connected and builds the .zip from it.
+
 ## 4. Next phases (in order)
 
-1. Online chess and checkers against friends through the existing duels system (server-side move validation).
-2. More arcade games: Bubble Shooter, Tower Defense, Word Search.
-3. A Hub page that documents the Game API for creators (from docs/GAME-API.md) and a starter template.
-4. Office: DOCX export, comments and co-editing.
+1. More arcade games: Bubble Shooter, Tower Defense, Word Search.
+2. Office: DOCX export, comments and co-editing.
+3. Spectators for online duels and a rating (Elo) for chess.
+4. Cloud Android / server-side VMs (needs external KVM hosts — decision and budget from the owner).
 5. Office: DOCX export, comments, co-editing over WebSocket.
 6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
    the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.

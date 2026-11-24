@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Nebulix game</title>
+<style>
+  body { margin: 0; height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at 50% 0, #2a1660, #0a0714 70%); color: #fff; font: 16px system-ui, sans-serif; overflow: hidden; }
+  #hud { position: fixed; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+  canvas { border-radius: 16px; box-shadow: 0 20px 60px #0008; background: #120d26; touch-action: none; }
+  #peers { position: fixed; bottom: 12px; left: 12px; font-size: 13px; opacity: .8; }
+</style></head>
+<body>
+<div id="hud"><span id="who">…</span><span id="score">0</span><span id="time">30</span></div>
+<canvas id="cv" width="640" height="420"></canvas>
+<div id="peers"></div>
+<script>
+// A tiny game: click the glowing stars for 30 seconds. It shows how to use window.Nebulix (Nebulix Hub Game API).
+// Outside Nebulix (e.g. opening this file directly) window.Nebulix does not exist, so every call is guarded.
+const N = window.Nebulix || null;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+let stars = [], score = 0, left = 30, running = false, ghosts = {};
+
+async function init() {
+  const me = N ? await N.me() : null;
+  document.getElementById('who').textContent = me ? 'Hi ' + me.displayName + '!' : 'Hi!';
+  if (N) {
+    // multiplayer: everyone in the room sees the other players' cursors
+    N.room.on('message', ({ from, data }) => { ghosts[from] = data; });
+    N.room.on('join', ({ count }) => { document.getElementById('peers').textContent = count + ' players here'; });
+    N.room.on('leave', ({ user, count }) => { delete ghosts[user.id]; document.getElementById('peers').textContent = count + ' players here'; });
+    const r = await N.room.join('lobby');
+    if (r && r.players) document.getElementById('peers').textContent = r.players.length + ' players here';
+  }
+  start();
+}
+function start() { stars = []; score = 0; left = 30; running = true; for (let i = 0; i < 6; i++) spawn(); }
+function spawn() { stars.push({ x: 40 + Math.random() * 560, y: 40 + Math.random() * 340, r: 14 + Math.random() * 12, p: Math.random() * 6 }); }
+cv.addEventListener('pointerdown', (e) => {
+  const b = cv.getBoundingClientRect(); const x = (e.clientX - b.left) * cv.width / b.width, y = (e.clientY - b.top) * cv.height / b.height;
+  if (!running) { start(); return; }
+  stars = stars.filter((s) => { const hit = Math.hypot(s.x - x, s.y - y) < s.r + 6; if (hit) { score++; spawn(); } return !hit; });
+  if (score === 10 && N) N.unlock('ten-stars', 'Star catcher', 'Catch 10 stars in one game');
+});
+cv.addEventListener('pointermove', (e) => { if (!N) return; const b = cv.getBoundingClientRect(); N.room.send({ x: (e.clientX - b.left) / b.width, y: (e.clientY - b.top) / b.height }); });
+setInterval(async () => { if (!running) return; left--; if (left <= 0) { running = false; if (N) { const r = await N.submitScore(score); if (r && r.pb) console.log('New best! Rank #' + r.rank); } } }, 1000);
+(function frame(t) {
+  requestAnimationFrame(frame); g.clearRect(0, 0, cv.width, cv.height);
+  for (const s of stars) { const glow = 0.6 + 0.4 * Math.sin(t / 300 + s.p); g.fillStyle = 'rgba(255,214,102,' + glow + ')'; g.shadowColor = '#ffd166'; g.shadowBlur = 20; g.beginPath(); g.arc(s.x, s.y, s.r, 0, 7); g.fill(); }
+  g.shadowBlur = 0; g.fillStyle = '#8b7bff'; for (const id in ghosts) { const p = ghosts[id]; g.beginPath(); g.arc(p.x * cv.width, p.y * cv.height, 6, 0, 7); g.fill(); }
+  if (!running) { g.fillStyle = '#fff'; g.font = '700 28px system-ui'; g.textAlign = 'center'; g.fillText(left <= 0 ? 'Score: ' + score + ' — click to play again' : 'Click to start', cv.width / 2, cv.height / 2); }
+  document.getElementById('score').textContent = '★ ' + score; document.getElementById('time').textContent = '⏱ ' + left;
+})(0);
+init();
+</script>
+</body></html>

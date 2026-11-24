@@ -8,6 +8,7 @@ import { sfx } from '../sfx.js';
 export const CHESS_GAMES = [['chess', 'Chess', 'grid', 'Play chess against the computer at three levels.', 'pts']];
 const snd = (k) => { try { sfx[k] && sfx[k](); } catch {} };
 const GLYPH = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+// ---- rules:begin ---- (pure chess rules + engine: also loaded by the server for online duels, see server/rules.js)
 const VAL = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 // piece-square tables (white's view, a8 = index 0)
 const PST = {
@@ -86,6 +87,8 @@ function bestMove(s, level) {
   return best;
 }
 
+// ---- rules:end ----
+
 function chessGame(stage, hud, end, best, env) {
   const board = h('div.arc-board.ch-board'); const grid = h('div.ch-grid'); const side_ = h('div.ch-side'); board.append(h('div.ch-wrap', grid, side_)); stage.append(board);
   const ov = h('div.arc-ov'); board.append(ov);
@@ -133,3 +136,5 @@ function chessGame(stage, hud, end, best, env) {
   return () => { over = true; };
 }
 export const CHESS_FNS = { chess: chessGame };
+
+export const CHESS_RULES = { start, legal, make, inCheck, kingAt, key, side, isW, GLYPH };

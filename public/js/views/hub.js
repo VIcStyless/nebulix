@@ -115,7 +115,7 @@ export default {
     const newBtn = h('button.btn.hbx-green', { onClick: (e) => import('../ui.js').then((ui) => ui.openMenu([{ label: t('Upload a file or .zip'), icon: 'upload', onClick: () => uploadDialog() }, { label: t('Upload a whole folder'), icon: 'layers', onClick: () => uploadDialog('game', true) }, { hr: true }, { label: t('New collection…'), icon: 'plus', onClick: newCollection }], e.currentTarget)) }, icon('plus', 15), t('New'));
     async function newCollection() { const name = await promptBox(t('New collection'), { label: t('Name') }); if (!name) return; try { await api.post('/api/hub/collections', { name }); load(); } catch (e) { toastErr(e); } }
     mount(inner,
-      h('header.hbx-hero', h('div.hbx-hero-l', h('div.hbx-logo', icon('book', 22)), h('div', h('h2', 'Nebulix Hub'), h('p', t('Games, web apps, animated backgrounds and videos made by the community. Upload a file, a .zip or a whole folder.')))), h('div.row', { style: 'gap:8px' }, newBtn)),
+      h('header.hbx-hero', h('div.hbx-hero-l', h('div.hbx-logo', icon('book', 22)), h('div', h('h2', 'Nebulix Hub'), h('p', t('Games, web apps, animated backgrounds and videos made by the community. Upload a file, a .zip or a whole folder.')))), h('div.row', { style: 'gap:8px' }, h('a.btn', { href: '#/gamedev' }, icon('gamepad', 15), t('Create games')), newBtn)),
       tabsBar,
       h('div.hbx-dash',
         h('aside.hbx-left', h('div.hbx-box', h('div.hbx-boxh', h('b', t('Your uploads')), h('button.btn.sm.hbx-green', { onClick: () => uploadDialog() }, icon('book', 13), t('New'))), mineEl), h('div.hbx-box', h('div.hbx-boxh', h('b', t('Collections')), h('button.btn.sm.ghost', { onClick: newCollection, 'aria-label': t('New collection') }, icon('plus', 13))), colsEl), usageEl),
