@@ -31,6 +31,9 @@ const GAMES = {
   chess: { max: 1000, check: (s, ms) => ms >= 20000 },
   solitaire: { max: 3500, check: (s, ms) => ms >= 45000 },
   checkers: { max: 900, check: (s, ms) => ms >= 20000 },
+  bubbles: { max: 300000, check: (s, ms) => ms >= s * 2 },
+  td: { max: 200000, check: (s, ms) => ms >= s * 15 },
+  words: { max: 2200, check: (s, ms) => ms >= 15000 },
 };
 const scoreLim = new Limiter(1, 4000);
 const DAILY_COIN_CAP = 60;
@@ -70,6 +73,9 @@ module.exports = function register(r) {
 
   // ---- duels ----
   r.get('/api/duels', { auth: true, verified: true }, async (c) => duels.listFor(c.user));
+  r.get('/api/duels/ratings', { auth: true }, async (c) => ({ game: String(c.query.game || 'chess'), list: duels.ratings(String(c.query.game || 'chess')), me: (c.user.elo || {})[String(c.query.game || 'chess')] || 1200 }));
+  r.get('/api/duels/live', { auth: true, verified: true }, async (c) => ({ duels: duels.live(c.user) }));
+  r.get('/api/duels/:id/watch', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => ({ duel: duels.watch(c.user, c.params.id) }));
   r.get('/api/duels/:id', { auth: true, verified: true }, async (c) => ({ duel: duels.viewFor(duels.get(c.params.id, c.user), c.user.id) }));
   r.post('/api/duels', { auth: true, verified: true, limit: [40, 600000, 'user'] }, async (c) => ({ duel: duels.create(c.user, c.body || {}) }));
   r.post('/api/duels/:id/accept', { auth: true, verified: true, limit: [30, 60000, 'user'] }, async (c) => ({ duel: duels.accept(c.user, c.params.id) }));

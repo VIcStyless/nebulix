@@ -14,6 +14,22 @@ const GAMES = {
   checkers: { name: 'Checkers', turn: 90000 },
 };
 const R = () => require('./rules');
+// Elo ratings for the board games (start at 1200; K = 32 for the first 20 games, then 20)
+const RATED = ['chess', 'checkers'];
+const eloOf = (u, g) => (u && u.elo && u.elo[g]) || 1200;
+function rate(d, winnerIdx) {
+  if (!RATED.includes(d.game) || ['restart', 'expired'].includes(d.reason)) return; const A = S.users[d.a], B = S.users[d.b]; if (!A || !B) return;
+  const ra = eloOf(A, d.game), rb = eloOf(B, d.game); const ea = 1 / (1 + 10 ** ((rb - ra) / 400)); const sa = winnerIdx === null ? 0.5 : winnerIdx === 0 ? 1 : 0;
+  const k = (u) => (((u.eloN || {})[d.game] || 0) < 20 ? 32 : 20);
+  const na = Math.round(ra + k(A) * (sa - ea)), nb = Math.round(rb + k(B) * ((1 - sa) - (1 - ea)));
+  for (const [u, v] of [[A, na], [B, nb]]) { u.elo = u.elo || {}; u.elo[d.game] = v; u.eloN = u.eloN || {}; u.eloN[d.game] = (u.eloN[d.game] || 0) + 1; }
+  d.elo = { a: [ra, na], b: [rb, nb] }; S.store.touch('users');
+}
+function ratings(game) { if (!RATED.includes(game)) return []; return Object.values(S.users).filter((u) => !u.deleted && u.eloN && u.eloN[game] > 0).sort((x, y) => eloOf(y, game) - eloOf(x, game)).slice(0, 25).map((u) => ({ user: publicUser(u), rating: eloOf(u, game), games: u.eloN[game] })); }
+// friends can watch each other's running duels (read only)
+const isFriendOf = (u, d) => (u.friends || []).includes(d.a) || (u.friends || []).includes(d.b);
+function watch(u, id) { const d = table()[id]; if (!d || (d.a !== u.id && d.b !== u.id && !isFriendOf(u, d))) throw new HttpError(404, 'no_duel', 'Duel not found'); return viewFor(d, u.id); }
+function live(u) { return Object.values(table()).filter((d) => d.status === 'active' && d.game !== 'rps' && d.a !== u.id && d.b !== u.id && isFriendOf(u, d)).slice(0, 20).map((d) => viewFor(d, u.id)); }
 const PENDING_MS = 120000;
 const MAX_WAGER = 1000;
 const MAX_PENDING_OUT = 3;
@@ -63,6 +79,7 @@ function viewFor(d, uid) {
     id: d.id, game: d.game, name: GAMES[d.game].name, a: publicUser(S.users[d.a]), b: publicUser(S.users[d.b]), wager: d.wager, status: d.status,
     me, created: d.created, started: d.started || 0, ended: d.ended || 0, deadline: d.status === 'active' ? d.turnStart + GAMES[d.game].turn : (d.status === 'pending' ? d.created + PENDING_MS : 0),
     winner: d.winner === undefined ? null : d.winner, draw: !!d.draw, reason: d.reason || null, state: g,
+    ratings: RATED.includes(d.game) ? { a: eloOf(S.users[d.a], d.game), b: eloOf(S.users[d.b], d.game) } : null, elo: d.elo || null,
   };
 }
 function push(d) { for (const uid of [d.a, d.b]) hub.push(uid, { t: 'duel', duel: viewFor(d, uid) }); }
@@ -139,7 +156,7 @@ function finish(d, winnerIdx, reason, line) {
     d.winner = ids[winnerIdx];
     if (d.escrow) { const w = S.users[d.winner]; if (w) econ().adjust(w, d.wager * 2, 'duel:win'); }
   }
-  d.escrow = false;
+  d.escrow = false; try { rate(d, winnerIdx); } catch (e) { console.error('[duels] elo', e); }
   ids.forEach((id) => { const x = S.users[id]; if (x) prog().award(x, 'duel'); });
   if (d.winner && S.users[d.winner]) prog().award(S.users[d.winner], 'duel_win');
   S.store.touch('duels');
@@ -262,4 +279,4 @@ function recover() {
 let timer = null;
 function start() { recover(); if (!timer) { timer = setInterval(sweep, 2000); timer.unref && timer.unref(); } }
 
-module.exports = { GAMES, create, accept, decline, move, resign, rematch, listFor, viewFor, get, sweep, start, table, MAX_WAGER, PENDING_MS };
+module.exports = { ratings, watch, live, GAMES, create, accept, decline, move, resign, rematch, listFor, viewFor, get, sweep, start, table, MAX_WAGER, PENDING_MS };

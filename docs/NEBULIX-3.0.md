@@ -112,12 +112,21 @@ infrastructure each pending item needs). Status words mean:
 2. **Create games** (`#/gamedev`): creator guide (es/en) and a starter template. The template is the official Hub game
    `server/hubapps/starter.html` (one copy): the page embeds it with the Game API connected and builds the .zip from it.
 
+## 3f. What phase 6 added (v14.7.0)
+
+1. **Bubble Shooter, Tower Defense, Word Search** (`views/arcade-more2.js`) with server plausibility rules. Tested in the
+   browser: shots pop bubbles, a tower is built and kills enemies, and a full word search (9 words) ends with the score saved.
+2. **Elo ratings** for chess and checkers duels (`server/duels.js`: start 1200, K 32 for the first 20 games then 20;
+   not rated when the server restarted or the duel expired); `GET /api/duels/ratings?game=`; ratings and the change
+   shown on the duel. Tested: equal ratings → +16 / −16.
+3. **Watching friends' duels:** `GET /api/duels/live` and `GET /api/duels/:id/watch` (participants and friends of either
+   player only, read-only, the client polls every 2.5 s). Unit-tested: friend can watch, stranger gets 404, spectator cannot move.
+
 ## 4. Next phases (in order)
 
-1. More arcade games: Bubble Shooter, Tower Defense, Word Search.
-2. Office: DOCX export, comments and co-editing.
-3. Spectators for online duels and a rating (Elo) for chess.
-4. Cloud Android / server-side VMs (needs external KVM hosts — decision and budget from the owner).
+1. Office: DOCX export, comments and co-editing.
+2. Push live duel moves to spectators over the WebSocket instead of polling.
+3. Cloud Android / server-side VMs (needs external KVM hosts — decision and budget from the owner).
 5. Office: DOCX export, comments, co-editing over WebSocket.
 6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
    the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.

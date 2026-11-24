@@ -520,3 +520,13 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .gd-prev { width: 100%; min-height: 300px; border: 0; border-radius: 20px; background: #0a0714; box-shadow: 0 20px 50px -24px #000; }
 .gd-md { padding: 22px 26px; line-height: 1.6; } .gd-md h2, .gd-md .md-h { margin-top: 18px; }
 @media (max-width: 860px) { .gd-hero { grid-template-columns: 1fr; } }
+/* tower defense + word search */
+.td-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px; } .td-t { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font: inherit; font-size: .84rem; cursor: pointer; }
+.td-t i { width: 12px; height: 12px; border-radius: 50%; } .td-t small { opacity: .7; } .td-t.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); } .td-t:disabled { opacity: .45; cursor: not-allowed; }
+.ws-board { padding: 14px; } .ws-wrap { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+.ws-grid { display: grid; grid-template-columns: repeat(12, min(38px, 7.2vw)); gap: 2px; padding: 8px; border-radius: 14px; background: color-mix(in srgb, var(--surface) 85%, transparent); touch-action: none; user-select: none; box-shadow: 0 20px 50px -24px #000; }
+.ws-c { aspect-ratio: 1; display: grid; place-items: center; font: 700 min(18px, 3.6vw) ui-monospace, monospace; border-radius: 8px; cursor: pointer; transition: background .12s, transform .12s; }
+.ws-c:hover { background: color-mix(in srgb, var(--text) 8%, transparent); } .ws-c.sel { background: var(--accent); color: var(--on-accent, #fff); transform: scale(1.08); } .ws-c.found { background: color-mix(in srgb, var(--success) 30%, transparent); color: var(--text); }
+.ws-list { display: flex; flex-direction: column; gap: 6px; min-width: 150px; } .ws-w { font: 600 .9rem ui-monospace, monospace; letter-spacing: .08em; } .ws-w.done { text-decoration: line-through; opacity: .5; color: var(--success); }
+.duel-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; counter-reset: rk; } .duel-rank li { display: flex; align-items: center; gap: 8px; font-size: .88rem; counter-increment: rk; } .duel-rank li::before { content: counter(rk); width: 18px; text-align: center; font-weight: 800; color: var(--muted); } .duel-rank li.me { color: var(--accent); }
+.duel-live { padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); }

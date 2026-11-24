@@ -2,6 +2,31 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.7",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 6: Bubble Shooter, Tower Defense, Word Search, Elo ratings and watching duels",
+      "es": "Nebulix 3.0, fase 6: Lanzaburbujas, Defensa de torres, Sopa de letras, puntuación Elo y ver duelos"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Arcade: Bubble Shooter (bounce shots, falling clusters, a new row every six shots), Tower Defense (three towers, waves and bosses) and Word Search (Spanish and English themes, words in every direction).",
+        "es": "Arcade: Lanzaburbujas (disparos con rebote, grupos que caen, una fila nueva cada seis disparos), Defensa de torres (tres torres, oleadas y jefes) y Sopa de letras (temas en español e inglés, palabras en todas las direcciones)."
+      },
+      {
+        "type": "new",
+        "en": "Chess and Checkers duels are rated: everyone starts at 1200 and wins and losses move your Elo rating. The Duels tab shows the ranking and each player's rating, with the points won or lost after every game.",
+        "es": "Los duelos de Ajedrez y Damas puntúan: todos empezáis en 1200 y las victorias y derrotas mueven tu puntuación Elo. La pestaña Duelos muestra la clasificación y la puntuación de cada jugador, con los puntos ganados o perdidos tras cada partida."
+      },
+      {
+        "type": "new",
+        "en": "Watch your friends' live duels: the Duels tab lists the games they are playing and you can follow them move by move.",
+        "es": "Mira los duelos de tus amigos en directo: la pestaña Duelos muestra las partidas que están jugando y puedes seguirlas jugada a jugada."
+      }
+    ]
+  },
+  {
     "v": "14.6",
     "date": "2026-11-24",
     "title": {
