@@ -122,14 +122,23 @@ infrastructure each pending item needs). Status words mean:
 3. **Watching friends' duels:** `GET /api/duels/live` and `GET /api/duels/:id/watch` (participants and friends of either
    player only, read-only, the client polls every 2.5 s). Unit-tested: friend can watch, stranger gets 404, spectator cannot move.
 
+## 3g. What phase 7 added (v14.8.0)
+
+1. **Word (.docx) export** for Nebulix Docs (`public/js/docx.js`, no libraries): the sanitised HTML becomes
+   WordprocessingML (styles, numbering, hyperlinks, images re-encoded as PNG, tables with colspan) packed with
+   `zipwrite.js`. Tested: a document with every kind of formatting exports to a valid package (all parts well-formed XML).
+2. **Comments on documents** (`server/routes/drive.js`, table `doccomments`; `public/js/doccomments.js`): threads anchored
+   to a quoted piece of text (highlighted with the CSS Custom Highlight API, so the document HTML never changes), replies,
+   resolve/reopen, delete (author or owner). Anyone who can open the document can comment; the owner and the thread get a
+   notice, and open editors refresh live (`dcomm` socket message). Tested with two accounts, including a private document (404).
+3. **Live spectating:** opening `/api/duels/:id/watch` registers you for 90 s; every move is pushed to spectators over the
+   WebSocket (`watch: true`), and the client only renews its seat every 20 s. Tested with three accounts.
+
 ## 4. Next phases (in order)
 
-1. Office: DOCX export, comments and co-editing.
-2. Push live duel moves to spectators over the WebSocket instead of polling.
-3. Cloud Android / server-side VMs (needs external KVM hosts — decision and budget from the owner).
-5. Office: DOCX export, comments, co-editing over WebSocket.
-6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
-   the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.
+1. Office: real-time co-editing of Docs over the WebSocket (today: autosave plus a 10 s refresh when you are not typing).
+2. Cloud Android / server-side VMs: separate compute nodes with KVM, a session manager service and WebRTC streaming;
+   the Fly.io app only brokers sessions. Needs hardware/hosting decisions and budget from the owner.
 
 ## 5. How to verify
 

@@ -226,7 +226,7 @@ export default {
       clearInterval(duelTimer);
       let d; try { d = (await api.get('/api/duels/' + id + (watching ? '/watch' : ''))).duel; } catch (e) { openDuel = null; watching = false; toastErr(e); return paintDuels(); }
       if (openDuel !== id || tab !== 'duels') return;
-      if (watching && d.status === 'active') { clearTimeout(watchPoll); watchPoll = setTimeout(() => { if (openDuel === id && watching) paintDuel(id); }, 2500); }
+      if (watching && d.status === 'active') { clearTimeout(watchPoll); watchPoll = setTimeout(() => { if (openDuel === id && watching) paintDuel(id); }, 20000); } // moves arrive live over the socket; this only renews the spectator seat (and covers a dropped socket)
       const mi = d.me; const op = mi === 0 ? d.b : d.a; const myTurn = d.status === 'active' && d.state.turn === mi; const st = d.state || {};
       if (d.game === 'chess' && !st.pos) { st.pos = CHESS_RULES.start(); st.white = 0; } if (d.game === 'checkers' && !st.b) { st.b = CK_RULES.ckStart(); st.white = 0; }
       if (d.game !== 'rps' && !BOARD_DUELS.includes(d.game) && !st.board) st.board = new Array(d.game === 'c4' ? 42 : 9).fill(null); // pending: empty board preview
@@ -283,7 +283,7 @@ export default {
       } catch (e) { mount(list, emptyState('⚠️', e.message)); }
     }
 
-    offs.push(bus.on('ws:duel', async (m) => { if (!m.duel) return; if (openDuel === m.duel.id) paintDuel(m.duel.id); else if (tab === 'duels') { await loadDuels(); paint(); } }));
+    offs.push(bus.on('ws:duel', async (m) => { if (!m.duel) return; if (m.watch && openDuel !== m.duel.id) return; if (openDuel === m.duel.id) paintDuel(m.duel.id); else if (tab === 'duels') { await loadDuels(); paint(); } }));
     paint();
     { const pg = ctx.query.get('play'); if (pg && GAMES.some((g) => g[0] === pg)) startGame(pg); }
     return () => { offs.forEach((f) => f()); stopGame(); clearInterval(duelTimer); setAct(null); };

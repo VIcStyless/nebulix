@@ -2,6 +2,31 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.8",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 7: Word export and comments in Docs, and live spectating",
+      "es": "Nebulix 3.0, fase 7: exportar a Word y comentarios en Docs, y duelos en directo"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Docs: download any document as a Word file (.docx) with its headings, formatting, colours, lists, tables, links and images.",
+        "es": "Docs: descarga cualquier documento como archivo de Word (.docx) con sus títulos, formato, colores, listas, tablas, enlaces e imágenes."
+      },
+      {
+        "type": "new",
+        "en": "Docs: comments. Select a sentence and comment on it (Ctrl+Alt+M); reply, resolve and reopen threads. The commented text is highlighted, and the owner and everyone in the thread get a notification. New comments appear live.",
+        "es": "Docs: comentarios. Selecciona una frase y coméntala (Ctrl+Alt+M); responde, resuelve y reabre hilos. El texto comentado se resalta y el propietario y todos los del hilo reciben un aviso. Los comentarios nuevos aparecen en directo."
+      },
+      {
+        "type": "improved",
+        "en": "Watching a friend's duel is now live: every move arrives instantly instead of every few seconds.",
+        "es": "Ver el duelo de un amigo ahora es en directo: cada jugada llega al instante en vez de cada pocos segundos."
+      }
+    ]
+  },
+  {
     "v": "14.7",
     "date": "2026-11-24",
     "title": {

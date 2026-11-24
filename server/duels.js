@@ -28,7 +28,15 @@ function rate(d, winnerIdx) {
 function ratings(game) { if (!RATED.includes(game)) return []; return Object.values(S.users).filter((u) => !u.deleted && u.eloN && u.eloN[game] > 0).sort((x, y) => eloOf(y, game) - eloOf(x, game)).slice(0, 25).map((u) => ({ user: publicUser(u), rating: eloOf(u, game), games: u.eloN[game] })); }
 // friends can watch each other's running duels (read only)
 const isFriendOf = (u, d) => (u.friends || []).includes(d.a) || (u.friends || []).includes(d.b);
-function watch(u, id) { const d = table()[id]; if (!d || (d.a !== u.id && d.b !== u.id && !isFriendOf(u, d))) throw new HttpError(404, 'no_duel', 'Duel not found'); return viewFor(d, u.id); }
+// Nebulix 3.0: spectators get every move pushed live. Opening /watch registers you for 90 s (the client renews it).
+const watchers = new Map(); // duel id → Map(uid → last seen)
+const WATCH_MS = 90000;
+function watch(u, id) {
+  const d = table()[id]; if (!d || (d.a !== u.id && d.b !== u.id && !isFriendOf(u, d))) throw new HttpError(404, 'no_duel', 'Duel not found');
+  if (d.a !== u.id && d.b !== u.id && d.status === 'active') { if (!watchers.has(id)) watchers.set(id, new Map()); const m = watchers.get(id); if (m.size < 200 || m.has(u.id)) m.set(u.id, Date.now()); }
+  return viewFor(d, u.id);
+}
+const spectators = (id) => { const m = watchers.get(id); if (!m) return []; const t0 = Date.now() - WATCH_MS; for (const [uid, ts] of m) if (ts < t0) m.delete(uid); if (!m.size) watchers.delete(id); return [...m.keys()]; };
 function live(u) { return Object.values(table()).filter((d) => d.status === 'active' && d.game !== 'rps' && d.a !== u.id && d.b !== u.id && isFriendOf(u, d)).slice(0, 20).map((d) => viewFor(d, u.id)); }
 const PENDING_MS = 120000;
 const MAX_WAGER = 1000;
@@ -82,7 +90,11 @@ function viewFor(d, uid) {
     ratings: RATED.includes(d.game) ? { a: eloOf(S.users[d.a], d.game), b: eloOf(S.users[d.b], d.game) } : null, elo: d.elo || null,
   };
 }
-function push(d) { for (const uid of [d.a, d.b]) hub.push(uid, { t: 'duel', duel: viewFor(d, uid) }); }
+function push(d) {
+  for (const uid of [d.a, d.b]) hub.push(uid, { t: 'duel', duel: viewFor(d, uid) });
+  for (const uid of spectators(d.id)) if (uid !== d.a && uid !== d.b) hub.push(uid, { t: 'duel', duel: viewFor(d, uid), watch: true });
+  if (d.status !== 'active') watchers.delete(d.id);
+}
 
 // ---- lifecycle ----
 function econ() { return require('./economy'); }

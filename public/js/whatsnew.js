@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['chat', 'Docs: Word export and comments', 'Download your documents as Word (.docx) and comment on any sentence; replies and new comments arrive live.', 'docs'],
   ['calendar', 'Calendar & Tasks', 'Events that repeat, reminders as notifications, tasks with projects and subtasks — and your Study exams.', 'calendar'],
   ['grid', 'Chess, Checkers, Solitaire and more', 'New in the Arcade: Chess, Checkers, Solitaire, Minesweeper, Sudoku, Space Rocks, Gem Match and Reflex.', 'arcade'],
   ['download', 'Install apps', 'Install Hub games and apps into Nebulix OS; you are told when they get a new version.', 'hub'],

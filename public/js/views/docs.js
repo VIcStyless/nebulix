@@ -5,6 +5,8 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState, promptBox, openMenu } from '../ui.js';
 import { officeHome, officeBar, autosaver, sanitize } from '../office.js';
+import { htmlToDocx, prepareImages } from '../docx.js';
+import { commentsPanel } from '../doccomments.js';
 
 const TPL = [
   ['Blank document', null, ''],
@@ -23,11 +25,13 @@ export default {
     const wrap = h('div.of.docs'); mount(root, wrap, loading());
     let it; try { it = (await api.get('/api/drive/item/' + encodeURIComponent(id))).item; } catch (e) { mount(wrap, emptyState('alert', t('Document not found'), e.message, h('button.btn', { onClick: () => ctx.go('docs') }, t('Back')))); return () => {}; }
     ctx.setTitle && ctx.setTitle(it.name);
+    const cCount = h('span.dcm-n', { hidden: true });
+    const cBtn = h('button.btn.sm', { title: t('Comments') + ' (Ctrl+Alt+M)', onMousedown: (e) => e.preventDefault(), onClick: () => comments.toggle() }, icon('chat', 14), h('span.dcm-lbl', t('Comments')), cCount);
     const page = h('div.dc-page', { contentEditable: it.canEdit ? 'true' : 'false', spellcheck: 'true' });
     page.innerHTML = sanitize((it.data && it.data.html) || '');
     const words = h('span.tiny.muted');
     const bar = officeBar(it, { emoji: '📄', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); it.name = n; } catch (e) { toastErr(e); } },
-      extra: h('div.row', { style: 'gap:6px' }, words, h('button.btn.sm', { onClick: (e) => openMenu([{ label: t('Download as HTML'), icon: 'download', onClick: () => download('html') }, { label: t('Download as text'), icon: 'download', onClick: () => download('txt') }, { label: t('Print / save as PDF'), icon: 'external', onClick: () => window.print() }], e.currentTarget) }, icon('download', 14), t('Export'))) });
+      extra: h('div.row', { style: 'gap:6px' }, words, cBtn, h('button.btn.sm', { onClick: (e) => openMenu([{ label: t('Download as Word (.docx)'), icon: 'download', onClick: () => downloadDocx() }, { label: t('Download as HTML'), icon: 'download', onClick: () => download('html') }, { label: t('Download as text'), icon: 'download', onClick: () => download('txt') }, { label: t('Print / save as PDF'), icon: 'external', onClick: () => window.print() }], e.currentTarget) }, icon('download', 14), t('Export'))) });
     const save = autosaver(it.id, bar);
     const ex = (cmd, val) => { page.focus(); document.execCommand(cmd, false, val); changed(); };
     const btn = (ic, title, fn, label) => h('button.dc-b', { type: 'button', title, onMousedown: (e) => e.preventDefault(), onClick: fn }, label ? h('b', label) : icon(ic, 16));
@@ -53,11 +57,15 @@ export default {
     page.addEventListener('paste', (e) => { const html = e.clipboardData.getData('text/html'); if (html) { e.preventDefault(); document.execCommand('insertHTML', false, sanitize(html)); changed(); } });
     page.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save.flush(); } });
     function download(kind) { const blob = kind === 'html' ? new Blob(['<!doctype html><meta charset="utf-8"><title>' + it.name.replace(/</g, '') + '</title><body style="font-family:system-ui;max-width:800px;margin:40px auto">' + sanitize(page.innerHTML)], { type: 'text/html' }) : new Blob([page.innerText], { type: 'text/plain' }); const a = h('a', { href: URL.createObjectURL(blob), download: it.name + '.' + kind }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
-    mount(wrap, bar, it.canEdit ? tools : null, h('div.dc-body', outline, h('div.dc-scroll', page)));
+    async function downloadDocx() {
+      try { const blob = await htmlToDocx(sanitize(page.innerHTML), { title: it.name, images: await prepareImages(page) }); const a = h('a', { href: URL.createObjectURL(new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })), download: it.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.docx' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast(t('Word document downloaded'), 'good'); } catch (e) { toastErr(e); }
+    }
+    const comments = commentsPanel(it, page, { onCount: (n) => { cCount.hidden = !n; cCount.textContent = n; } });
+    mount(wrap, bar, it.canEdit ? tools : null, h('div.dc-body', outline, h('div.dc-scroll', page), comments.el));
     stats(); if (it.canEdit) page.focus();
     // keep in sync with other editors when you are not typing
     let lastLocal = Date.now(); page.addEventListener('input', () => { lastLocal = Date.now(); });
     const poll = setInterval(async () => { if (Date.now() - lastLocal < 8000 || document.activeElement === page) return; try { const d = (await api.get('/api/drive/item/' + it.id, { quiet: true })).item; if (d.data && d.data.html !== undefined && sanitize(d.data.html) !== page.innerHTML) { page.innerHTML = sanitize(d.data.html); stats(); } } catch {} }, 10000);
-    return () => { clearInterval(poll); save.flush(); };
+    return () => { clearInterval(poll); comments.destroy(); save.flush(); };
   },
 };

@@ -530,3 +530,25 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .ws-list { display: flex; flex-direction: column; gap: 6px; min-width: 150px; } .ws-w { font: 600 .9rem ui-monospace, monospace; letter-spacing: .08em; } .ws-w.done { text-decoration: line-through; opacity: .5; color: var(--success); }
 .duel-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; counter-reset: rk; } .duel-rank li { display: flex; align-items: center; gap: 8px; font-size: .88rem; counter-increment: rk; } .duel-rank li::before { content: counter(rk); width: 18px; text-align: center; font-weight: 800; color: var(--muted); } .duel-rank li.me { color: var(--accent); }
 .duel-live { padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+
+/* ---- Nebulix 3.0: document comments ---- */
+.dc-body:has(> .dcm:not([hidden])) { grid-template-columns: 200px minmax(0, 1fr) 320px; }
+.dcm { border-left: 1px solid var(--line); background: var(--panel, var(--bg)); display: flex; flex-direction: column; min-height: 0; overflow: auto; padding: 12px; gap: 10px; }
+.dcm-top { display: flex; align-items: center; gap: 8px; } .dcm-top b { flex: 1; display: flex; align-items: center; gap: 6px; }
+.dcm-x { background: none; border: 0; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; } .dcm-x:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.dcm-new { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+.dcm-ta { width: 100%; resize: vertical; min-height: 34px; font: inherit; font-size: .88rem; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.dcm-list { display: flex; flex-direction: column; gap: 10px; }
+.dcm-th { border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.dcm-th.done { opacity: .7; }
+.dcm-q { all: unset; cursor: pointer; display: block; font-size: .8rem; color: var(--muted); border-left: 3px solid #f5b83d; padding: 2px 8px; font-style: italic; overflow-wrap: anywhere; } .dcm-q:hover { color: var(--text); background: color-mix(in srgb, #f5b83d 12%, transparent); }
+.dcm-q.static { cursor: default; display: flex; gap: 6px; align-items: flex-start; } .dcm-q.static .dcm-x { margin-left: auto; font-style: normal; }
+.dcm-msg p { margin: 2px 0 0; font-size: .88rem; white-space: pre-wrap; overflow-wrap: anywhere; } .dcm-msg.rep { padding-left: 10px; border-left: 2px solid var(--line); }
+.dcm-hd { display: flex; align-items: center; gap: 6px; font-size: .84rem; } .dcm-hd .dcm-x { margin-left: auto; font-size: .95rem; }
+.dcm-reply { display: flex; gap: 6px; align-items: flex-end; } .dcm-reply .dcm-ta { min-height: 32px; }
+.dcm-acts { display: flex; gap: 4px; justify-content: flex-end; } .dcm-acts:empty { display: none; }
+.dcm-n { margin-left: 4px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #f5b83d; color: #1a1300; font-size: .72rem; font-weight: 800; text-align: center; }
+::highlight(nbx-comments) { background-color: rgba(245, 184, 61, .38); }
+@media (max-width: 900px) { .dc-body:has(> .dcm:not([hidden])) { grid-template-columns: 1fr; } .dcm:not([hidden]) { position: fixed; inset: auto 0 0 0; max-height: 60vh; z-index: 40; border-left: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.25); padding-bottom: calc(80px + env(safe-area-inset-bottom)); } }
+@media print { .dcm { display: none !important; } }
+@media (max-width: 700px) { .dcm-lbl { display: none; } }

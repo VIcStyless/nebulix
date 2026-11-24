@@ -2,7 +2,7 @@
 // Nebulix Drive + Docs, Sheets and Slides. Files live in the shared blob store; documents keep their content
 // as JSON in the item (docs: sanitised HTML string, sheets: cells, slides: slide list). Sharing: private,
 // anyone with the link (logged-in Nebulix users) or editable by link.
-const { S, publicUser, isPro } = require('../state');
+const { S, hub, publicUser, isPro } = require('../state');
 const blobs = require('../blobs');
 const { HttpError, now, rid } = require('../util');
 
@@ -87,7 +87,50 @@ module.exports = function register(r) {
   r.delete('/api/drive/item/:id', { auth: true, verified: true }, async (c) => {
     const it = get(c); if (it.owner !== c.user.id) throw new HttpError(403, 'forbidden', 'Only the owner can delete it');
     const purge = (x) => { x.purged = true; if (x.kind === 'file') blobs.charge(c.user, -(x.size || 0)); for (const ch of Object.values(items())) if (ch.parent === x.id && !ch.purged) purge(ch); };
-    purge(it); delete it.data; touch(); return { ok: true };
+    purge(it); delete it.data; if (comments()[it.id]) { delete comments()[it.id]; S.store.touch('doccomments'); } touch(); return { ok: true };
+  });
+  // ---- Nebulix 3.0: comments on documents (threads anchored to a quoted piece of text, replies, resolve) ----
+  // Anyone who can open the document can comment; the author or the document's owner can delete a thread, and
+  // anyone who can edit it can resolve/reopen. The owner and everyone in the thread get a notice.
+  const comments = () => S.store.table('doccomments');
+  const ctext = (s, n) => String(s || '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n);
+  const cuser = (id) => { const u = S.users[id]; return u ? { username: u.username, displayName: u.displayName || u.username, avatar: publicUser(u).avatar || null } : { username: '?', displayName: '?' }; };
+  const cview = (th, it, u) => ({ id: th.id, by: cuser(th.by), mine: th.by === u.id, quote: th.quote || '', text: th.text, at: th.at, resolved: !!th.resolved, resolvedBy: th.resolvedBy ? cuser(th.resolvedBy).username : null,
+    canDelete: th.by === u.id || it.owner === u.id, replies: (th.replies || []).map((x) => ({ id: x.id, by: cuser(x.by), mine: x.by === u.id, text: x.text, at: x.at, canDelete: x.by === u.id || it.owner === u.id })) });
+  const docItem = (c) => { const it = get(c); if (it.kind === 'folder' || it.kind === 'file') throw new HttpError(400, 'bad_kind', 'Only documents have comments'); return it; };
+  const threads = (it) => comments()[it.id] || (comments()[it.id] = []);
+  function tell(it, th, from, en, es) {
+    const to = new Set([it.owner, th.by, ...(th.replies || []).map((x) => x.by)]); to.delete(from.id);
+    for (const id of to) if (S.users[id]) hub.push(id, { t: 'notice', text: `💬 @${from.username} ${en} “${it.name}”`, es: `💬 @${from.username} ${es} «${it.name}»`, link: '#/' + ({ doc: 'docs', sheet: 'sheets', slides: 'slides' }[it.kind] || 'drive') + '/' + it.id });
+    for (const id of new Set([it.owner, ...(it.sharedWith || []), th.by])) if (S.users[id]) hub.push(id, { t: 'dcomm', item: it.id });
+  }
+  r.get('/api/drive/item/:id/comments', { auth: true, limit: [240, 60000, 'user'] }, async (c) => { const it = docItem(c); return { comments: threads(it).map((th) => cview(th, it, c.user)) }; });
+  r.post('/api/drive/item/:id/comments', { auth: true, verified: true, limit: [30, 60000, 'user'] }, async (c) => {
+    const it = docItem(c); const text = ctext(c.body.text, 2000); if (!text) throw new HttpError(400, 'empty', 'Write a comment');
+    const list = threads(it); if (list.length >= 300) throw new HttpError(400, 'too_many', 'This document has too many comments — delete some first');
+    const th = { id: rid(8), by: c.user.id, text, quote: ctext(c.body.quote, 300), at: now(), replies: [] }; list.push(th); S.store.touch('doccomments');
+    tell(it, th, c.user, 'commented on', 'ha comentado en'); return { comment: cview(th, it, c.user) };
+  });
+  const thread = (c, it) => { const th = threads(it).find((x) => x.id === c.params.cid); if (!th) throw new HttpError(404, 'no_comment', 'Comment not found'); return th; };
+  r.post('/api/drive/item/:id/comments/:cid/reply', { auth: true, verified: true, limit: [60, 60000, 'user'] }, async (c) => {
+    const it = docItem(c); const th = thread(c, it); const text = ctext(c.body.text, 2000); if (!text) throw new HttpError(400, 'empty', 'Write a reply');
+    if ((th.replies || []).length >= 100) throw new HttpError(400, 'too_many', 'This thread is full');
+    (th.replies = th.replies || []).push({ id: rid(8), by: c.user.id, text, at: now() }); th.resolved = false; S.store.touch('doccomments');
+    tell(it, th, c.user, 'replied to a comment in', 'ha respondido a un comentario en'); return { comment: cview(th, it, c.user) };
+  });
+  r.put('/api/drive/item/:id/comments/:cid', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => {
+    const it = docItem(c); const th = thread(c, it);
+    if (c.body.resolved !== undefined) { if (!canEdit(it, c.user) && th.by !== c.user.id) throw new HttpError(403, 'forbidden', 'Only editors can resolve comments'); th.resolved = !!c.body.resolved; th.resolvedBy = th.resolved ? c.user.id : null; }
+    if (c.body.text !== undefined) { if (th.by !== c.user.id) throw new HttpError(403, 'forbidden', 'You can only edit your own comments'); const text = ctext(c.body.text, 2000); if (!text) throw new HttpError(400, 'empty', 'Write a comment'); th.text = text; th.edited = now(); }
+    S.store.touch('doccomments'); for (const id of new Set([it.owner, ...(it.sharedWith || [])])) if (S.users[id] && id !== c.user.id) hub.push(id, { t: 'dcomm', item: it.id });
+    return { comment: cview(th, it, c.user) };
+  });
+  r.delete('/api/drive/item/:id/comments/:cid', { auth: true, verified: true, limit: [120, 60000, 'user'] }, async (c) => {
+    const it = docItem(c); const list = threads(it); const th = thread(c, it);
+    if (c.query.reply) { const i = (th.replies || []).findIndex((x) => x.id === c.query.reply); if (i < 0) throw new HttpError(404, 'no_comment', 'Reply not found'); if (th.replies[i].by !== c.user.id && it.owner !== c.user.id) throw new HttpError(403, 'forbidden', 'Not yours'); th.replies.splice(i, 1); }
+    else { if (th.by !== c.user.id && it.owner !== c.user.id) throw new HttpError(403, 'forbidden', 'Only the author or the owner can delete it'); list.splice(list.indexOf(th), 1); }
+    S.store.touch('doccomments'); for (const id of new Set([it.owner, ...(it.sharedWith || [])])) if (S.users[id] && id !== c.user.id) hub.push(id, { t: 'dcomm', item: it.id });
+    return { ok: true };
   });
   r.post('/api/drive/trash/empty', { auth: true, verified: true }, async (c) => {
     let n = 0; for (const x of Object.values(items())) if (x.owner === c.user.id && x.trashed && !x.purged) { x.purged = true; delete x.data; if (x.kind === 'file') blobs.charge(c.user, -(x.size || 0)); n++; }
