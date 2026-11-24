@@ -1,0 +1,80 @@
+# Nebulix 3.0 — audit, status and roadmap
+
+Branch: `nebulix-3.0` (from `main` at v14.1.0). Backups: git tag `backup-pre-nebulix-3.0`, source archive
+`NEBULIX_BACKUP/code/nebulix-src-14.1-pre-3.0.tgz` (630 files), production data archive taken right before the
+14.1 deploy (`NEBULIX_BACKUP/archives/nebulix_data_predeploy141_*.tgz`, 77 data files) plus a Fly.io volume snapshot.
+
+This file is the hand-off document: what exists, what each phase added, and what is still pending (with the
+infrastructure each pending item needs). Status words mean:
+
+* **Implemented** — works end to end and was tested.
+* **Connected** — works through an external service that must be configured (keys / hosts); the UI shows its status.
+* **Pending** — not built yet, or needs infrastructure Nebulix does not have.
+
+## 1. Architecture (audit)
+
+| Layer | What it is |
+|---|---|
+| Server | Node.js, **no npm dependencies**. `server/index.js` serves static files (CSS bundled into one file with a content hash) and registers route modules from `server/routes/*.js` through a tiny router (`r.get/post/put/delete(path, { auth, verified, limit, role, bodyLimit, stream })`). |
+| Data | JSON tables on the Fly.io volume (`/data/*.json`) through `S.store.table(name)` / `S.store.touch(name)`; blobs (uploads, Hub files) are content-addressed by SHA-256 (`server/blobs.js`). Main tables: users, sessions, hubitems, hubreviews, hubsaves, aichats, drive, repos, notes, dms, channels, servers, clans, squads, events, tournaments, duels, quizzes, studydecks, studynotes, themes, mods, fusion, ugcworlds, worldtimes, trades, reports, shortlinks, stripe. |
+| Auth | Session cookie `nx_sid`, email verification (`verified` routes), roles owner/admin/mod/user, rate limits per user/IP. |
+| Realtime | One WebSocket (`/ws`) with typed messages (`hub.push`, `bus.on('ws:…')`), used by chat, DMs, presence, arena, casino 3D, worlds, duels, notifications. |
+| Client | Vanilla ES modules, no framework: `h()` DOM builder, `mount()`, `t()` i18n (Spanish default, English and 4 more languages), lazy route loaders in `public/js/app.js`. |
+| Hosting | Fly.io app `nebulix` + mirrors `nebulix-play`, `nebulix-zone`, `nebulix-hq`; one volume. Releases (Android APK, Windows EXE) built by GitHub Actions on `v*` tags. |
+
+## 2. Module status
+
+| Module | Status | Where |
+|---|---|---|
+| **Nebulix OS** (desktop, windows, snapping, taskbar, start menu, search, widgets, 4 virtual desktops, quick settings, glass/Linux effects, Alt+\` switcher, Ctrl+K palette) | Implemented | `public/js/os/desktop.js`, `os14.css` |
+| OS system apps: Files (local VFS), Text editor, Task Manager, Clipboard history, Screenshot (screen capture API), Camera, Calculator, Focus timer, System monitor, Command Center, Widgets, Nova Agents | Implemented | `public/js/os/apps.js`, `apps2.js` |
+| OS: PDF viewer, archive manager, download manager, startup apps, app permissions | Pending | needs file-type handlers in Files |
+| **Nebulix Android** | Implemented (in-browser): real Android-x86 emulated with v86/WebAssembly at `#/vm/android`, phone-style player, snapshots in IndexedDB. **Pending (cloud):** ARM devices, APK install over ADB, WebRTC streaming, GPS/orientation — needs external KVM nodes (Fly.io machines cannot nest-virtualise). Suggested: Browser → Nebulix API → session manager → worker (Android Emulator / Genymotion SaaS) → WebRTC. No Google Play. | `views/vm.js` |
+| **Virtual machines** | Implemented (in-browser, v86): templates, ISO/IMG, disks, snapshots, clone, export, real Linux terminal. Pending: server-side VMs (Proxmox/QEMU/Kasm on separate nodes). | `views/vm.js` |
+| **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
+| Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
+| Game library (Hub games + Vault store + reviews, collections, saves) | Implemented | `views/hub.js`, `vault.js`, `library.js` |
+| Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
+| External game APIs (Steam, Epic, IGDB, Discord) | Pending — need API keys from the user; must use official APIs only. |
+| **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
+| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented (existing). Pending: DOCX export, real-time co-editing, comments. | `views/docs.js`, `sheets.js`, `slides.js`, `notes.js`, `drive.js` |
+| Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
+| **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Pending: layered image editor, video timeline editor, audio editor. |
+| **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
+| **Social** — community chat, servers/channels, DMs, voice rooms (WebRTC), profiles, plaza, feed, clans, reports/moderation | Implemented (existing). |
+| **Nova AI** — chat with history, per-conversation model choice, streaming, Markdown/code, web search, images, voice, Nova Agent (PRO), Nova Agents team (OS), tutor (Study) | Implemented / Connected (provider keys in Admin → AI; free models otherwise). |
+| **Developer** — Nebulix Code (repos), Studio, Terminal, **Developer Toolbox** (JSON, regex, encoders + SHA-256, UUID/passwords, timestamps, cron, colours/gradients, diff, Markdown, text tools — new in 3.0), Nerd Lab, Security Lab | Implemented. Pending: QR generator, HTTP request tester (needs a server-side fetch with SSRF protection), SQL playground, isolated Python. |
+| **Education** — Nebulix Study (notes, flashcards SRS, AI tutor, quizzes, live class quizzes, grades, exams, tools) | Implemented (existing). |
+| **Browser** — proxy browser, links, VPN mode | Implemented (existing). |
+| **Economy** — coins, gems, bank, invest, market, shop, daily rewards, achievements, quests; server-side validation | Implemented (existing; unchanged in 3.0 except new arcade game entries with plausibility checks). |
+| **Security** — sessions, 2FA, rate limits, CSP, sandboxed Hub apps, upload validation, audit/reports, lockdown | Implemented (existing). |
+
+## 3. What Nebulix 3.0 phase 1 added (this branch)
+
+1. **Arcade:** 5 new polished games — Minesweeper (3 levels, safe first click, chording, flag mode), Sudoku
+   (generated puzzles, 3 levels, pencil notes, keyboard, 3-mistake rule), Space Rocks (vector space shooter with
+   waves, particles and touch controls), Gem Match (60-second match-3 with cascading combos), Reflex (5-round
+   reaction test). Server plausibility rules added in `server/routes/arcade.js`; valid and implausible scores tested.
+2. **Nebulix OS:** Task Manager (real window list, end task, switch, memory/FPS), Clipboard history (records text
+   copied inside the OS, pin/search/clear), Screenshot (browser screen-capture picker → Files/Pictures, download,
+   copy), and an **Alt+\`** window switcher (Alt+Tab is reserved by the operating system in browsers).
+3. **Developer Toolbox** (`#/devtools`): 10 client-side tools.
+
+## 4. Next phases (in order)
+
+1. App Store install model: manifest (`id, name, version, entry, permissions[]`), install/uninstall to the OS dock,
+   update notifications, permission prompts — reuse Hub items and the sandboxed runner.
+2. Calendar + Tasks app with events, recurrence and reminders (server table `calendar`), linked to Study exams.
+3. Game platform APIs for Hub games: leaderboards and achievements through `postMessage` (like the existing save
+   shim `server/hubshim.js`), then rooms/multiplayer over the existing WebSocket.
+4. More arcade games: Chess (vs CPU + online via duels), Checkers, Solitaire, Bubble Shooter, Tower Defense, Word Search.
+5. Office: DOCX export, comments, co-editing over WebSocket.
+6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
+   the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.
+
+## 5. How to verify
+
+* Local server: `DATA_DIR=<copy> PORT=3999 node server/index.js`.
+* Regression suites (scratch test scripts) cover economy, Hub, media, study, profiles; all passed for 14.1.
+* New in 3.0 was tested in a browser: every Toolbox tool, the 5 games (start, play, scoring), the OS Task Manager,
+  Clipboard and switcher, with no console errors.

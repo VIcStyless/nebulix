@@ -261,4 +261,62 @@ const camera = {
   },
 };
 
-export const OS_APPS2 = { files, texted, agents, command, widgets, camera };
+
+// ================= Task Manager (Nebulix 3.0) =================
+// Lists the real open windows of this desktop (through window.__nbxOs, set by desktop.js) with live memory and FPS.
+const taskmgr = {
+  title: () => t('Task Manager'),
+  mount(root) {
+    let fps = 0, fr = 0, lt = performance.now(), raf = 0; const hist = [];
+    const loop = (now) => { raf = requestAnimationFrame(loop); fr++; if (now - lt >= 1000) { fps = Math.round(fr * 1000 / (now - lt)); fr = 0; lt = now; const m = performance.memory; hist.push(m ? m.usedJSHeapSize : 0); if (hist.length > 40) hist.shift(); paint(); } };
+    function paint() {
+      const os = window.__nbxOs; const list = os ? os.list() : []; const m = performance.memory;
+      const max = Math.max(1, ...hist); const pts = hist.map((v, i) => (i / 39) * 300 + ',' + (60 - (v / max) * 54)).join(' ');
+      mount(root, h('div.tm2', h('div.tm2-top', h('div.tm2-kpi', h('span', t('Frame rate')), h('b', fps + ' FPS')), h('div.tm2-kpi', h('span', t('JS memory')), h('b', m ? fmt.bytes(m.usedJSHeapSize) : 'N/A')), h('div.tm2-kpi', h('span', t('Windows')), h('b', String(list.length))), h('div.tm2-kpi', h('span', t('CPU threads')), h('b', String(navigator.hardwareConcurrency || '?')))),
+        m ? (() => { const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 300 60'); sv.setAttribute('class', 'tm2-chart'); sv.innerHTML = '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + pts + '"/>'; return sv; })() : null,
+        h('table.tm2-table', h('thead', h('tr', h('th', t('App')), h('th', t('Desktop')), h('th', t('State')), h('th', ''))), h('tbody', list.length ? list.map((w) => h('tr', h('td', h('b', w.title)), h('td', String(w.ws + 1)), h('td', w.min ? t('Minimized') : w.focused ? t('Active') : t('Open')),
+          h('td.tm2-act', h('button.btn.sm.ghost', { onClick: () => os.focus(w.name) }, t('Switch to')), h('button.btn.sm.danger', { onClick: () => { os.close(w.name); setTimeout(paint, 200); } }, t('End task'))))) : h('tr', h('td', { colspan: 4 }, h('span.muted', t('No other windows are open.')))))),
+        h('p.tiny.muted', t('Every app runs inside this browser tab. Ending a task closes its window and frees its memory.'))));
+    }
+    raf = requestAnimationFrame(loop); paint();
+    return () => cancelAnimationFrame(raf);
+  },
+};
+
+// ================= Clipboard history =================
+// desktop.js records text you copy while Nebulix OS is open (only inside Nebulix, only on this device).
+const clipboard = {
+  title: () => t('Clipboard'),
+  mount(root) {
+    let q = '';
+    const paint = () => { const all = ls('os.clip') || []; const list = all.filter((x) => !q || x.t.toLowerCase().includes(q));
+      mount(root, h('div.cb', h('div.cb-head', h('h2', icon('copy', 20), ' ', t('Clipboard')), h('input.input.sm', { placeholder: t('Search'), value: q, onInput: (e) => { q = e.target.value.toLowerCase(); paint(); } }), h('button.btn.sm.ghost', { onClick: () => { ls('os.clip', all.filter((x) => x.pin)); paint(); } }, icon('trash', 13), t('Clear'))),
+        h('p.tiny.muted', t('Text you copy inside Nebulix OS is kept here (last 40, only on this device). Click an entry to copy it again.')),
+        list.length ? h('div.cb-list', list.map((x) => h('div.cb-item' + (x.pin ? '.pin' : ''), h('button.cb-txt', { onClick: () => navigator.clipboard.writeText(x.t).then(() => toast(t('Copied!'), 'good', 1200)).catch(() => {}) }, x.t.length > 400 ? x.t.slice(0, 400) + '…' : x.t),
+          h('div.cb-meta', h('span.tiny.muted', fmt.rel ? fmt.rel(x.at) : ''), h('button.btn.sm.ghost', { title: t('Pin'), onClick: () => { x.pin = !x.pin; ls('os.clip', all); paint(); } }, x.pin ? '📌' : '📍'), h('button.btn.sm.ghost', { onClick: () => { ls('os.clip', all.filter((y) => y !== x)); paint(); } }, '×'))))) : h('div.empty', h('p.muted', t('Nothing copied yet.')))));
+    };
+    paint(); const on = () => paint(); addEventListener('nbx:clip', on); return () => removeEventListener('nbx:clip', on);
+  },
+};
+
+// ================= Screenshot =================
+// Uses the browser's own screen picker (getDisplayMedia): you choose the screen, window or tab; one frame is captured.
+const screenshot = {
+  title: () => t('Screenshot'),
+  mount(root) {
+    let delay = 0; const prev = h('div.ss-prev'); let last = null;
+    async function capture() {
+      let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); } catch (e) { if (e && e.name !== 'NotAllowedError') toastErr(e); return; }
+      try { if (delay) await new Promise((r) => setTimeout(r, delay * 1000)); const v = document.createElement('video'); v.srcObject = stream; v.muted = true; await v.play(); await new Promise((r) => setTimeout(r, 250));
+        const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); last = c.toDataURL('image/png'); } finally { stream.getTracks().forEach((x) => x.stop()); }
+      const name = 'Screenshot ' + new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-') + '.png';
+      const small = last.length < 2.5 * 1048576 ? last : null; if (small && vfs.write('/Home/Pictures/' + name, small, 'image/png')) { dispatchEvent(new Event('nbx:vfs')); toast(t('Saved to Pictures'), 'good', 1400); } else toast(t('Too big to keep in Files — use Download'), 'info');
+      mount(prev, h('img', { src: last, alt: '' }), h('div.row', { style: 'gap:6px;margin-top:8px' }, h('button.btn.sm.primary', { onClick: () => { const a = document.createElement('a'); a.href = last; a.download = name; a.click(); } }, icon('download', 14), t('Download')), h('button.btn.sm', { onClick: async () => { try { const b = await (await fetch(last)).blob(); await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]); toast(t('Copied!'), 'good'); } catch (e) { toastErr(e); } } }, icon('copy', 14), t('Copy image'))));
+    }
+    const dsel = h('select.select.sm', { style: 'width:auto', onChange: (e) => { delay = Number(e.target.value); } }, [0, 3, 5, 10].map((d) => h('option', { value: d }, d ? t('{n} s delay', { n: d }) : t('No delay'))));
+    mount(root, h('div.ss', h('h2', icon('camera', 20), ' ', t('Screenshot')), h('p.small.muted', t('Choose a screen, window or tab in the browser picker. The picture is saved in Files → Pictures; nothing is uploaded.')), h('div.row', { style: 'gap:8px' }, h('button.btn.primary', { onClick: capture }, icon('camera', 15), t('Take a screenshot')), dsel), prev));
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) mount(prev, h('p.muted', t('This browser cannot capture the screen.')));
+  },
+};
+
+export const OS_APPS2 = { files, texted, agents, command, widgets, camera, taskmgr, clipboard, screenshot };

@@ -23,11 +23,11 @@ export const APPS = [
   ['music', 'Pulse', 'music', '#8b5cf6'], ['dj', 'DJ mode', 'sliders', '#e11d48'], ['arcade', 'Arcade', 'gamepad', '#22c55e'], ['progress', 'Achievements', 'trophy', '#f59e0b'],
   ['casino', 'Casino', 'dice', '#ca8a04'], ['market', 'Market', 'bag', '#14b8a6'], ['wallet', 'Wallet', 'coins', '#eab308'], ['work', 'Work', 'clip', '#0ea5e9'], ['invest', 'Invest', 'chart', '#16a34a'], ['themes', 'Themes', 'palette', '#d946ef'], ['nova', 'Nova AI', 'spark', '#06b6d4'],
   ['nerd', 'Nerd Lab', 'flask', '#65a30d'], ['calc', 'Calculator', 'grid', '#64748b'], ['timer', 'Focus timer', 'clock', '#dc2626'], ['monitor', 'System monitor', 'activity', '#059669'],
-  ['files', 'Files', 'folder', '#f59e0b'], ['texted', 'Text editor', 'note', '#0ea5e9'], ['agents', 'Nova Agents', 'agents', '#a855f7'], ['command', 'Command Center', 'gauge', '#06b6d4'], ['widgets', 'Widgets', 'widget', '#ec4899'], ['camera', 'Camera', 'camera', '#475569'],
+  ['files', 'Files', 'folder', '#f59e0b'], ['texted', 'Text editor', 'note', '#0ea5e9'], ['agents', 'Nova Agents', 'agents', '#a855f7'], ['command', 'Command Center', 'gauge', '#06b6d4'], ['widgets', 'Widgets', 'widget', '#ec4899'], ['camera', 'Camera', 'camera', '#475569'], ['taskmgr', 'Task Manager', 'activity', '#16a34a'], ['clipboard', 'Clipboard', 'copy', '#7c3aed'], ['screenshot', 'Screenshot', 'image', '#0891b2'],
   ['ext', 'Extensions', 'puzzle', '#475569'], ['pro', 'PRO', 'crown', '#d97706'], ['profile', 'Profile', 'user', '#0891b2'], ['settings', 'Settings', 'gear', '#52525b'], ['admin', 'Admin', 'shield', '#047857'],
 ];
 const OS_ONLY = ['calc', 'timer', 'monitor'];
-const OS_ONLY2 = ['files', 'texted', 'agents', 'command', 'widgets', 'camera']; // 14.1: desktop-only apps (apps2.js)
+const OS_ONLY2 = ['files', 'texted', 'agents', 'command', 'widgets', 'camera', 'taskmgr', 'clipboard', 'screenshot']; // 14.1: desktop-only apps (apps2.js)
 export const WALLPAPERS = [['os', 'System wallpaper', 'desktop'], ['theme', 'Theme background', 'palette'], ['stars', 'Starfield', 'star'], ['nebula', 'Nebula', 'spark'], ['aurora', 'Aurora', 'activity'], ['grid', 'Synthwave grid', 'grid'], ['particles', 'Particle network', 'share'], ['waves', 'Waves', 'activity'], ['matrix', 'Glyph rain', 'terminal'], ['bokeh', 'Bokeh lights', 'sun'], ['lava', 'Lava lamp', 'flask'], ['gradient', 'Gradient (static)', 'layers'], ['image', 'My image', 'image']];
 const DEFAULT_PINS = ['files', 'browse', 'chat', 'dm', 'music', 'agents', 'command', 'settings'];
 const G = { // system glyphs the app icon set does not have
@@ -106,6 +106,16 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   const root = h('div.os-desktop', { onContextmenu: (e) => { if (e.target === root || e.target === winLayer || e.target === wallEl || e.target.closest('.os-icons') === iconsEl && !e.target.closest('.os-icon')) { e.preventDefault(); deskMenu(e); } } },
     wallEl, iconsEl, widgetsEl, dwLayer, winLayer, snapPrev, gbar, gdock, startEl, taskbar, hotEl);
   const offWidgets = mountWidgets(dwLayer);
+  window.__nbxOs = { list: () => [...wins.values()].map((w) => ({ name: w.name, title: w.title || t(appOf(w.name)[1]), ws: w.ws || 0, min: !!w.min, focused: focused === w })), focus: (n) => { const w = wins.get(n); if (w) focus(w); }, close: (n) => { const w = wins.get(n); if (w) close(w); } };
+  const onCopy = () => { const txt = String(document.getSelection() || '').trim(); if (!txt || txt.length > 20000) return; const l = (ls('os.clip') || []).filter((y) => y.t !== txt); l.unshift({ t: txt, at: Date.now() }); const pins = l.filter((y) => y.pin); ls('os.clip', [...new Set([...l.slice(0, 40), ...pins])]); dispatchEvent(new Event('nbx:clip')); };
+  document.addEventListener('copy', onCopy);
+  // Alt+` (and Alt+Shift+`): window switcher with live previews of every open window, like Alt+Tab
+  let swEl = null, swIdx = 0, swList = [];
+  const paintSw = () => mount(swEl, h('div.os-swbox', swList.map((w, i) => h('div.os-swc' + (i === swIdx ? '.on' : ''), { onClick: () => { swIdx = i; endSw(true); } }, h('div.os-swt', tile(w.name, 30)), h('b.ellipsis', w.title || t(appOf(w.name)[1])), h('span.tiny.muted', t('Desktop {n}', { n: (w.ws || 0) + 1 }))))));
+  const endSw = (go) => { if (!swEl) return; const w = swList[swIdx]; swEl.remove(); swEl = null; if (go && w) focus(w); };
+  const onSw = (e) => { if (!root.isConnected) return; if (e.altKey && (e.code === 'Backquote' || e.key === '`')) { e.preventDefault(); if (!swEl) { swList = [...wins.values()].sort((a, b) => b.z - a.z); if (swList.length < 1) return; swIdx = swList.length > 1 ? 1 : 0; swEl = h('div.os-switch'); root.appendChild(swEl); } else swIdx = (swIdx + (e.shiftKey ? swList.length - 1 : 1)) % swList.length; paintSw(); } else if (swEl && e.key === 'Escape') { endSw(false); } };
+  const onSwUp = (e) => { if (swEl && (e.key === 'Alt' || !e.altKey)) endSw(true); };
+  document.addEventListener('keydown', onSw, true); document.addEventListener('keyup', onSwUp, true);
   root.classList.toggle('small', small());
   const quickAnim = () => document.documentElement.dataset.reduce === '1' || document.documentElement.dataset.anim === 'off';
   const bootMark = () => h('div.os-bootlogo', logoMark(84));
@@ -505,7 +515,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     route(name, r) { if (name === 'desktop') { toggleStart(false); return; } if (!loaders[name] || (name === 'admin' && !isStaff())) name = 'home'; return open(name, r); },
     restore: restoreSession,
     focusedName: () => (focused ? focused.name : null),
-    destroy() { try { offWidgets(); } catch {} document.removeEventListener('keydown', onWsKeys, true); document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
+    destroy() { try { offWidgets(); } catch {} delete window.__nbxOs; document.removeEventListener('copy', onCopy); document.removeEventListener('keydown', onSw, true); document.removeEventListener('keyup', onSwUp, true); document.removeEventListener('keydown', onWsKeys, true); document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
     refresh() { applyWall(); paintIcons(); paintWidgets(); },
   };
 }

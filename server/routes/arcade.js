@@ -22,6 +22,12 @@ const GAMES = {
   memory: { max: 100, check: (s, ms) => ms >= (s * (s + 1) / 2) * 450 },
   dash: { max: 20000, check: (s, ms) => ms >= s * 90 },
   stack: { max: 600, check: (s, ms) => ms >= s * 280 },
+  // Nebulix 3.0
+  mines: { max: 3000, check: (s, ms) => ms >= 3000 },
+  sudoku: { max: 1900, check: (s, ms) => ms >= 25000 },
+  rocks: { max: 500000, check: (s, ms) => ms >= s * 4 },
+  gems: { max: 100000, check: (s, ms) => ms >= 55000 && ms <= 120000 },
+  reflex: { max: 1000, check: (s, ms) => ms >= 5000 },
 };
 const scoreLim = new Limiter(1, 4000);
 const DAILY_COIN_CAP = 60;

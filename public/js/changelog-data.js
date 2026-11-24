@@ -2,6 +2,31 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.2",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 1: 5 new arcade games, OS tools and the Developer Toolbox",
+      "es": "Nebulix 3.0, fase 1: 5 juegos nuevos, herramientas del OS y la Caja de herramientas"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Arcade: Minesweeper (3 levels, safe first click), Sudoku (generated puzzles, pencil notes), Space Rocks (vector space shooter with waves), Gem Match (60-second match-3 with combos) and Reflex (reaction test). Personal bests and coins like the other games.",
+        "es": "Arcade: Buscaminas (3 niveles, primer clic seguro), Sudoku (tableros generados, notas a lápiz), Rocas espaciales (shooter espacial vectorial por oleadas), Gemas (3 en raya de 60 segundos con combos) y Reflejos (test de reacción). Récords y monedas como en los demás juegos."
+      },
+      {
+        "type": "new",
+        "en": "Nebulix OS: Task Manager (real windows, end task, memory and FPS), Clipboard history, Screenshot tool and an Alt+` window switcher.",
+        "es": "Nebulix OS: Administrador de tareas (ventanas reales, finalizar tarea, memoria y FPS), historial del Portapapeles, herramienta de Captura de pantalla y selector de ventanas con Alt+`."
+      },
+      {
+        "type": "new",
+        "en": "Developer Toolbox (#/devtools): JSON formatter and validator, regex tester, encoders with SHA-256, UUID and password generator, timestamps, cron explainer with next runs, colours and gradients with contrast, text diff, Markdown preview and text tools. All in your browser.",
+        "es": "Caja de herramientas para desarrolladores (#/devtools): formateador y validador JSON, probador de regex, codificadores con SHA-256, generador de UUID y contraseñas, marcas de tiempo, explicador de cron con próximas ejecuciones, colores y degradados con contraste, comparador de textos, vista previa de Markdown y herramientas de texto. Todo en tu navegador."
+      }
+    ]
+  },
+  {
     "v": "14.1",
     "date": "2026-11-24",
     "title": {
