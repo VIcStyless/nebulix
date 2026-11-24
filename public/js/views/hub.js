@@ -136,10 +136,28 @@ export default {
           r.tags && r.tags.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Trending topics'))), h('div.hbx-topics', r.tags.slice(0, 12).map((x) => h('button.hbx-topic', { type: 'button', onClick: () => { tag = x.t; if (!KINDS_TAB.includes(mode)) mode = 'all'; paintTabs(); load(); } }, x.t, h('small', ' ' + x.n))))) : null,
           mode === 'history' && r.items.length ? h('button.btn.sm.ghost', { onClick: async () => { try { await api.del('/api/hub/history'); load(); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Clear history')) : null,
           mode.startsWith('col:') ? (() => { const c = cols.find((x) => 'col:' + x.id === mode); return c ? h('button.btn.sm.danger', { onClick: async () => { if (!(await confirmBox(t('Delete the collection “{n}”? The uploads stay in the Hub.', { n: c.name })))) return; try { await api.del('/api/hub/collections/' + c.id); setMode('all'); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Delete collection')) : null; })() : null);
-        const f = r.featured; mount(featEl, f && !q && !tag && mode === 'all' ? h('a.hbx-feat', { href: '#/hub/' + f.id }, cover(f), h('div.hbx-feat-i', h('span.hbx-flag', icon('star', 12), t('Most played this week')), h('h3', (f.owner ? f.owner.username : '?') + ' / ', h('b', f.title)), f.desc ? h('p', f.desc.slice(0, 180)) : null,
-          h('div.hbx-meta', kindDot(f.kind), h('span', icon('star', 13), fmt.compact(f.likes)), h('span', icon('eye', 13), fmt.compact(f.views))))) : null);
+        if (!q && !tag && mode === 'all') paintShowcase(r.featured); else mount(featEl);
         last = r.items; paintList();
       } catch (e) { mount(list, emptyState('alert', t('Could not load this'), e.message)); }
+    }
+    // 14.1 showcase: rotating hero with the most played uploads, Nebulix's official apps and a trending row
+    let show = null; let heroT = 0;
+    async function paintShowcase(feat) {
+      if (!show) { try { const [top, off] = await Promise.all([api.get('/api/hub?sort=top', { quiet: true }), api.get('/api/hub?tag=official&sort=new', { quiet: true })]); show = { top: top.items.filter((x) => x.kind !== 'video' || x.thumb).slice(0, 6), off: off.items.filter((x) => x.official || (x.tags || []).includes('official')).slice(0, 12) }; } catch { show = { top: [], off: [] }; } }
+      const heroes = (show.top.length ? show.top : feat ? [feat] : []).slice(0, 5); let at = 0; clearInterval(heroT);
+      const heroBox = h('div.hbx-hero2');
+      const paintHero = () => { if (!heroes.length) return mount(heroBox); const it = heroes[at];
+        mount(heroBox, h('div.hbx-hbg', it.thumb ? h('img', { src: it.thumb, alt: '' }) : h('div.hbx-hbg-c', { style: { '--hb-c': KIND_COLOR[it.kind] || '#8b7bff' } })),
+          h('div.hbx-hcontent', h('span.hbx-live', h('i'), at === 0 ? t('Most played this week') : t('Trending now')), h('h2', it.title), it.desc ? h('p', it.desc.slice(0, 160)) : null,
+            h('div.hbx-hmeta', it.owner ? avatarEl(it.owner, { size: 26 }) : null, h('b', '@' + (it.owner ? it.owner.username : '?')), kindDot(it.kind), h('span', icon('eye', 13), fmt.compact(it.views)), h('span', icon('star', 13), fmt.compact(it.likes || 0))),
+            h('div.row', { style: 'gap:8px;margin-top:14px' }, h('a.btn.primary.hbx-play', { href: '#/hub/' + it.id }, icon('play', 16), it.kind === 'video' ? t('Watch') : t('Play now')), h('a.btn', { href: '#/hub/' + it.id + '/code' }, icon('book', 15), t('Details')))),
+          h('div.hbx-hdots', heroes.map((_, k) => h('button' + (k === at ? '.on' : ''), { type: 'button', 'aria-label': String(k + 1), onClick: () => { at = k; paintHero(); restart(); } }))),
+          heroes.length > 1 ? h('div.hbx-hthumbs', heroes.map((x, k) => h('button.hbx-ht' + (k === at ? '.on' : ''), { type: 'button', onClick: () => { at = k; paintHero(); restart(); } }, cover(x)))) : null); };
+      const restart = () => { clearInterval(heroT); heroT = setInterval(() => { if (!heroBox.isConnected) return clearInterval(heroT); at = (at + 1) % heroes.length; paintHero(); }, 7000); };
+      paintHero(); if (heroes.length > 1) restart();
+      const shelf = (title, ic, list, big) => (list.length ? h('section.hbx-shelf', h('div.hbx-shelf-h', h('h3', icon(ic, 17), ' ', title), h('span.tiny.muted', t('{n} items', { n: list.length }))),
+        h('div.hbx-row-scroll', list.map((it) => h('a.hbx-tile' + (big ? '.big' : ''), { href: '#/hub/' + it.id }, cover(it), h('div.hbx-tile-i', h('b.ellipsis', it.title), h('span.tiny.muted', (it.official ? 'Nebulix' : '@' + (it.owner ? it.owner.username : '?')) + ' · ★ ' + fmt.compact(it.likes || 0))), it.official ? h('span.hbx-offbadge', icon('check', 11), ' ' + t('Official')) : null)))) : null);
+      mount(featEl, heroBox, shelf(t('Official apps by Nebulix'), 'spark', show.off, true), shelf(t('Trending now'), 'chart', show.top.slice(0, 10)));
     }
     function paintList() {
       if (!last.length) { mount(list, emptyState('upload', t('Nothing here yet'), t('Be the first to upload something!'), h('button.btn.primary', { onClick: () => uploadDialog() }, t('Upload')))); return; }

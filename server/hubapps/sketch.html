@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sketch Board</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;background:#f5f3ee;font:14px system-ui,sans-serif;color:#222}
+canvas{position:fixed;inset:0;touch-action:none;cursor:crosshair}
+.dock{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:8px 10px;border-radius:18px;background:#ffffffd9;backdrop-filter:blur(12px);box-shadow:0 20px 50px -20px #0006,0 0 0 1px #0001;flex-wrap:wrap;max-width:96vw;justify-content:center}
+button{font:inherit;border:0;background:#0000000a;border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:17px;transition:transform .15s}button:hover{transform:translateY(-2px)}button.on{background:#222;color:#fff}
+.sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px #0002}.sw.on{box-shadow:0 0 0 2px #222}
+.sep{width:1px;height:26px;background:#0002;margin:0 4px}input[type=range]{width:80px}
+.bgsel{position:fixed;top:12px;right:12px;display:flex;gap:6px}.bgsel button{width:auto;padding:0 12px;background:#ffffffd9}
+</style></head><body>
+<canvas id="cv"></canvas>
+<div class="bgsel"><button data-bg="plain">Plain</button><button data-bg="grid">Grid</button><button data-bg="dots">Dots</button><button data-bg="dark">Dark</button></div>
+<div class="dock" id="dock"></div>
+<script>
+const cv=document.getElementById('cv'),g=cv.getContext('2d');let strokes=[],redo=[],cur=null,tool='pen',col='#222222',size=4,bg='grid';
+try{const s=JSON.parse(localStorage.getItem('sb.doc'));if(s){strokes=s.strokes||[];bg=s.bg||bg}}catch{}
+const save=()=>{try{localStorage.setItem('sb.doc',JSON.stringify({strokes:strokes.slice(-400),bg}))}catch{}};
+const COLS=['#222222','#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899','#ffffff'];const TOOLS=[['pen','✏️'],['hl','🖍️'],['line','📏'],['rect','▭'],['circle','◯'],['arrow','➜'],['erase','🧽']];
+function fit(){const d=devicePixelRatio||1;cv.width=innerWidth*d;cv.height=innerHeight*d;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';g.setTransform(d,0,0,d,0,0);draw()}
+function back(){const W=innerWidth,H=innerHeight;g.fillStyle=bg==='dark'?'#16181d':'#f5f3ee';g.fillRect(0,0,W,H);g.fillStyle=g.strokeStyle=bg==='dark'?'#ffffff12':'#0000000f';
+if(bg==='grid'){g.lineWidth=1;g.beginPath();for(let x=0;x<W;x+=28){g.moveTo(x,0);g.lineTo(x,H)}for(let y=0;y<H;y+=28){g.moveTo(0,y);g.lineTo(W,y)}g.stroke()}if(bg==='dots')for(let x=14;x<W;x+=24)for(let y=14;y<H;y+=24){g.beginPath();g.arc(x,y,1.2,0,7);g.fill()}}
+function one(s){g.save();g.lineCap=g.lineJoin='round';g.strokeStyle=s.c;g.lineWidth=s.w;if(s.t==='hl'){g.globalAlpha=.35;g.lineWidth=s.w*4}if(s.t==='erase'){g.strokeStyle=bg==='dark'?'#16181d':'#f5f3ee';g.lineWidth=s.w*5}
+const p=s.p;if(['pen','hl','erase'].includes(s.t)){g.beginPath();g.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length-1;i++){const mx=(p[i][0]+p[i+1][0])/2,my=(p[i][1]+p[i+1][1])/2;g.quadraticCurveTo(p[i][0],p[i][1],mx,my)}const l=p[p.length-1];g.lineTo(l[0],l[1]);g.stroke()}
+else{const[a,b]=p[0],[c,d]=p[p.length-1];g.beginPath();if(s.t==='line'||s.t==='arrow'){g.moveTo(a,b);g.lineTo(c,d);if(s.t==='arrow'){const an=Math.atan2(d-b,c-a);g.moveTo(c,d);g.lineTo(c-14*Math.cos(an-.45),d-14*Math.sin(an-.45));g.moveTo(c,d);g.lineTo(c-14*Math.cos(an+.45),d-14*Math.sin(an+.45))}}else if(s.t==='rect')g.rect(a,b,c-a,d-b);else g.ellipse((a+c)/2,(b+d)/2,Math.abs(c-a)/2,Math.abs(d-b)/2,0,0,7);g.stroke()}g.restore()}
+function draw(){back();strokes.forEach(one);if(cur)one(cur)}
+cv.onpointerdown=(e)=>{cv.setPointerCapture(e.pointerId);cur={t:tool,c:col,w:size*(e.pressure&&e.pointerType==='pen'?e.pressure*2:1),p:[[e.clientX,e.clientY]]}};
+cv.onpointermove=(e)=>{if(!cur)return;if(['pen','hl','erase'].includes(cur.t))cur.p.push([e.clientX,e.clientY]);else cur.p[1]=[e.clientX,e.clientY];draw()};
+cv.onpointerup=()=>{if(cur&&cur.p.length>1||cur&&['pen','hl'].includes(cur.t)){if(cur.p.length===1)cur.p.push([cur.p[0][0]+.1,cur.p[0][1]]);strokes.push(cur);redo=[];save()}cur=null;draw()};
+function dock(){const d=document.getElementById('dock');d.innerHTML='';TOOLS.forEach(([k,e])=>{const b=document.createElement('button');b.textContent=e;b.title=k;b.className=tool===k?'on':'';b.onclick=()=>{tool=k;dock()};d.append(b)});
+const s1=document.createElement('span');s1.className='sep';d.append(s1);COLS.forEach((c)=>{const i=document.createElement('span');i.className='sw'+(c===col?' on':'');i.style.background=c;i.onclick=()=>{col=c;dock()};d.append(i)});
+const r=document.createElement('input');r.type='range';r.min=1;r.max=24;r.value=size;r.oninput=()=>size=+r.value;d.append(r);
+[['↶',()=>{if(strokes.length){redo.push(strokes.pop());save();draw()}}],['↷',()=>{if(redo.length){strokes.push(redo.pop());save();draw()}}],['🗑️',()=>{if(confirm('Clear the board?')){strokes=[];save();draw()}}],['💾',()=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download='sketch-board.png';a.click()}]].forEach(([t,f])=>{const b=document.createElement('button');b.textContent=t;b.onclick=f;d.append(b)})}
+document.querySelectorAll('[data-bg]').forEach((b)=>b.onclick=()=>{bg=b.dataset.bg;save();draw()});
+addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();if(strokes.length){redo.push(strokes.pop());save();draw()}}});
+addEventListener('resize',fit);dock();fit();
+</script></body></html>

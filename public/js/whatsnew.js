@@ -7,6 +7,9 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['desktop', 'Nebulix OS, reinvented', 'Glass windows, wobbly drag, magic lamp, 4 desktops with a 3D cube, widgets and a quick settings panel.', ''],
+  ['agents', 'Desktop-only apps', 'Files, Text editor, Nova Agents, Command Center, Camera and Widgets — only in Nebulix OS.', ''],
+  ['book', 'Official apps in the Hub', 'Pixel Forge, Beat Lab, Flow Board, Sketch Board, Markdown Writer and Palette Lab, plus a new Hub home.', 'hub'],
   ['spark', 'Nebulix 14: a brand-new look', 'Floating glass, a living aurora, glowing markers and springy motion. The old look is one click away in Appearance.', 'look'],
   ['palette', 'Total makeovers', '13 one-click looks that change the design, menu, colours and screen effect at once.', 'look'],
   ['star', '7 new designs', 'Dev, Cyberpunk, Kawaii, Retro desktop, Bento, Holographic and Sketchbook.', 'look'],

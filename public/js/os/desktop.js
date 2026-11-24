@@ -14,6 +14,7 @@ import { miniPlayer } from '../pulse/mini.js';
 import * as P from '../pulse/engine.js';
 import { feedItem } from '../widgets/feed.js';
 import { pick2 } from '../i18n.js';
+import { mountWidgets } from './apps2.js';
 
 // [route, label, icon name, tile colour]
 export const APPS = [
@@ -22,11 +23,13 @@ export const APPS = [
   ['music', 'Pulse', 'music', '#8b5cf6'], ['dj', 'DJ mode', 'sliders', '#e11d48'], ['arcade', 'Arcade', 'gamepad', '#22c55e'], ['progress', 'Achievements', 'trophy', '#f59e0b'],
   ['casino', 'Casino', 'dice', '#ca8a04'], ['market', 'Market', 'bag', '#14b8a6'], ['wallet', 'Wallet', 'coins', '#eab308'], ['work', 'Work', 'clip', '#0ea5e9'], ['invest', 'Invest', 'chart', '#16a34a'], ['themes', 'Themes', 'palette', '#d946ef'], ['nova', 'Nova AI', 'spark', '#06b6d4'],
   ['nerd', 'Nerd Lab', 'flask', '#65a30d'], ['calc', 'Calculator', 'grid', '#64748b'], ['timer', 'Focus timer', 'clock', '#dc2626'], ['monitor', 'System monitor', 'activity', '#059669'],
+  ['files', 'Files', 'folder', '#f59e0b'], ['texted', 'Text editor', 'note', '#0ea5e9'], ['agents', 'Nova Agents', 'agents', '#a855f7'], ['command', 'Command Center', 'gauge', '#06b6d4'], ['widgets', 'Widgets', 'widget', '#ec4899'], ['camera', 'Camera', 'camera', '#475569'],
   ['ext', 'Extensions', 'puzzle', '#475569'], ['pro', 'PRO', 'crown', '#d97706'], ['profile', 'Profile', 'user', '#0891b2'], ['settings', 'Settings', 'gear', '#52525b'], ['admin', 'Admin', 'shield', '#047857'],
 ];
 const OS_ONLY = ['calc', 'timer', 'monitor'];
+const OS_ONLY2 = ['files', 'texted', 'agents', 'command', 'widgets', 'camera']; // 14.1: desktop-only apps (apps2.js)
 export const WALLPAPERS = [['os', 'System wallpaper', 'desktop'], ['theme', 'Theme background', 'palette'], ['stars', 'Starfield', 'star'], ['nebula', 'Nebula', 'spark'], ['aurora', 'Aurora', 'activity'], ['grid', 'Synthwave grid', 'grid'], ['particles', 'Particle network', 'share'], ['waves', 'Waves', 'activity'], ['matrix', 'Glyph rain', 'terminal'], ['bokeh', 'Bokeh lights', 'sun'], ['lava', 'Lava lamp', 'flask'], ['gradient', 'Gradient (static)', 'layers'], ['image', 'My image', 'image']];
-const DEFAULT_PINS = ['browse', 'chat', 'dm', 'music', 'arcade', 'themes', 'settings'];
+const DEFAULT_PINS = ['files', 'browse', 'chat', 'dm', 'music', 'agents', 'command', 'settings'];
 const G = { // system glyphs the app icon set does not have
   up: 'M6 15l6-6 6 6', right: 'M9 6l6 6-6 6', left: 'M15 6l-6 6 6 6', down: 'M6 9l6 6 6-6',
   battery: 'M3 8h15a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM22 11v2M5 10.5h9v3H5z',
@@ -62,21 +65,24 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     cats.push(['Tools', extra.map((a) => a[0])]);
   }
   const loaders = Object.assign({}, baseLoaders); for (const n of OS_ONLY) loaders[n] = () => import('./apps.js').then((m) => ({ default: m.OS_APPS[n] }));
+  for (const n of OS_ONLY2) loaders[n] = () => import('./apps2.js').then((m) => ({ default: m.OS_APPS2[n] }));
   const small = () => innerWidth < 760;
-  const os = () => Object.assign({ wallpaper: 'os', image: '', react: true, dim: 0, winStyle: 'win', dock: 'bottom', icons: true, widgets: false, restore: true }, (S.me.settings && S.me.settings.ui && S.me.settings.ui.os) || {});
+  const os = () => Object.assign({ wallpaper: 'os', image: '', react: true, dim: 0, winStyle: 'win', dock: 'bottom', icons: true, widgets: false, restore: true, glass: 0.72, blur: 22, wobbly: true, minFx: 'lamp', closeFx: 'burn', openFx: 'zoom', cube: true, hot: true }, (S.me.settings && S.me.settings.ui && S.me.settings.ui.os) || {});
   const style = () => (os().winStyle === 'linux' ? 'linux' : 'win');
   const lang = () => document.documentElement.lang || 'en';
   const wins = new Map(); let z = 10; let focused = null; const geo = ls('os.wins') || {};
   const saveGeo = debounce(() => ls('os.wins', geo), 300);
   const pinsOf = () => { const p = ls('os.pins'); return Array.isArray(p) ? p : DEFAULT_PINS; };
   let recent = Array.isArray(ls('os.recent')) ? ls('os.recent') : [];
+  const dwLayer = h('div.os-dwl'); const hotEl = h('div.os-hot', { onPointerenter: () => { if (os().hot && !tvEl) taskView(); } }); let curWs = 0; const WS_N = 4; const wsBar = h('div.os-wsbar');
   const wallEl = h('div.os-wall'); const winLayer = h('div.os-wins'); const iconsEl = h('div.os-icons'); const widgetsEl = h('aside.os-widgets'); const snapPrev = h('div.os-snap.hide');
   const taskApps = h('div.os-taskapps');
   const coin = h('span.coin#coinbar', { title: t('Your coins'), style: 'cursor:pointer', onClick: () => go('wallet') }, S.me.coins >= 1e9 ? '∞' : fmt.coins(S.me.coins));
   const bell = h('button.os-tbtn', { id: 'bell', 'aria-label': t('Announcements'), onClick: (e) => announcements(e.currentTarget) }, icon('bell', 16));
   const trayBox = h('div.os-traybox', miniPlayer(go, { compact: true }), coin, bell);
   const sysIcons = () => [icon('wifi', 16), icon('volume', 16), glyph(G.battery, 17)];
-  const sysMenu = (e) => openMenu([
+  const sysMenu = (e) => quickPanel(e, sysMenuOld);
+  const sysMenuOld = (e) => openMenu([
     { label: t('Desktop & wallpaper'), icon: 'image', onClick: wallpaperPicker }, { label: t('Settings'), icon: 'gear', onClick: () => go('settings') },
     { label: t('Tile open windows'), icon: 'layout', onClick: tileAll }, { label: t('Task view'), icon: 'layers', onClick: () => taskView() }, { label: t('Keyboard shortcuts'), icon: 'keyboard', onClick: () => shortcutsHelp() }, { hr: true },
     { label: t('Close desktop mode'), icon: 'power', onClick: () => shutdown() }, { label: t('Log out'), icon: 'logout', danger: true, onClick: logout },
@@ -88,17 +94,18 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   const tcenter = h('div.os-tcenter', startBtn, searchBtn, tvBtn());
   const winClock = h('button.os-clock', { onClick: (e) => { e.stopPropagation(); calendar(); } }, h('span'), h('span'));
   const wsDot = h('span.os-ws', { title: t('Realtime connection') });
-  const winTray = h('div.os-tray', h('button.os-tbtn.os-chev', { 'aria-label': t('Show hidden icons'), onClick: (e) => sysMenu(e) }, glyph(G.up, 14)), h('button.os-sys', { title: t('Quick settings'), onClick: (e) => sysMenu(e) }, sysIcons(), wsDot), winClock, h('button.os-peek', { title: t('Show desktop'), 'aria-label': t('Show desktop'), onClick: () => peek() }));
+  const winTray = h('div.os-tray', wsBar, h('button.os-tbtn.os-chev', { 'aria-label': t('Show hidden icons'), onClick: (e) => sysMenu(e) }, glyph(G.up, 14)), h('button.os-sys', { title: t('Quick settings'), onClick: (e) => sysMenu(e) }, sysIcons(), wsDot), winClock, h('button.os-peek', { title: t('Show desktop'), 'aria-label': t('Show desktop'), onClick: () => peek() }));
   const taskbar = h('footer.os-taskbar', h('div.os-tleft'), tcenter, winTray);
   // Dock style: top bar (Activities · clock · system menu) and the dock on the left with Show Apps at the bottom.
   const gClock = h('button.os-gclock', { onClick: (e) => { e.stopPropagation(); calendar(); } });
-  const gRight = h('div.os-gright', tvBtn(), h('button.os-gsys', { title: t('Quick settings'), onClick: (e) => sysMenu(e) }, sysIcons()));
+  const gRight = h('div.os-gright', wsBar.cloneNode ? h('span') : null, tvBtn(), h('button.os-gsys', { title: t('Quick settings'), onClick: (e) => sysMenu(e) }, sysIcons()));
   const gbar = h('header.os-gbar', h('button.os-gact', { onClick: (e) => { e.stopPropagation(); toggleStart(); } }, h('i'), h('span', t('Activities'))), gClock, gRight);
   const appsBtn = h('button.os-gapps', { title: t('Show apps'), 'aria-label': t('Show apps'), onClick: (e) => { e.stopPropagation(); toggleStart(); } }, glyph(G.dots, 26, { sw: 3 }));
   const gdock = h('nav.os-gdock', h('div.grow'), appsBtn);
   const startEl = h('div.os-startmenu.hide'); let calEl = null;
   const root = h('div.os-desktop', { onContextmenu: (e) => { if (e.target === root || e.target === winLayer || e.target === wallEl || e.target.closest('.os-icons') === iconsEl && !e.target.closest('.os-icon')) { e.preventDefault(); deskMenu(e); } } },
-    wallEl, iconsEl, widgetsEl, winLayer, snapPrev, gbar, gdock, startEl, taskbar);
+    wallEl, iconsEl, widgetsEl, dwLayer, winLayer, snapPrev, gbar, gdock, startEl, taskbar, hotEl);
+  const offWidgets = mountWidgets(dwLayer);
   root.classList.toggle('small', small());
   const quickAnim = () => document.documentElement.dataset.reduce === '1' || document.documentElement.dataset.anim === 'off';
   const bootMark = () => h('div.os-bootlogo', logoMark(84));
@@ -143,10 +150,14 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     if (done) e.preventDefault();
   };
   document.addEventListener('keydown', onKeys, true);
+  const onWsKeys = (e) => { if (!root.isConnected || !e.ctrlKey || !e.altKey) return; const k = e.key; if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); if (e.shiftKey && focused) { focused.ws = (curWs + (k === 'ArrowRight' ? 1 : WS_N - 1)) % WS_N; } switchWs((curWs + (k === 'ArrowRight' ? 1 : WS_N - 1)) % WS_N); } else if (/^[1-4]$/.test(k)) { e.preventDefault(); switchWs(Number(k) - 1); } };
+  document.addEventListener('keydown', onWsKeys, true);
   function peek() { const open = [...wins.values()].filter((w) => !w.min); if (open.length) open.forEach((w) => minimize(w)); else wins.forEach((w) => { w.min = false; w.el.classList.remove('min'); }); paintTask(); }
   function applyStyle() {
     const s = style(); root.classList.toggle('w11', s === 'win'); root.classList.toggle('gnome', s === 'linux'); root.classList.toggle('dock-top', s === 'win' && os().dock === 'top');
     if (s === 'win') { tcenter.appendChild(taskApps); winTray.prepend(trayBox); } else { gdock.prepend(taskApps); gRight.prepend(trayBox); }
+    const o = os(); root.style.setProperty('--osw-a', String(clamp(Number(o.glass) || 0.72, 0.35, 1))); root.style.setProperty('--osw-blur', clamp(Number(o.blur) || 0, 0, 40) + 'px'); root.classList.toggle('fxglass', Number(o.glass) < 0.99); root.classList.toggle('hotc', !!o.hot && s === 'linux');
+    if (s === 'linux') gRight.prepend(wsBar); else winTray.prepend(wsBar); paintWs();
     document.body.classList.add('os-mode'); document.body.classList.toggle('os-dock-top', s === 'win' && os().dock === 'top'); document.body.classList.toggle('os-gnome', s === 'linux');
   }
 
@@ -167,8 +178,8 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   function visibleApps() { return APPS.filter(([n]) => loaders[n] && (n !== 'admin' || isStaff())); }
   function paintIcons() {
     const o = os(); iconsEl.classList.toggle('hide', !o.icons);
-    const DESK = [...new Set(['home', 'games', 'worlds', 'browse', 'chat', 'dm', 'word', 'boss', 'music', 'wallet', 'drive', 'notes', 'calc', 'settings', ...pinsOf()])];
-    mount(iconsEl, visibleApps().filter(([n]) => DESK.includes(n)).slice(0, 18).map(([n, label]) => h('button.os-icon', { dataset: { app: n }, onDblclick: () => go(n), onClick: (ev) => { iconsEl.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); ev.currentTarget.classList.add('sel'); if (matchMedia('(pointer: coarse)').matches) go(n); }, onKeydown: (ev) => { if (ev.key === 'Enter') go(n); } },
+    const DESK = [...new Set(['files', 'home', 'games', 'worlds', 'browse', 'chat', 'dm', 'agents', 'command', 'camera', 'music', 'wallet', 'notes', 'calc', 'settings', ...pinsOf()])];
+    mount(iconsEl, visibleApps().filter(([n]) => DESK.includes(n)).sort((a, b) => DESK.indexOf(a[0]) - DESK.indexOf(b[0])).slice(0, 18).map(([n, label]) => h('button.os-icon', { dataset: { app: n }, onDblclick: () => go(n), onClick: (ev) => { iconsEl.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); ev.currentTarget.classList.add('sel'); if (matchMedia('(pointer: coarse)').matches) go(n); }, onKeydown: (ev) => { if (ev.key === 'Enter') go(n); } },
       tile(n, 26), h('span.os-il', t(label)))));
   }
 
@@ -211,7 +222,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     el.classList.remove('max'); el.style.cssText = `left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px;z-index:${win.z}`;
   }
   function focus(win) {
-    if (!win) return; if (win.min) restore(win);
+    if (!win) return; if (win.ws !== undefined && win.ws !== curWs) { switchWs(win.ws); } if (win.min) restore(win);
     win.z = ++z; win.el.style.zIndex = win.z;
     if (focused !== win) { if (focused) focused.el.classList.remove('focused'); focused = win; win.el.classList.add('focused'); }
     paintTask(); history.replaceState(null, '', win.hash || '#/' + win.name);
@@ -224,6 +235,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     const bar = h('div.os-titlebar', tile(win.name, 11, '.wi'), win.titleEl, h('div.grow'), buttons);
     bar.addEventListener('dblclick', (e) => { if (!e.target.closest('.os-wb')) toggleMax(win); });
     bar.addEventListener('pointerdown', (e) => startDrag(e, win));
+    bar.addEventListener('contextmenu', (e) => { e.preventDefault(); openMenu([{ label: t('Minimize'), icon: 'window', onClick: () => minimize(win) }, { label: win.g.max ? t('Restore size') : t('Maximize'), icon: 'fullscreen', onClick: () => toggleMax(win) }, { hr: true }, ...[0, 1, 2, 3].filter((i) => i !== win.ws).map((i) => ({ label: t('Move to desktop {n}', { n: i + 1 }), icon: 'layers', onClick: () => { win.ws = i; applyWs(); paintTask(); paintWs(); } })), { hr: true }, { label: t('Close'), icon: 'x', danger: true, onClick: () => close(win) }], e); });
     return bar;
   }
   async function open(name, r) {
@@ -237,12 +249,12 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
       return win;
     }
     const [, label, emoji] = appOf(name);
-    win = { name, title: t(label), z: ++z, g: Object.assign(defGeo(name), geo[name] || {}), min: false, hash: '#/' + name };
+    win = { name, ws: curWs, title: t(label), z: ++z, g: Object.assign(defGeo(name), geo[name] || {}), min: false, hash: '#/' + name };
     recent = [name, ...recent.filter((x) => x !== name)].slice(0, 6); ls('os.recent', recent);
     const body = h('div.os-body'); win.body = body;
     win.el = h('section.os-win', { dataset: { app: name }, onPointerdown: () => focus(win) }, chrome(win, t(label), emoji), body, ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map((d) => h('span.os-rz.' + d, { onPointerdown: (e) => startResize(e, win, d) })));
     wins.set(name, win); winLayer.appendChild(win.el); place(win); focus(win); saveSession();
-    win.el.animate([{ opacity: 0, transform: 'scale(.92)' }, { opacity: 1, transform: 'none' }], { duration: 180 * animK(), easing: 'cubic-bezier(.1,.9,.2,1)' });
+    win.el.animate(OPEN_FX[os().openFx] || OPEN_FX.zoom, { duration: (os().openFx === 'glide' ? 320 : 260) * animK(), easing: 'cubic-bezier(.2,.9,.25,1.15)' });
     await remount(win, ctx);
     return win;
   }
@@ -260,18 +272,66 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   function close(win) {
     if (win.cleanup) { try { win.cleanup(); } catch (e) { console.error(e); } }
     const el = win.el; wins.delete(win.name); if (focused === win) focused = null; saveSession();
-    el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.95)' }], { duration: 150 * animK() }).onfinish = () => el.remove();
+    const cfx = os().closeFx; el.style.pointerEvents = 'none';
+    el.animate(cfx === 'burn' ? [{ opacity: 1, filter: 'none', clipPath: 'inset(0 0 0 0)', boxShadow: '0 0 0 0 #ff7a18' }, { offset: .35, filter: 'sepia(1) saturate(5) hue-rotate(-25deg) brightness(1.5)', clipPath: 'inset(0 0 12% 0)', boxShadow: '0 30px 60px -10px #ff5a00' }, { opacity: 0, filter: 'sepia(1) saturate(6) hue-rotate(-35deg) brightness(2) blur(3px)', clipPath: 'inset(0 0 100% 0)', transform: 'translateY(-14px)' }]
+      : cfx === 'implode' ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.2) rotate(8deg)', filter: 'blur(6px)' }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.95)' }], { duration: (cfx === 'burn' ? 620 : cfx === 'implode' ? 300 : 150) * animK(), easing: 'ease-in' }).onfinish = () => el.remove();
     const next = [...wins.values()].filter((w) => !w.min).sort((a, b) => b.z - a.z)[0]; if (next) focus(next); else { history.replaceState(null, '', '#/desktop'); document.title = 'Nebulix OS'; }
     paintTask();
   }
   function minimize(win) {
-    win.min = true; win.el.classList.add('min'); if (win.mod && win.mod.deactivate) try { win.mod.deactivate(); } catch {}
+    win.min = true; lamp(win, false, () => win.min && win.el.classList.add('min')); if (win.mod && win.mod.deactivate) try { win.mod.deactivate(); } catch {}
     if (focused === win) { win.el.classList.remove('focused'); focused = null; const next = [...wins.values()].filter((w) => !w.min).sort((a, b) => b.z - a.z)[0]; if (next) focus(next); }
     paintTask();
   }
-  function restore(win) { win.min = false; win.el.classList.remove('min'); if (win.mod && win.mod.activate) try { win.mod.activate({ params: [], query: new URLSearchParams(), go, setTitle: (s) => setTitle(win.name, s) }); } catch {} }
+  function restore(win) { win.min = false; win.el.classList.remove('min'); lamp(win, true); if (win.mod && win.mod.activate) try { win.mod.activate({ params: [], query: new URLSearchParams(), go, setTitle: (s) => setTitle(win.name, s) }); } catch {} }
   function toggleMax(win) { win.g.max = !win.g.max; win.g.snap = null; place(win); geo[win.name] = win.g; saveGeo(); }
   const animK = () => (document.documentElement.dataset.reduce === '1' || document.documentElement.dataset.anim === 'off' ? 0.01 : document.documentElement.dataset.anim === 'extra' ? 1.4 : 1);
+
+  // ---------- 14.1 effects ----------
+  const OPEN_FX = {
+    zoom: [{ opacity: 0, transform: 'scale(.86)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'none' }],
+    glide: [{ opacity: 0, transform: 'translateY(40px) rotateX(18deg)', transformOrigin: '50% 100%' }, { opacity: 1, transform: 'none' }],
+    pop: [{ opacity: 0, transform: 'scale(.5)' }, { opacity: 1, transform: 'scale(1.04)', offset: .7 }, { transform: 'none' }],
+  };
+  // "magic lamp": the window pours into its taskbar button (and back out when restored)
+  function lamp(win, back, done) {
+    const el = win.el; const k = animK(); if (os().minFx === 'none' || k < 0.05) { if (done) done(); return; }
+    const btn = taskApps.querySelector('.os-task[data-app="' + win.name + '"]'); const r = el.getBoundingClientRect(); const b = btn ? btn.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight, width: 0, height: 0 };
+    const dx = b.left + b.width / 2 - (r.left + r.width / 2); const dy = b.top + b.height / 2 - (r.top + r.height / 2);
+    const fx = os().minFx === 'scale' ? [{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.05)`, opacity: 0 }]
+      : [{ transform: 'none', opacity: 1, clipPath: 'polygon(0 0,100% 0,100% 100%,0 100%)' }, { offset: .45, transform: `translate(${dx * .35}px,${dy * .5}px) scale(.7,.85)`, clipPath: 'polygon(0 0,100% 0,70% 100%,30% 100%)', opacity: .95 }, { transform: `translate(${dx}px,${dy}px) scale(.06,.04)`, clipPath: 'polygon(0 0,100% 0,52% 100%,48% 100%)', opacity: 0 }];
+    el.style.display = 'flex'; const a = el.animate(back ? fx.slice().reverse() : fx, { duration: 420 * k, easing: back ? 'cubic-bezier(.2,.9,.3,1)' : 'cubic-bezier(.55,0,.8,.4)' });
+    a.onfinish = () => { el.style.display = ''; if (done) done(); };
+  }
+  // virtual desktops ("workspaces") with a cube or slide transition
+  function applyWs() { for (const w of wins.values()) w.el.classList.toggle('ows-hide', w.ws !== curWs); }
+  function paintWs() { mount(wsBar, Array.from({ length: WS_N }, (_, i) => { const n = [...wins.values()].filter((w) => w.ws === i).length; return h('button.os-wsb' + (i === curWs ? '.on' : ''), { title: t('Desktop {n}', { n: i + 1 }) + ' (Ctrl+Alt+' + (i + 1) + ')', onClick: (e) => { e.stopPropagation(); switchWs(i); } }, String(i + 1), n ? h('i', String(n)) : null); })); }
+  let wsBusy = false;
+  function switchWs(i) {
+    if (i === curWs || wsBusy) return; const dir = i > curWs ? 1 : -1; const k = animK(); const cube = os().cube !== false && k > 0.05;
+    const swap = () => { curWs = i; applyWs(); paintWs(); paintTask(); const top = [...wins.values()].filter((w) => w.ws === curWs && !w.min).sort((a, b) => b.z - a.z)[0]; if (top && focused !== top) { if (focused) focused.el.classList.remove('focused'); focused = top; top.el.classList.add('focused'); } else if (!top && focused) { focused.el.classList.remove('focused'); focused = null; } };
+    if (k < 0.05) return swap(); wsBusy = true; winLayer.classList.add('ws-anim'); const D = 260 * k;
+    const out = cube ? [{ transform: 'perspective(1600px) rotateY(0deg)', opacity: 1 }, { transform: `perspective(1600px) translateZ(-260px) rotateY(${-dir * 90}deg)`, opacity: .2 }] : [{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * 40}%)`, opacity: 0 }];
+    const inn = cube ? [{ transform: `perspective(1600px) translateZ(-260px) rotateY(${dir * 90}deg)`, opacity: .2 }, { transform: 'perspective(1600px) rotateY(0deg)', opacity: 1 }] : [{ transform: `translateX(${dir * 40}%)`, opacity: 0 }, { transform: 'none', opacity: 1 }];
+    winLayer.style.transformOrigin = dir > 0 ? '100% 50%' : '0% 50%';
+    winLayer.animate(out, { duration: D, easing: 'cubic-bezier(.5,0,.75,0)' }).onfinish = () => { swap(); winLayer.style.transformOrigin = dir > 0 ? '0% 50%' : '100% 50%'; winLayer.animate(inn, { duration: D, easing: 'cubic-bezier(.25,1,.5,1)' }).onfinish = () => { winLayer.classList.remove('ws-anim'); winLayer.style.transformOrigin = ''; wsBusy = false; }; };
+    const toast1 = h('div.os-wstoast', t('Desktop {n}', { n: i + 1 })); root.appendChild(toast1); setTimeout(() => toast1.remove(), 1100);
+  }
+  // quick settings: a glass panel with transparency, effects, workspaces and the old menu items
+  let qpEl = null;
+  function quickPanel(e, fallback) {
+    if (qpEl) { qpEl.remove(); qpEl = null; return; } const o = os();
+    const tog = (key, label, ic) => h('button.os-qt' + (o[key] ? '.on' : ''), { onClick: () => { saveOs({ [key]: !o[key] }); qpEl.remove(); qpEl = null; quickPanel(e, fallback); } }, icon(ic, 18), h('span', label));
+    const slider = (key, label, min, max, step, show) => { const out = h('b', show(o[key])); return h('label.os-qs', h('span', label), h('input', { type: 'range', min, max, step, value: o[key], onInput: (ev) => { out.textContent = show(Number(ev.target.value)); root.style.setProperty(key === 'glass' ? '--osw-a' : '--osw-blur', key === 'glass' ? ev.target.value : ev.target.value + 'px'); root.classList.toggle('fxglass', key !== 'glass' || Number(ev.target.value) < 0.99); }, onChange: (ev) => saveOs({ [key]: Number(ev.target.value) }) }), out); };
+    const sel = (key, label, opts) => h('label.os-qs', h('span', label), h('select.select.sm', { onChange: (ev) => saveOs({ [key]: ev.target.value }) }, opts.map(([v, l]) => h('option', { value: v, selected: o[key] === v }, t(l)))));
+    qpEl = h('div.os-quick', { onClick: (ev) => ev.stopPropagation() },
+      h('div.os-qgrid', tog('wobbly', t('Wobbly windows'), 'activity'), tog('cube', t('Desktop cube'), 'cube'), tog('hot', t('Hot corner'), 'target'), tog('widgets', t('Side widgets'), 'layout')),
+      slider('glass', t('Window opacity'), 0.35, 1, 0.01, (v) => Math.round(v * 100) + '%'), slider('blur', t('Glass blur'), 0, 40, 1, (v) => v + ' px'),
+      sel('openFx', t('Open effect'), [['zoom', 'Zoom'], ['glide', 'Glide'], ['pop', 'Pop']]), sel('minFx', t('Minimize effect'), [['lamp', 'Magic lamp'], ['scale', 'Scale'], ['none', 'None']]), sel('closeFx', t('Close effect'), [['burn', 'Burn'], ['implode', 'Implode'], ['fade', 'Fade']]),
+      h('div.os-qws', h('span', t('Desktops')), Array.from({ length: WS_N }, (_, i) => h('button' + (i === curWs ? '.on' : ''), { onClick: () => { switchWs(i); qpEl.remove(); qpEl = null; } }, String(i + 1)))),
+      h('div.os-qrow', h('button.btn.sm', { onClick: () => { qpEl.remove(); qpEl = null; go('widgets'); } }, icon('widget', 14), t('Widgets')), h('button.btn.sm', { onClick: () => { qpEl.remove(); qpEl = null; wallpaperPicker(); } }, icon('image', 14), t('Wallpaper')), h('button.btn.sm.ghost', { onClick: (ev) => { qpEl.remove(); qpEl = null; fallback(ev); } }, icon('more', 14), t('More'))));
+    root.appendChild(qpEl); const close1 = () => { if (qpEl) { qpEl.remove(); qpEl = null; } document.removeEventListener('pointerdown', close1); }; setTimeout(() => document.addEventListener('pointerdown', close1), 0);
+  }
 
   // drag + snap
   function area() { const r = winLayer.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }
@@ -291,10 +351,12 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
       const dx = ev.clientX - sx, dy = ev.clientY - sy; if (!moved && Math.hypot(dx, dy) < 4) return;
       if (!moved) { moved = true; root.appendChild(blocker); win.g = Object.assign({}, g0, { max: false, snap: null }); win.el.classList.add('dragging'); }
       win.g.x = clamp(g0.x + dx, -win.g.w + 80, a.w - 80); win.g.y = clamp(g0.y + dy, 0, a.h - 30); place(win);
+      if (os().wobbly && animK() > 0.05) { const vx = ev.clientX - (mv.lx ?? ev.clientX), vy = ev.clientY - (mv.ly ?? ev.clientY); mv.lx = ev.clientX; mv.ly = ev.clientY; mv.sk = (mv.sk || 0) * 0.7 + clamp(-vx * 0.45, -9, 9) * 0.3; mv.sy = (mv.sy || 0) * 0.7 + clamp(vy * 0.004, -0.04, 0.04) * 0.3; win.el.style.transform = `skewX(${mv.sk.toFixed(2)}deg) scale(${(1 + Math.abs(mv.sk) * 0.004).toFixed(3)}, ${(1 - mv.sy).toFixed(3)})`; win.el.style.transformOrigin = `${((sx - win.el.getBoundingClientRect().left) / Math.max(1, win.g.w) * 100).toFixed(0)}% 0`; }
       zone = snapZone(ev.clientX, ev.clientY); if (zone) { snapPrev.classList.remove('hide'); const zz = zone.max ? { x: 0, y: 0, w: a.w, h: a.h } : zone; snapPrev.style.cssText = `left:${zz.x + a.x}px;top:${zz.y + a.y}px;width:${zz.w}px;height:${zz.h}px`; } else snapPrev.classList.add('hide');
     };
     const up = () => {
       document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); blocker.remove(); snapPrev.classList.add('hide'); win.el.classList.remove('dragging');
+      if (mv.sk) { const k = mv.sk; win.el.style.transform = ''; win.el.animate([{ transform: `skewX(${k}deg)` }, { transform: `skewX(${-k * 0.5}deg)` }, { transform: `skewX(${k * 0.25}deg)` }, { transform: 'none' }], { duration: 520, easing: 'ease-out' }); mv.sk = 0; } else win.el.style.transform = '';
       if (!moved) return;
       if (zone) { const pre = { w: win.g.w, h: win.g.h }; if (zone.max) win.g = Object.assign(win.g, { max: true, pre }); else win.g = Object.assign({}, win.g, { x: zone.x, y: zone.y, w: zone.w, h: zone.h, snap: true, pre }); }
       place(win); geo[win.name] = win.g; saveGeo();
@@ -322,7 +384,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     const pins = pinsOf().filter(allowed); const names = [...pins, ...[...wins.keys()].filter((n) => !pins.includes(n))];
     mount(taskApps, names.map((n) => {
       const w = wins.get(n); const label = w ? w.title : t(appOf(n)[1]);
-      return h('button.os-task' + (w ? '.run' : '') + (w && focused === w ? '.on' : '') + (w && w.min ? '.minned' : ''), { title: label, 'aria-label': label,
+      return h('button.os-task' + (w ? '.run' : '') + (w && focused === w ? '.on' : '') + (w && w.min ? '.minned' : '') + (w && w.ws !== curWs ? '.otherws' : ''), { title: label, 'aria-label': label, dataset: { app: n },
         onClick: () => { if (!w) return go(n); if (focused === w && !w.min) minimize(w); else focus(w); },
         onContextmenu: (ev) => { ev.preventDefault(); const pinned = pinsOf().includes(n); openMenu([
           w ? { label: w.min ? t('Restore') : t('Minimize'), icon: 'window', onClick: () => (w.min ? focus(w) : minimize(w)) } : { label: t('Open'), icon: 'external', onClick: () => go(n) },
@@ -436,14 +498,14 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   applyWall(); paintIcons(); paintWidgets(); paintTask(); tickClock(); loadProg(); loadLive(); boot();
   const liveT = setInterval(() => { if (os().widgets) loadLive(); }, 60000);
   api.post('/api/progress/event', { type: 'os' }, { quiet: true }).catch(() => {});
-  const restoreSession = (skip) => { if (os().restore === false) return; for (const n of (ls('os.session') || []).slice(0, 6)) if (n !== skip && loaders[n] && (n !== 'admin' || isStaff())) open(n, { params: [], query: new URLSearchParams() }); };
+  const restoreSession = (skip) => { if (os().restore === false) return; for (const n of (ls('os.session') || []).filter((x) => x !== 'camera').slice(0, 6)) if (n !== skip && loaders[n] && (n !== 'admin' || isStaff())) open(n, { params: [], query: new URLSearchParams() }); };
   const saveSession = debounce(() => ls('os.session', [...wins.keys()]), 500);
   return {
     el: root, open, wins,
     route(name, r) { if (name === 'desktop') { toggleStart(false); return; } if (!loaders[name] || (name === 'admin' && !isStaff())) name = 'home'; return open(name, r); },
     restore: restoreSession,
     focusedName: () => (focused ? focused.name : null),
-    destroy() { document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
+    destroy() { try { offWidgets(); } catch {} document.removeEventListener('keydown', onWsKeys, true); document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
     refresh() { applyWall(); paintIcons(); paintWidgets(); },
   };
 }

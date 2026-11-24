@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow Board</title>
+<style>
+:root{--bg:#0b1020;--c:#121a33;--t:#e8eeff;--m:#8d9ac0;--a:#4f8cff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(160deg,#0b1020,#151036);color:var(--t);font:14px system-ui,sans-serif;padding:18px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}h1{margin:0;font-size:22px}h1 span{color:var(--a)}
+input,button{font:inherit;color:var(--t);background:#ffffff10;border:1px solid #ffffff1f;border-radius:10px;padding:8px 12px}button{cursor:pointer}button:hover{background:#ffffff1c}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.col{background:color-mix(in srgb,var(--c) 80%,transparent);border:1px solid #ffffff14;border-radius:16px;padding:12px;min-height:300px;backdrop-filter:blur(8px);transition:background .2s}
+.col.over{background:#1d2a55}.col h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--m);margin:0 0 10px;display:flex;justify-content:space-between}
+.card{background:#ffffff0d;border:1px solid #ffffff17;border-left:4px solid var(--k,#4f8cff);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:grab;animation:in .25s ease;position:relative}
+.card:active{cursor:grabbing}.card.drag{opacity:.4}.card p{margin:0;white-space:pre-wrap;word-break:break-word}.card small{color:var(--m)}
+.card .x{position:absolute;top:6px;right:6px;border:0;background:none;padding:2px 6px;opacity:0;color:var(--m)}.card:hover .x{opacity:1}
+.dots{display:flex;gap:5px;margin-top:6px}.dots i{width:12px;height:12px;border-radius:50%;cursor:pointer;border:1px solid #fff4}
+.add{width:100%;border-style:dashed;color:var(--m)}@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.bar{height:6px;border-radius:6px;background:#ffffff14;overflow:hidden;flex:1;min-width:120px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--a),#22d3ee);transition:width .4s}
+</style></head><body>
+<header><h1>Flow <span>Board</span></h1><input id="q" placeholder="Search cards…"><div class="bar"><i id="prog"></i></div><span id="pct" style="color:var(--m)"></span></header>
+<div class="cols" id="cols"></div>
+<script>
+const COLS=[['todo','To do'],['doing','Doing'],['review','Review'],['done','Done']];const K=['#4f8cff','#22c55e','#f59e0b','#ef4444','#a855f7'];
+let cards;try{cards=JSON.parse(localStorage.getItem('fb.cards'))}catch{}if(!cards)cards=[{id:1,col:'todo',text:'Drag me to another column',k:K[0],at:Date.now()},{id:2,col:'doing',text:'Double-click a card to edit it',k:K[2],at:Date.now()},{id:3,col:'done',text:'Your board is saved automatically',k:K[1],at:Date.now()}];
+const save=()=>localStorage.setItem('fb.cards',JSON.stringify(cards));let dragId=null;const q=document.getElementById('q');q.oninput=paint;
+function paint(){const root=document.getElementById('cols');root.innerHTML='';const s=q.value.toLowerCase();
+COLS.forEach(([c,n])=>{const col=document.createElement('section');col.className='col';const list=cards.filter((x)=>x.col===c&&(!s||x.text.toLowerCase().includes(s)));col.innerHTML=`<h2>${n}<span>${list.length}</span></h2>`;
+col.ondragover=(e)=>{e.preventDefault();col.classList.add('over')};col.ondragleave=()=>col.classList.remove('over');col.ondrop=()=>{col.classList.remove('over');const it=cards.find((x)=>x.id===dragId);if(it){it.col=c;it.at=Date.now();save();paint()}};
+list.forEach((it)=>{const d=document.createElement('div');d.className='card';d.draggable=true;d.style.setProperty('--k',it.k);d.innerHTML=`<p></p><small>${new Date(it.at).toLocaleDateString()}</small><button class="x" title="Delete">✕</button><div class="dots">${K.map((k)=>`<i style="background:${k}" data-k="${k}"></i>`).join('')}</div>`;d.querySelector('p').textContent=it.text;
+d.ondragstart=()=>{dragId=it.id;d.classList.add('drag')};d.ondragend=()=>d.classList.remove('drag');d.querySelector('.x').onclick=()=>{cards=cards.filter((x)=>x!==it);save();paint()};
+d.querySelectorAll('.dots i').forEach((i)=>i.onclick=()=>{it.k=i.dataset.k;save();paint()});d.ondblclick=()=>{const v=prompt('Edit card',it.text);if(v!==null&&v.trim()){it.text=v.trim();save();paint()}};col.append(d)});
+const add=document.createElement('button');add.className='add';add.textContent='+ Add a card';add.onclick=()=>{const v=prompt('New card');if(v&&v.trim()){cards.push({id:Date.now(),col:c,text:v.trim(),k:K[cards.length%K.length],at:Date.now()});save();paint()}};col.append(add);root.append(col)});
+const done=cards.filter((x)=>x.col==='done').length,p=cards.length?Math.round(done/cards.length*100):0;document.getElementById('prog').style.width=p+'%';document.getElementById('pct').textContent=p+'% done'}
+paint();
+</script></body></html>

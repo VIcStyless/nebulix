@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Markdown Writer</title>
+<style>
+:root{--bg:#101014;--p:#17171d;--t:#e9e9ee;--m:#8a8a99;--a:#f59e0b}
+body.light{--bg:#faf8f3;--p:#ffffff;--t:#1c1b19;--m:#77736a}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--t);font:15px system-ui,sans-serif;transition:background .3s,color .3s}
+header{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #8883;flex-wrap:wrap}header b{font-size:16px;margin-right:auto}header b span{color:var(--a)}
+button,select{font:inherit;color:var(--t);background:transparent;border:1px solid #8885;border-radius:8px;padding:6px 10px;cursor:pointer}button:hover{border-color:var(--a)}
+main{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}main.focus{grid-template-columns:1fr}main.focus #out{display:none}
+textarea{resize:none;border:0;outline:0;background:var(--bg);color:var(--t);font:15px/1.7 ui-monospace,Menlo,Consolas,monospace;padding:28px max(28px,calc(50% - 360px));border-right:1px solid #8883}
+#out{overflow:auto;padding:28px 40px;background:var(--p);line-height:1.7}#out h1,#out h2{border-bottom:1px solid #8883;padding-bottom:4px}#out code{background:#8882;border-radius:4px;padding:1px 5px}
+#out pre{background:#8881;padding:12px;border-radius:8px;overflow:auto}#out blockquote{border-left:4px solid var(--a);margin:0;padding-left:14px;color:var(--m)}#out a{color:var(--a)}
+footer{display:flex;gap:16px;padding:6px 14px;color:var(--m);font-size:12px;border-top:1px solid #8883}
+@media(max-width:700px){main{grid-template-columns:1fr}#out{display:none}main.prev textarea{display:none}main.prev #out{display:block}}
+</style></head><body>
+<header><b>Markdown <span>Writer</span></b><select id="docs"></select><button id="new">+ New</button><button id="focus">Focus</button><button id="theme">☀︎/☾</button><button id="dl">Download .md</button><button id="del">Delete</button></header>
+<main id="main"><textarea id="ed" spellcheck="true"></textarea><article id="out"></article></main>
+<footer><span id="wc"></span><span id="rt"></span><span id="sv">Saved</span></footer>
+<script>
+const $=(s)=>document.querySelector(s);let docs;try{docs=JSON.parse(localStorage.getItem('mw.docs'))}catch{}
+if(!docs||!docs.length)docs=[{id:1,text:'# Welcome to Markdown Writer\n\nWrite on the left, see it on the right.\n\n## What works\n- **bold**, *italic*, `code` and [links](https://example.com)\n- lists, > quotes and code blocks\n\n> Everything is saved in your browser automatically.\n\n```\nconsole.log("hello")\n```\n'}];
+let cur=docs[0].id;const esc=(s)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function inl(s){return esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\*([^*]+)\*/g,'<i>$1</i>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')}
+function md(src){const L=src.split('\n');let o='',i=0;while(i<L.length){let l=L[i];if(/^```/.test(l)){let c='';i++;while(i<L.length&&!/^```/.test(L[i]))c+=esc(L[i++])+'\n';i++;o+='<pre><code>'+c+'</code></pre>';continue}
+let m=/^(#{1,6})\s+(.*)/.exec(l);if(m){o+=`<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`;i++;continue}if(/^>\s?/.test(l)){let q='';while(i<L.length&&/^>\s?/.test(L[i]))q+=inl(L[i++].replace(/^>\s?/,''))+' ';o+='<blockquote>'+q+'</blockquote>';continue}
+if(/^\s*[-*]\s+/.test(l)){o+='<ul>';while(i<L.length&&/^\s*[-*]\s+/.test(L[i]))o+='<li>'+inl(L[i++].replace(/^\s*[-*]\s+/,''))+'</li>';o+='</ul>';continue}
+if(/^\s*\d+\.\s+/.test(l)){o+='<ol>';while(i<L.length&&/^\s*\d+\.\s+/.test(L[i]))o+='<li>'+inl(L[i++].replace(/^\s*\d+\.\s+/,''))+'</li>';o+='</ol>';continue}
+if(/^---+$/.test(l.trim())){o+='<hr>';i++;continue}if(!l.trim()){i++;continue}let p=[];while(i<L.length&&L[i].trim()&&!/^(#|>|```|\s*[-*]\s|\s*\d+\.\s)/.test(L[i]))p.push(inl(L[i++]));o+='<p>'+p.join('<br>')+'</p>'}return o}
+const doc=()=>docs.find((d)=>d.id===cur);let t=0;
+function render(){const tx=$('#ed').value;$('#out').innerHTML=md(tx);const w=(tx.match(/\S+/g)||[]).length;$('#wc').textContent=w+' words · '+tx.length+' characters';$('#rt').textContent=Math.max(1,Math.round(w/200))+' min read'}
+function list(){$('#docs').innerHTML=docs.map((d)=>`<option value="${d.id}" ${d.id===cur?'selected':''}>${esc((d.text.split('\n')[0]||'Untitled').replace(/^#+\s*/,'').slice(0,40)||'Untitled')}</option>`).join('')}
+function open(id){cur=id;$('#ed').value=doc().text;render();list()}
+$('#ed').oninput=()=>{doc().text=$('#ed').value;render();$('#sv').textContent='Saving…';clearTimeout(t);t=setTimeout(()=>{localStorage.setItem('mw.docs',JSON.stringify(docs));$('#sv').textContent='Saved';list()},400)};
+$('#docs').onchange=(e)=>open(+e.target.value);$('#new').onclick=()=>{const d={id:Date.now(),text:'# Untitled\n\n'};docs.unshift(d);open(d.id);$('#ed').focus()};
+$('#del').onclick=()=>{if(docs.length<2||!confirm('Delete this document?'))return;docs=docs.filter((d)=>d.id!==cur);localStorage.setItem('mw.docs',JSON.stringify(docs));open(docs[0].id)};
+$('#focus').onclick=()=>$('#main').classList.toggle('focus');$('#theme').onclick=()=>{document.body.classList.toggle('light');localStorage.setItem('mw.light',document.body.classList.contains('light')?'1':'')};
+$('#dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('#ed').value],{type:'text/markdown'}));a.download='document.md';a.click()};
+if(localStorage.getItem('mw.light'))document.body.classList.add('light');
+$('#ed').addEventListener('keydown',(e)=>{if(e.key==='Tab'){e.preventDefault();const a=e.target.selectionStart;e.target.setRangeText('  ',a,a,'end');e.target.dispatchEvent(new Event('input'))}});open(cur);
+</script></body></html>

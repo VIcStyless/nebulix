@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pixel Forge</title>
+<style>
+:root{--bg:#0d0b1a;--p:#171430;--p2:#221d45;--t:#ece9ff;--m:#9b94d1;--a:#8b7bff;--a2:#3ee6c4}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:grid;grid-template-columns:64px 1fr 220px;background:radial-gradient(circle at 30% 0,#24195a,var(--bg) 60%);color:var(--t);font:14px system-ui,sans-serif;overflow:hidden}
+.tools,.side{background:color-mix(in srgb,var(--p) 85%,transparent);backdrop-filter:blur(10px);padding:10px;display:flex;flex-direction:column;gap:8px;border-right:1px solid #ffffff14}
+.side{border-left:1px solid #ffffff14;border-right:0}
+button{font:inherit;color:var(--t);background:var(--p2);border:1px solid #ffffff1a;border-radius:10px;padding:8px;cursor:pointer;transition:transform .15s,background .15s}
+button:hover{transform:translateY(-1px);background:#2e2760}button.on{background:linear-gradient(135deg,var(--a),var(--a2));color:#0b0a18;font-weight:700}
+.tools button{width:44px;height:44px;font-size:18px;padding:0}
+main{display:grid;place-items:center;position:relative}
+canvas{image-rendering:pixelated;border-radius:8px;box-shadow:0 30px 80px -20px #000,0 0 0 1px #ffffff22;background:repeating-conic-gradient(#ffffff10 0 25%,transparent 0 50%) 0 0/16px 16px;cursor:crosshair;touch-action:none}
+.pal{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}.pal i{aspect-ratio:1;border-radius:6px;cursor:pointer;border:2px solid transparent}.pal i.on{border-color:#fff;transform:scale(1.1)}
+h1{font-size:15px;margin:0 0 4px;background:linear-gradient(90deg,var(--a),var(--a2));-webkit-background-clip:text;color:transparent}
+label{font-size:12px;color:var(--m);display:flex;justify-content:space-between;align-items:center;gap:6px}input[type=color]{width:100%;height:34px;border:0;background:none}
+.row{display:flex;gap:6px;flex-wrap:wrap}.row button{flex:1}#prev{width:100%;image-rendering:pixelated;border-radius:8px;background:#0006}
+.hint{position:absolute;bottom:10px;color:var(--m);font-size:12px}
+</style></head><body>
+<div class="tools" id="tools"></div>
+<main><canvas id="cv"></canvas><div class="hint">B pencil · E eraser · G fill · I picker · M mirror · Ctrl+Z undo</div></main>
+<div class="side"><h1>Pixel Forge</h1>
+<label>Size <select id="size"><option>16</option><option selected>32</option><option>48</option><option>64</option></select></label>
+<input type="color" id="color" value="#8b7bff"><div class="pal" id="pal"></div>
+<label><span>Grid lines</span><input type="checkbox" id="grid" checked></label>
+<label><span>Mirror X</span><input type="checkbox" id="mirror"></label>
+<div class="row"><button id="undo">↶ Undo</button><button id="redo">↷ Redo</button></div>
+<div class="row"><button id="clear">Clear</button><button id="png">Export PNG</button></div>
+<canvas id="prev"></canvas><div style="font-size:11px;color:var(--m)">Your drawing is saved automatically.</div></div>
+<script>
+const $=(s)=>document.querySelector(s);const cv=$('#cv'),g=cv.getContext('2d');let N=32,px=[],tool='pen',col='#8b7bff',hist=[],fut=[],down=false;
+const PAL=['#000000','#ffffff','#8b7bff','#3ee6c4','#ff5fa8','#ffd166','#ef476f','#06d6a0','#118ab2','#073b4c','#f4a261','#e76f51','#264653','#2a9d8f','#e9c46a','#b5838d','#6d597a','#355070'];
+const TOOLS=[['pen','✏️'],['erase','🧽'],['fill','🪣'],['pick','💧'],['line','📏'],['rect','⬛']];
+function load(){try{const s=JSON.parse(localStorage.getItem('pf.doc')||'null');if(s&&s.px){N=s.n;px=s.px;$('#size').value=N;return}}catch{}px=Array(N*N).fill(null)}
+function save(){localStorage.setItem('pf.doc',JSON.stringify({n:N,px}))}
+function fit(){const m=Math.min(innerWidth-300,innerHeight-60);const s=Math.max(4,Math.floor(m/N));cv.width=cv.height=N*s;cv.dataset.s=s;draw()}
+function draw(){const s=+cv.dataset.s;g.clearRect(0,0,cv.width,cv.height);for(let i=0;i<N*N;i++)if(px[i]){g.fillStyle=px[i];g.fillRect(i%N*s,Math.floor(i/N)*s,s,s)}
+if($('#grid').checked&&s>6){g.strokeStyle='#ffffff14';g.beginPath();for(let i=1;i<N;i++){g.moveTo(i*s,0);g.lineTo(i*s,cv.height);g.moveTo(0,i*s);g.lineTo(cv.width,i*s)}g.stroke()}
+const p=$('#prev');p.width=p.height=N;const pg=p.getContext('2d');pg.clearRect(0,0,N,N);px.forEach((c,i)=>{if(c){pg.fillStyle=c;pg.fillRect(i%N,Math.floor(i/N),1,1)}})}
+const snap=()=>{hist.push(px.slice());if(hist.length>80)hist.shift();fut=[]};
+function set(x,y,c){if(x<0||y<0||x>=N||y>=N)return;px[y*N+x]=c;if($('#mirror').checked)px[y*N+(N-1-x)]=c}
+function fill(x,y,c){const t=px[y*N+x];if(t===c)return;const st=[[x,y]];while(st.length){const[a,b]=st.pop();if(a<0||b<0||a>=N||b>=N||px[b*N+a]!==t)continue;px[b*N+a]=c;st.push([a+1,b],[a-1,b],[a,b+1],[a,b-1])}}
+function line(x0,y0,x1,y1,c){const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;for(;;){set(x0,y0,c);if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx}if(e2<=dx){e+=dx;y0+=sy}}}
+const cell=(e)=>{const r=cv.getBoundingClientRect(),s=r.width/N;return[Math.floor((e.clientX-r.left)/s),Math.floor((e.clientY-r.top)/s)]};let start=null,base=null,last=null;
+cv.onpointerdown=(e)=>{cv.setPointerCapture(e.pointerId);const[x,y]=cell(e);down=true;snap();start=[x,y];base=px.slice();last=[x,y];
+if(tool==='fill'){fill(x,y,col);down=false}else if(tool==='pick'){const c=px[y*N+x];if(c){col=c;$('#color').value=c;paintPal()}hist.pop();down=false}else if(tool==='pen'||tool==='erase')set(x,y,tool==='pen'?col:null);draw()};
+cv.onpointermove=(e)=>{if(!down)return;const[x,y]=cell(e);if(tool==='pen'||tool==='erase'){line(last[0],last[1],x,y,tool==='pen'?col:null);last=[x,y]}
+else if(tool==='line'){px=base.slice();line(start[0],start[1],x,y,col)}else if(tool==='rect'){px=base.slice();const[a,b]=start;for(let i=Math.min(a,x);i<=Math.max(a,x);i++){set(i,b,col);set(i,y,col)}for(let j=Math.min(b,y);j<=Math.max(b,y);j++){set(a,j,col);set(x,j,col)}}draw()};
+cv.onpointerup=()=>{down=false;save()};
+function paintTools(){$('#tools').innerHTML='';TOOLS.forEach(([k,e])=>{const b=document.createElement('button');b.textContent=e;b.title=k;b.className=tool===k?'on':'';b.onclick=()=>{tool=k;paintTools()};$('#tools').append(b)})}
+function paintPal(){$('#pal').innerHTML='';PAL.forEach((c)=>{const i=document.createElement('i');i.style.background=c;i.className=c===col?'on':'';i.onclick=()=>{col=c;$('#color').value=c;paintPal()};$('#pal').append(i)})}
+$('#color').oninput=(e)=>{col=e.target.value;paintPal()};$('#grid').onchange=draw;
+$('#undo').onclick=()=>{if(hist.length){fut.push(px.slice());px=hist.pop();draw();save()}};$('#redo').onclick=()=>{if(fut.length){hist.push(px.slice());px=fut.pop();draw();save()}};
+$('#clear').onclick=()=>{snap();px=Array(N*N).fill(null);draw();save()};
+$('#size').onchange=(e)=>{snap();const n=+e.target.value,old=px,on=N;N=n;px=Array(N*N).fill(null);for(let y=0;y<Math.min(n,on);y++)for(let x=0;x<Math.min(n,on);x++)px[y*N+x]=old[y*on+x];fit();save()};
+$('#png').onclick=()=>{const c=document.createElement('canvas'),k=Math.max(1,Math.floor(512/N));c.width=c.height=N*k;const cg=c.getContext('2d');px.forEach((p,i)=>{if(p){cg.fillStyle=p;cg.fillRect(i%N*k,Math.floor(i/N)*k,k,k)}});const a=document.createElement('a');a.href=c.toDataURL();a.download='pixel-forge.png';a.click()};
+addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();$('#undo').click();return}const m={b:'pen',e:'erase',g:'fill',i:'pick',l:'line',r:'rect'}[e.key.toLowerCase()];if(m){tool=m;paintTools()}if(e.key.toLowerCase()==='m'){$('#mirror').checked=!$('#mirror').checked}});
+addEventListener('resize',fit);load();paintTools();paintPal();fit();
+</script></body></html>

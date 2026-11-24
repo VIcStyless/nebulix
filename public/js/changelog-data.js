@@ -2,6 +2,41 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.1",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix OS 14.1: glass, Linux effects, workspaces and desktop-only apps · a new Hub",
+      "es": "Nebulix OS 14.1: cristal, efectos Linux, escritorios y apps exclusivas · un Hub nuevo"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Nebulix OS: see-through glass windows (opacity and blur sliders), wobbly windows when you drag them, a magic-lamp minimize, a burning close, zoom/glide/pop open effects, 4 virtual desktops with a 3D cube transition (Ctrl+Alt+←/→, Ctrl+Alt+1-4, move windows from the title bar menu), a hot corner for the overview and a new glass quick settings panel.",
+        "es": "Nebulix OS: ventanas de cristal transparentes (opacidad y desenfoque ajustables), ventanas gelatina al arrastrarlas, minimizar con lámpara mágica, cerrar ardiendo, efectos al abrir (zoom, planear, pop), 4 escritorios virtuales con transición de cubo 3D (Ctrl+Alt+←/→, Ctrl+Alt+1-4, mover ventanas desde el menú de la barra de título), esquina activa para la vista general y un nuevo panel de ajustes rápidos de cristal."
+      },
+      {
+        "type": "new",
+        "en": "Desktop-only apps in Nebulix OS: Files (folders, text files, pictures, Trash, import and download, kept in your browser), Text editor, Nova Agents (four AI agents — research, analysis, writing and review — work as a team on your goal), Command Center (live status of the server, your device, account, storage and activity), Camera with 9 filters and a self-timer, and Widgets.",
+        "es": "Apps exclusivas de Nebulix OS: Archivos (carpetas, textos, imágenes, papelera, importar y descargar, guardado en tu navegador), Editor de texto, Agentes Nova (cuatro agentes de IA — investigación, análisis, redacción y revisión — trabajan en equipo en tu objetivo), Centro de control (estado en directo del servidor, tu dispositivo, cuenta, almacenamiento y actividad), Cámara con 9 filtros y temporizador, y Widgets."
+      },
+      {
+        "type": "new",
+        "en": "Glass desktop widgets you can drag anywhere: clock, calendar, sticky note, to-do list, timer, system monitor, photo frame and quote of the moment.",
+        "es": "Widgets de cristal para el escritorio que puedes arrastrar donde quieras: reloj, calendario, nota adhesiva, lista de tareas, temporizador, monitor del sistema, marco de fotos y frase del momento."
+      },
+      {
+        "type": "new",
+        "en": "6 official apps by Nebulix in the Hub: Pixel Forge (pixel art), Beat Lab (drum machine), Flow Board (kanban), Sketch Board (whiteboard), Markdown Writer and Palette Lab. They can be remixed and downloaded.",
+        "es": "6 apps oficiales de Nebulix en el Hub: Pixel Forge (pixel art), Beat Lab (caja de ritmos), Flow Board (kanban), Sketch Board (pizarra), Markdown Writer y Palette Lab. Se pueden remezclar y descargar."
+      },
+      {
+        "type": "improved",
+        "en": "Nebulix Hub has a new home: a big rotating showcase of the most played uploads, a shelf of official apps and a trending row.",
+        "es": "Nebulix Hub tiene una portada nueva: un gran escaparate giratorio con lo más jugado, una estantería de apps oficiales y una fila de tendencias."
+      }
+    ]
+  },
+  {
     "v": "14.0",
     "date": "2026-11-24",
     "title": {

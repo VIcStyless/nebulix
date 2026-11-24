@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Beat Lab</title>
+<style>
+:root{--bg:#07060f;--a:#ff4d8d;--a2:#22d3ee;--t:#f4f1ff;--m:#9a93c0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#3a1150,var(--bg) 65%);color:var(--t);font:14px system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;gap:16px}
+h1{margin:0;font-size:26px;letter-spacing:-.02em;background:linear-gradient(90deg,var(--a),var(--a2));-webkit-background-clip:text;color:transparent}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;background:#ffffff0d;border:1px solid #ffffff1a;border-radius:16px;padding:10px 14px;backdrop-filter:blur(10px)}
+button{font:inherit;color:var(--t);background:#ffffff12;border:1px solid #ffffff22;border-radius:10px;padding:8px 14px;cursor:pointer}button:hover{background:#ffffff22}
+#play{background:linear-gradient(135deg,var(--a),#a855f7);border:0;font-weight:800;min-width:90px;box-shadow:0 10px 30px -10px var(--a)}
+.grid{display:grid;grid-template-columns:110px repeat(16,1fr);gap:6px;width:min(1000px,100%)}
+.name{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--m)}.name i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.step{aspect-ratio:1;border-radius:8px;background:#ffffff0e;border:1px solid #ffffff14;cursor:pointer;transition:transform .08s,background .1s}
+.step:nth-child(17n+6),.step:nth-child(17n+10),.step:nth-child(17n+14){margin-left:4px}
+.step.on{background:var(--c);box-shadow:0 0 16px var(--c)}.step.now{transform:scale(1.12);outline:2px solid #fff6}
+label{color:var(--m);display:flex;align-items:center;gap:6px}input[type=range]{accent-color:var(--a)}
+canvas{width:min(1000px,100%);height:80px;border-radius:12px;background:#0006}
+</style></head><body>
+<h1>Beat Lab</h1>
+<div class="bar"><button id="play">▶ Play</button><label>Tempo <input id="bpm" type="range" min="60" max="180" value="112"><b id="bpmv">112</b></label><label>Swing <input id="swing" type="range" min="0" max="60" value="10"></label>
+<button id="rnd">🎲 Random</button><button id="clr">Clear</button><select id="pat"><option value="0">Pattern A</option><option value="1">Pattern B</option><option value="2">Pattern C</option><option value="3">Pattern D</option></select></div>
+<div class="grid" id="grid"></div><canvas id="viz" width="1000" height="80"></canvas>
+<div style="color:var(--m);font-size:12px">Space plays and stops. Click steps to make a beat — it is saved automatically.</div>
+<script>
+const $=(s)=>document.querySelector(s);const INST=[['Kick','#ff4d8d'],['Snare','#ffd166'],['Clap','#f97316'],['Hi-hat','#22d3ee'],['Open hat','#38bdf8'],['Tom','#a78bfa'],['Bass','#06d6a0'],['Chord','#f472b6']];
+let pats;try{pats=JSON.parse(localStorage.getItem('bl.pats'))}catch{}if(!pats)pats=[0,1,2,3].map(()=>INST.map(()=>Array(16).fill(0)));
+pats[0][0]=pats[0][0].some(Boolean)?pats[0][0]:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0];let P=0,step=0,playing=false,timer=null,ac=null,an=null;
+const save=()=>localStorage.setItem('bl.pats',JSON.stringify(pats));
+function paint(){const gEl=$('#grid');gEl.innerHTML='';INST.forEach(([n,c],r)=>{const nm=document.createElement('div');nm.className='name';nm.innerHTML=`<i style="--c:${c}"></i>${n}`;gEl.append(nm);
+for(let s=0;s<16;s++){const d=document.createElement('div');d.className='step'+(pats[P][r][s]?' on':'');d.style.setProperty('--c',c);d.dataset.s=s;d.onclick=()=>{pats[P][r][s]^=1;d.classList.toggle('on');save();if(pats[P][r][s])hit(r,0)};gEl.append(d)}})}
+function ctx(){if(!ac){ac=new AudioContext();an=ac.createAnalyser();an.fftSize=256;an.connect(ac.destination)}return ac}
+function env(g,t,a,d,v){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+a);g.gain.exponentialRampToValueAtTime(.001,t+a+d)}
+function noise(t,d,f,type,v){const a=ctx(),b=a.createBuffer(1,a.sampleRate*d,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<x.length;i++)x[i]=Math.random()*2-1;const s=a.createBufferSource();s.buffer=b;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=f;const g=a.createGain();env(g,t,.002,d,v);s.connect(fl).connect(g).connect(an);s.start(t)}
+function tone(t,f0,f1,d,type,v){const a=ctx(),o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);env(g,t,.003,d,v);o.connect(g).connect(an);o.start(t);o.stop(t+d+.05)}
+const NOTES=[55,55,65.4,49,55,73.4,65.4,49];
+function hit(r,t){const a=ctx();t=t||a.currentTime;switch(r){case 0:tone(t,150,40,.35,'sine',1);break;case 1:noise(t,.18,1800,'highpass',.5);tone(t,220,120,.1,'triangle',.3);break;case 2:for(let k=0;k<3;k++)noise(t+k*.012,.12,1200,'bandpass',.5);break;case 3:noise(t,.05,8000,'highpass',.25);break;case 4:noise(t,.3,7000,'highpass',.22);break;case 5:tone(t,200,90,.3,'sine',.6);break;case 6:tone(t,NOTES[step%8]*2,NOTES[step%8]*2,.25,'sawtooth',.25);break;case 7:[1,1.26,1.5].forEach((m)=>tone(t,261.6*m,261.6*m,.4,'triangle',.12));break}}
+function tick(){const bpm=+$('#bpm').value,base=60/bpm/4,sw=(+$('#swing').value/100)*base;document.querySelectorAll('.step.now').forEach((x)=>x.classList.remove('now'));document.querySelectorAll(`.step[data-s="${step}"]`).forEach((x)=>x.classList.add('now'));
+INST.forEach((_,r)=>{if(pats[P][r][step])hit(r)});const wait=(step%2?base-sw:base+sw)*1000;step=(step+1)%16;timer=setTimeout(tick,wait)}
+function toggle(){playing=!playing;$('#play').textContent=playing?'■ Stop':'▶ Play';if(playing){ctx().resume();step=0;tick()}else clearTimeout(timer)}
+$('#play').onclick=toggle;$('#bpm').oninput=(e)=>$('#bpmv').textContent=e.target.value;$('#pat').onchange=(e)=>{P=+e.target.value;paint()};
+$('#clr').onclick=()=>{pats[P]=INST.map(()=>Array(16).fill(0));save();paint()};
+$('#rnd').onclick=()=>{const pr=[.3,.15,.1,.6,.1,.12,.25,.08];pats[P]=INST.map((_,r)=>Array.from({length:16},(_,s)=>r===0?(s%4===0?1:Math.random()<.1?1:0):r===1?(s%8===4?1:0):Math.random()<pr[r]?1:0));save();paint()};
+addEventListener('keydown',(e)=>{if(e.code==='Space'){e.preventDefault();toggle()}});
+(function viz(){requestAnimationFrame(viz);const c=$('#viz'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);if(!an)return;const d=new Uint8Array(an.frequencyBinCount);an.getByteFrequencyData(d);const w=c.width/d.length;d.forEach((v,i)=>{const h=v/255*c.height;const gr=g.createLinearGradient(0,c.height,0,c.height-h);gr.addColorStop(0,'#ff4d8d');gr.addColorStop(1,'#22d3ee');g.fillStyle=gr;g.fillRect(i*w,c.height-h,w-1,h)})})();
+paint();
+</script></body></html>

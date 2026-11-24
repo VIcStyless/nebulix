@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Palette Lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;flex-direction:column;font:14px system-ui,sans-serif;background:#111;color:#fff}
+header{display:flex;gap:8px;align-items:center;padding:10px 14px;background:#161616;flex-wrap:wrap}header b{margin-right:auto;font-size:16px}
+button,select{font:inherit;color:#fff;background:#262626;border:1px solid #333;border-radius:8px;padding:6px 12px;cursor:pointer}button:hover{background:#333}
+.cols{flex:1;display:flex}.c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:24px 8px;gap:10px;transition:flex .3s,background .4s;position:relative}
+.c:hover{flex:1.3}.hex{font:800 22px ui-monospace,monospace;letter-spacing:.04em;cursor:pointer;text-transform:uppercase}.nm{font-size:12px;opacity:.75}
+.c button{background:#0002;border:0;color:inherit;width:40px;height:40px;border-radius:12px;font-size:17px;opacity:0;transition:opacity .2s}.c:hover button,.c button.on{opacity:1}
+.ct{font-size:11px;opacity:.8}.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#000c;padding:8px 14px;border-radius:10px;opacity:0;transition:opacity .2s}.toast.on{opacity:1}
+pre{margin:0;padding:10px 14px;background:#0b0b0b;color:#9ae6b4;font-size:12px;overflow:auto;max-height:110px}
+@media(max-width:600px){.cols{flex-direction:column}.c{flex-direction:row;justify-content:space-between;padding:10px 16px}}
+</style></head><body>
+<header><b>🎨 Palette Lab</b><select id="mode"><option value="random">Random</option><option value="analog">Analogous</option><option value="mono">Monochrome</option><option value="triad">Triadic</option><option value="comp">Complementary</option><option value="pastel">Pastel</option></select>
+<button id="gen">Generate (Space)</button><button id="css">Copy CSS</button><button id="save">♥ Save</button><select id="saved"><option value="">Saved palettes</option></select></header>
+<div class="cols" id="cols"></div><pre id="code"></pre><div class="toast" id="toast"></div>
+<script>
+const $=(s)=>document.querySelector(s);let cols=[],locks=[0,0,0,0,0];
+const hsl=(h,s,l)=>{s/=100;l/=100;const k=(n)=>(n+h/30)%12,a=s*Math.min(l,1-l),f=(n)=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return'#'+[f(0),f(8),f(4)].map((x)=>Math.round(x*255).toString(16).padStart(2,'0')).join('')};
+const lum=(hx)=>{const n=parseInt(hx.slice(1),16);return[(n>>16)&255,(n>>8)&255,n&255].map((v)=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0)};
+const ratio=(a,b)=>{const x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+const NAMES=[[0,'Red'],[20,'Orange'],[45,'Amber'],[60,'Yellow'],[90,'Lime'],[130,'Green'],[165,'Teal'],[190,'Cyan'],[215,'Azure'],[235,'Blue'],[265,'Violet'],[290,'Purple'],[320,'Magenta'],[345,'Rose'],[360,'Red']];
+const nameOf=(h,l)=>(l<20?'Deep ':l>82?'Pale ':'')+NAMES.reduce((b,x)=>Math.abs(x[0]-h)<Math.abs(b[0]-h)?x:b)[1];
+function gen(){const m=$('#mode').value,h0=Math.random()*360;const out=[];for(let i=0;i<5;i++){if(locks[i]){out.push(cols[i]);continue}let h,s,l;
+if(m==='analog'){h=(h0+i*18)%360;s=60+Math.random()*25;l=30+i*12}else if(m==='mono'){h=h0;s=55+Math.random()*20;l=15+i*17}else if(m==='triad'){h=(h0+[0,120,240,0,120][i])%360;s=65;l=[35,50,60,80,25][i]}
+else if(m==='comp'){h=(h0+(i%2?180:0))%360;s=70;l=[25,45,55,70,88][i]}else if(m==='pastel'){h=Math.random()*360;s=60+Math.random()*25;l=78+Math.random()*10}else{h=Math.random()*360;s=40+Math.random()*50;l=20+Math.random()*65}
+out.push({hex:hsl(h,s,l),h,l})}cols=out;paint()}
+function paint(){const root=$('#cols');root.innerHTML='';cols.forEach((c,i)=>{const d=document.createElement('div');d.className='c';d.style.background=c.hex;const ink=lum(c.hex)>.3?'#111':'#fff';d.style.color=ink;
+d.innerHTML=`<button class="${locks[i]?'on':''}" title="Lock">${locks[i]?'🔒':'🔓'}</button><div class="hex">${c.hex}</div><div class="nm">${nameOf(c.h,c.l)}</div><div class="ct">AA ${ratio(c.hex,ink).toFixed(1)}:1</div>`;
+d.querySelector('button').onclick=()=>{locks[i]^=1;paint()};d.querySelector('.hex').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(c.hex);toast('Copied '+c.hex)};root.append(d)});
+$('#code').textContent=':root {\n'+cols.map((c,i)=>`  --color-${i+1}: ${c.hex};`).join('\n')+'\n}'}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1200)}
+function savedList(){let s=[];try{s=JSON.parse(localStorage.getItem('pl.saved'))||[]}catch{}$('#saved').innerHTML='<option value="">Saved palettes ('+s.length+')</option>'+s.map((p,i)=>`<option value="${i}">${p.map((c)=>c.hex).join(' ')}</option>`).join('');return s}
+$('#gen').onclick=gen;$('#css').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText($('#code').textContent);toast('CSS copied')};
+$('#save').onclick=()=>{const s=savedList();s.unshift(cols);localStorage.setItem('pl.saved',JSON.stringify(s.slice(0,30)));savedList();toast('Palette saved')};
+$('#saved').onchange=(e)=>{const s=savedList();if(e.target.value!==''){cols=s[+e.target.value];locks=[0,0,0,0,0];paint()}};
+addEventListener('keydown',(e)=>{if(e.code==='Space'&&e.target.tagName!=='SELECT'){e.preventDefault();gen()}});savedList();gen();
+</script></body></html>
