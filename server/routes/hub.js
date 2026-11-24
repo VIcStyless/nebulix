@@ -61,7 +61,7 @@ async function unpack(up) {
 
 function view(it, u) {
   const o = S.users[it.owner];
-  return { id: it.id, kind: it.kind, wtype: it.wtype || null, runMode: modeOf(it.runMode), gamesDomain: !!require('../config').gamesOrigin, title: it.title, desc: it.desc, tags: it.tags, owner: o ? publicUser(o) : null, files: it.files ? Object.keys(it.files).length : 0, allowDownload: !!it.allowDownload, allowRemix: !!it.allowRemix, remixOf: it.remixOf || null, remixes: it.remixes || 0, saved: !!(u && (u.hubSaved || []).includes(it.id)), comments: ((S.store.table('comments')[it.id]) || []).length, version: it.version || 1, updated: it.updated || it.created, views: it.views || 0, likes: (it.likes || []).length, liked: !!(u && (it.likes || []).includes(u.id)), created: it.created, size: it.size, thumb: it.thumb ? `/x/hub/t/${it.id}?v=${String(it.thumb).slice(0, 8)}` : null, rating: ratingOf(it.id), shots: (it.shots || []).map((s, i) => `/x/hub/s/${it.id}/${i}?v=${String(s).slice(0, 8)}`), game: it.game && items()[it.game] ? { id: it.game, title: items()[it.game].title } : null, chapters: it.chapters || null, mine: !!(u && u.id === it.owner), duration: it.duration || 0, public: it.public !== false, official: it.official || null, sale: it.files && (it.kind === 'game' || it.kind === 'app') ? require('../vault').saleView(it, u) : null };
+  return { id: it.id, kind: it.kind, wtype: it.wtype || null, runMode: modeOf(it.runMode), gamesDomain: !!require('../config').gamesOrigin, title: it.title, desc: it.desc, tags: it.tags, owner: o ? publicUser(o) : null, files: it.files ? Object.keys(it.files).length : 0, allowDownload: !!it.allowDownload, allowRemix: !!it.allowRemix, remixOf: it.remixOf || null, remixes: it.remixes || 0, saved: !!(u && (u.hubSaved || []).includes(it.id)), installed: !!(u && (u.apps || []).includes(it.id)), comments: ((S.store.table('comments')[it.id]) || []).length, version: it.version || 1, updated: it.updated || it.created, views: it.views || 0, likes: (it.likes || []).length, liked: !!(u && (it.likes || []).includes(u.id)), created: it.created, size: it.size, thumb: it.thumb ? `/x/hub/t/${it.id}?v=${String(it.thumb).slice(0, 8)}` : null, rating: ratingOf(it.id), shots: (it.shots || []).map((s, i) => `/x/hub/s/${it.id}/${i}?v=${String(s).slice(0, 8)}`), game: it.game && items()[it.game] ? { id: it.game, title: items()[it.game].title } : null, chapters: it.chapters || null, mine: !!(u && u.id === it.owner), duration: it.duration || 0, public: it.public !== false, official: it.official || null, sale: it.files && (it.kind === 'game' || it.kind === 'app') ? require('../vault').saleView(it, u) : null };
 }
 module.exports = function register(r) {
   require('../hubseed').start();
@@ -103,6 +103,7 @@ module.exports = function register(r) {
   r.get('/api/hub', { auth: true, limit: [120, 60000, 'user'] }, async (c) => {
     const u = c.user; const kind = KINDS.includes(c.query.kind) ? c.query.kind : null; const q = clean(c.query.q, 60).toLowerCase(); const sort = ['top', 'likes', 'updated', 'random', 'comments', 'rating'].includes(c.query.sort) ? c.query.sort : 'new'; const tag = clean(c.query.tag, 24).toLowerCase();
     let list = Object.values(items()).filter((x) => (c.query.mine ? x.owner === u.id : x.public !== false || x.owner === u.id));
+    if (c.query.installed) { const ins = u.apps || []; list = list.filter((x) => ins.includes(x.id)).sort((a, b) => ins.indexOf(a.id) - ins.indexOf(b.id)); }
     if (c.query.saved) { const sv = u.hubSaved || []; list = list.filter((x) => sv.includes(x.id)).sort((a, b) => sv.indexOf(a.id) - sv.indexOf(b.id)); }
     if (c.query.history) { const hs = u.hubHistory || []; list = list.filter((x) => hs.includes(x.id)).sort((a, b) => hs.indexOf(a.id) - hs.indexOf(b.id)); }
     if (c.query.col) { const col = (u.hubCols || []).find((x) => x.id === c.query.col); const ids = col ? col.items : []; list = list.filter((x) => ids.includes(x.id)); }
@@ -110,7 +111,7 @@ module.exports = function register(r) {
     if (kind) list = list.filter((x) => x.kind === kind);
     if (q) list = list.filter((x) => x.title.toLowerCase().includes(q) || (x.tags || []).some((tg) => tg.includes(q)) || ((S.users[x.owner] || {}).username || '').toLowerCase().includes(q));
     const cm = S.store.table('comments'); const pop = (x) => (x.views || 0) + (x.likes || []).length * 10;
-    if (!c.query.saved && !c.query.history) {
+    if (!c.query.saved && !c.query.history && !c.query.installed) {
       if (sort === 'random') { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } }
       else list.sort((a, b) => (sort === 'top' ? pop(b) - pop(a) : sort === 'likes' ? (b.likes || []).length - (a.likes || []).length : sort === 'updated' ? (b.updated || b.created) - (a.updated || a.created) : sort === 'comments' ? (cm[b.id] || []).length - (cm[a.id] || []).length : sort === 'rating' ? ((ratingOf(b.id) || { avg: 0 }).avg * 100 + (ratingOf(b.id) || { n: 0 }).n) - ((ratingOf(a.id) || { avg: 0 }).avg * 100 + (ratingOf(a.id) || { n: 0 }).n) : b.created - a.created));
     }
@@ -174,6 +175,26 @@ module.exports = function register(r) {
     const it = items()[c.params.id]; if (!it) throw new HttpError(404, 'no_item', 'Not found'); const u = c.user; const sv = u.hubSaved || [];
     const on = !sv.includes(it.id); u.hubSaved = on ? [it.id, ...sv].slice(0, 300) : sv.filter((x) => x !== it.id); S.store.touch('users'); return { saved: on };
   });
+  // Nebulix 3.0 Game API: per-game leaderboards for Hub games (window.Nebulix.submitScore). Scores come from the game
+  // in the player's browser, so they cannot be verified: they never pay coins and owners/mods can reset a board.
+  const boardView = (it, u) => (it.board || []).slice(0, 20).map((x, i) => ({ rank: i + 1, score: x.s, label: x.l || '', at: x.at, user: S.users[x.uid] ? publicUser(S.users[x.uid]) : null, me: !!(u && x.uid === u.id) }));
+  r.get('/api/hub/:id/board', { auth: true, limit: [120, 60000, 'user'] }, async (c) => { const it = items()[c.params.id]; if (!it || !it.files) throw new HttpError(404, 'no_item', 'Not found'); const mine = (it.board || []).findIndex((x) => x.uid === c.user.id); return { board: boardView(it, c.user), mine: mine >= 0 ? { rank: mine + 1, score: it.board[mine].s } : null }; });
+  r.post('/api/hub/:id/board', { auth: true, verified: true, limit: [20, 60000, 'user'] }, async (c) => {
+    const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Not found');
+    const s = Number(c.body.score); if (!Number.isFinite(s) || s < 0 || s > 1e12) throw new HttpError(400, 'bad_score', 'That score is not valid');
+    const b = (it.board = it.board || []); const i = b.findIndex((x) => x.uid === c.user.id); let pb = false;
+    if (i < 0) { b.push({ uid: c.user.id, s, l: String(c.body.label || '').slice(0, 40), at: now() }); pb = true; } else if (s > b[i].s) { b[i] = { uid: c.user.id, s, l: String(c.body.label || '').slice(0, 40), at: now() }; pb = true; }
+    b.sort((x, y) => y.s - x.s); if (b.length > 200) b.length = 200; if (pb) touch();
+    const rank = b.findIndex((x) => x.uid === c.user.id) + 1; return { best: b[rank - 1] ? b[rank - 1].s : s, rank, pb };
+  });
+  r.delete('/api/hub/:id/board', { auth: true }, async (c) => { const it = items()[c.params.id]; if (!it) throw new HttpError(404, 'no_item', 'Not found'); if (it.owner !== c.user.id && !['owner', 'admin', 'mod'].includes(c.user.role)) throw new HttpError(403, 'forbidden', 'Not allowed'); it.board = []; touch(); return { ok: true }; });
+  // Nebulix 3.0 App Store: install games and apps into Nebulix OS (start menu, dock, their own windows)
+  r.post('/api/hub/:id/install', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {
+    const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Only games and apps can be installed');
+    const u = c.user; const ins = u.apps || []; const on = !ins.includes(it.id); if (on && ins.length >= 60) throw new HttpError(400, 'too_many', 'You can install up to 60 apps');
+    u.apps = on ? [...ins, it.id] : ins.filter((x) => x !== it.id); S.store.touch('users'); return { installed: on };
+  });
+  r.get('/api/apps/installed', { auth: true }, async (c) => ({ apps: (c.user.apps || []).map((id) => items()[id]).filter((it) => it && it.files && (it.public !== false || it.owner === c.user.id)).map((it) => view(it, c.user)) }));
   r.delete('/api/hub/history', { auth: true }, async (c) => { c.user.hubHistory = []; S.store.touch('users'); return { ok: true }; });
   // collections (private lists of uploads)
   r.post('/api/hub/collections', { auth: true, limit: [30, 60000, 'user'] }, async (c) => {

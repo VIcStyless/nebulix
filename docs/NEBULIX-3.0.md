@@ -60,14 +60,29 @@ infrastructure each pending item needs). Status words mean:
    copy), and an **Alt+\`** window switcher (Alt+Tab is reserved by the operating system in browsers).
 3. **Developer Toolbox** (`#/devtools`): 10 client-side tools.
 
+## 3b. What phase 2 added (v14.3.0)
+
+1. **Calendar & Tasks** (`#/calendar`, `server/routes/calendar.js`, table `calendar`): month/week/agenda views,
+   repeating events, reminders sent by a one-minute scheduler as `notice` messages (push when offline), tasks with
+   projects, priorities, due dates, reminders and subtasks. Tested through the API (validation, per-account isolation,
+   recurrence) and in the browser.
+2. **App Store installs:** `POST /api/hub/:id/install`, `GET /api/apps/installed`, `?installed=1` filter. Nebulix OS
+   registers each installed item as an app `x-<id>` (own window running the sandboxed game, "Installed" start-menu
+   category, desktop icon).
+3. **Game API:** `server/hubshim.js` now injects `window.Nebulix` (`submitScore`, `leaderboard`, `me`) answered by
+   `public/js/gameapi.js` on the Hub page and in OS windows; per-game boards (`GET/POST/DELETE /api/hub/:id/board`),
+   best score per player, top 200 kept. Tested end to end with a sandboxed test game.
+4. **Chess** vs CPU (`views/arcade-chess.js`): move generator verified with perft (start position 20/400/8902/197281,
+   Kiwipete 48/2039/97862, position 3 14/191/2812/43238); alpha-beta search at 3 levels.
+5. **Fix:** the Hub buttons Star/Save/Install used `busy()`, which detaches the button's children while it runs, so the
+   label update failed (Star and Save showed an error in production since 14.0). They now use a lock that keeps the content.
+
 ## 4. Next phases (in order)
 
-1. App Store install model: manifest (`id, name, version, entry, permissions[]`), install/uninstall to the OS dock,
-   update notifications, permission prompts — reuse Hub items and the sandboxed runner.
-2. Calendar + Tasks app with events, recurrence and reminders (server table `calendar`), linked to Study exams.
-3. Game platform APIs for Hub games: leaderboards and achievements through `postMessage` (like the existing save
-   shim `server/hubshim.js`), then rooms/multiplayer over the existing WebSocket.
-4. More arcade games: Chess (vs CPU + online via duels), Checkers, Solitaire, Bubble Shooter, Tower Defense, Word Search.
+1. App manifests and permissions for installed apps; update notifications in the OS when an installed app gets a new version.
+2. Link Study exams to the calendar; shared calendars and invitations.
+3. Game API: achievements and multiplayer rooms over the existing WebSocket.
+4. More arcade games: online chess through duels, Checkers, Solitaire, Bubble Shooter, Tower Defense, Word Search.
 5. Office: DOCX export, comments, co-editing over WebSocket.
 6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
    the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.

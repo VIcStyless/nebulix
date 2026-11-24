@@ -319,4 +319,22 @@ const screenshot = {
   },
 };
 
+// ================= installed Hub apps (App Store) =================
+// One window per installed game/app, running exactly like on its Hub page (sandboxed, saves kept on the account).
+export function hubAppView(id) {
+  return {
+    title: () => t('App'),
+    full: true,
+    async mount(root, ctx) {
+      let it; try { it = (await api.get('/api/hub/' + encodeURIComponent(id))).item; } catch (e) { mount(root, h('div.empty', h('h3', t('This app is no longer available')), h('p.muted', e.message))); return () => {}; }
+      ctx.setTitle && ctx.setTitle(it.title);
+      if (!it.src) { mount(root, h('div.empty', h('h3', it.title), h('p.muted', t('Open it in Nebulix Hub to buy or unlock it.')))); return () => {}; }
+      const fr = h('iframe.os-happ', { src: it.src, title: it.title, sandbox: it.runMode === 'domain' ? 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock allow-downloads allow-orientation-lock' : null, allow: 'fullscreen; autoplay; gamepad; clipboard-write; screen-wake-lock; accelerometer; gyroscope', allowfullscreen: '' });
+      let saveT = 0; const onMsg = (e) => { if (e.source !== fr.contentWindow || !e.data || e.data.nxHubSave !== 1) return; const b = { ls: e.data.ls || {}, ck: String(e.data.ck || '') }; clearTimeout(saveT); saveT = setTimeout(() => api.put(`/api/hub/${it.id}/gamesave`, b, { quiet: true }).catch(() => {}), 1500); };
+      addEventListener('message', onMsg); mount(root, fr); const offApi = (await import('../gameapi.js')).gameApi(fr, it.id);
+      return () => { removeEventListener('message', onMsg); offApi(); clearTimeout(saveT); };
+    },
+  };
+}
+
 export const OS_APPS2 = { files, texted, agents, command, widgets, camera, taskmgr, clipboard, screenshot };

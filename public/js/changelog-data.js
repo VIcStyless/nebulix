@@ -2,6 +2,41 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.3",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 2: Calendar & Tasks, App Store installs, game leaderboards and Chess",
+      "es": "Nebulix 3.0, fase 2: Calendario y tareas, instalar apps, clasificaciones de juegos y Ajedrez"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Calendar & Tasks (#/calendar): month, week and agenda views, events that repeat (daily, weekdays, weekly, monthly, yearly) with reminders that arrive as notifications, and tasks with projects, priorities, due dates, reminders and subtasks. Quick add with !1 !2 !3 for priority.",
+        "es": "Calendario y tareas (#/calendar): vistas de mes, semana y agenda, eventos que se repiten (diario, laborables, semanal, mensual, anual) con recordatorios que llegan como notificaciones, y tareas con proyectos, prioridades, fechas, recordatorios y subtareas. Añadido rápido con !1 !2 !3 para la prioridad."
+      },
+      {
+        "type": "new",
+        "en": "App Store: install any Hub game or app into Nebulix OS. Installed apps get their own window, a start-menu category and a desktop icon; the Hub has an “Installed” tab.",
+        "es": "Tienda de apps: instala cualquier juego o app del Hub en Nebulix OS. Las apps instaladas tienen su propia ventana, una categoría en el menú de inicio y un icono en el escritorio; el Hub tiene una pestaña «Instalado»."
+      },
+      {
+        "type": "new",
+        "en": "Game API for Hub creators: games can call Nebulix.submitScore(points), Nebulix.leaderboard() and Nebulix.me(). Every game gets its own leaderboard on its page (scores never pay coins; owners and moderators can reset it).",
+        "es": "API de juegos para creadores del Hub: los juegos pueden llamar a Nebulix.submitScore(puntos), Nebulix.leaderboard() y Nebulix.me(). Cada juego tiene su propia clasificación en su página (las puntuaciones nunca dan monedas; el autor y los moderadores pueden reiniciarla)."
+      },
+      {
+        "type": "new",
+        "en": "Chess against the computer at three levels, with every rule (castling, en passant, promotion, checkmate, stalemate, repetition, 50-move rule), undo, board flip and the list of moves.",
+        "es": "Ajedrez contra el ordenador en tres niveles, con todas las reglas (enroque, captura al paso, coronación, jaque mate, ahogado, repetición, regla de los 50 movimientos), deshacer, girar el tablero y lista de jugadas."
+      },
+      {
+        "type": "fixed",
+        "en": "Hub: the Star and Save buttons on an upload page showed an error and did not update their label.",
+        "es": "Hub: los botones Estrella y Guardar de la página de una subida daban error y no actualizaban su texto."
+      }
+    ]
+  },
+  {
     "v": "14.2",
     "date": "2026-11-24",
     "title": {

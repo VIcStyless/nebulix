@@ -14,7 +14,7 @@ import { miniPlayer } from '../pulse/mini.js';
 import * as P from '../pulse/engine.js';
 import { feedItem } from '../widgets/feed.js';
 import { pick2 } from '../i18n.js';
-import { mountWidgets } from './apps2.js';
+import { mountWidgets, hubAppView } from './apps2.js';
 
 // [route, label, icon name, tile colour]
 export const APPS = [
@@ -188,7 +188,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   function visibleApps() { return APPS.filter(([n]) => loaders[n] && (n !== 'admin' || isStaff())); }
   function paintIcons() {
     const o = os(); iconsEl.classList.toggle('hide', !o.icons);
-    const DESK = [...new Set(['files', 'home', 'games', 'worlds', 'browse', 'chat', 'dm', 'agents', 'command', 'camera', 'music', 'wallet', 'notes', 'calc', 'settings', ...pinsOf()])];
+    const DESK = [...new Set([...APPS.filter((a) => a[0].startsWith('x-')).map((a) => a[0]), 'files', 'home', 'games', 'worlds', 'browse', 'chat', 'dm', 'agents', 'command', 'camera', 'music', 'wallet', 'notes', 'calc', 'settings', ...pinsOf()])];
     mount(iconsEl, visibleApps().filter(([n]) => DESK.includes(n)).sort((a, b) => DESK.indexOf(a[0]) - DESK.indexOf(b[0])).slice(0, 18).map(([n, label]) => h('button.os-icon', { dataset: { app: n }, onDblclick: () => go(n), onClick: (ev) => { iconsEl.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); ev.currentTarget.classList.add('sel'); if (matchMedia('(pointer: coarse)').matches) go(n); }, onKeydown: (ev) => { if (ev.key === 'Enter') go(n); } },
       tile(n, 26), h('span.os-il', t(label)))));
   }
@@ -505,6 +505,16 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   offs.push(bus.on('me', () => { coin.textContent = S.me && S.me.coins >= 1e9 ? '∞' : fmt.coins((S.me && S.me.coins) || 0); }));
   const onResize = debounce(() => { root.classList.toggle('small', small()); for (const w of wins.values()) { if (w.g.max) continue; const a = area(); w.g.x = clamp(w.g.x, -w.g.w + 80, Math.max(0, a.w - 80)); w.g.y = clamp(w.g.y, 0, Math.max(0, a.h - 30)); place(w); } }, 150);
   addEventListener('resize', onResize);
+  // Nebulix 3.0 App Store: games/apps installed from the Hub become desktop apps (their own window, start menu, desktop)
+  const installedCat = ['Installed', []]; cats.push(installedCat);
+  async function loadInstalled() {
+    let list = []; try { list = (await api.get('/api/apps/installed', { quiet: true })).apps; } catch { return; }
+    for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i][0].startsWith('x-')) APPS.splice(i, 1);
+    installedCat[1].length = 0;
+    for (const it of list) { const k = 'x-' + it.id; APPS.push([k, it.title, it.kind === 'game' ? 'gamepad' : 'cube', ['#8b7bff', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'][it.title.length % 6]]); loaders[k] = () => Promise.resolve({ default: hubAppView(it.id) }); installedCat[1].push(k); }
+    paintIcons(); paintTask();
+  }
+  const onApps = () => loadInstalled(); addEventListener('nbx:apps', onApps); loadInstalled();
   applyWall(); paintIcons(); paintWidgets(); paintTask(); tickClock(); loadProg(); loadLive(); boot();
   const liveT = setInterval(() => { if (os().widgets) loadLive(); }, 60000);
   api.post('/api/progress/event', { type: 'os' }, { quiet: true }).catch(() => {});
@@ -515,7 +525,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     route(name, r) { if (name === 'desktop') { toggleStart(false); return; } if (!loaders[name] || (name === 'admin' && !isStaff())) name = 'home'; return open(name, r); },
     restore: restoreSession,
     focusedName: () => (focused ? focused.name : null),
-    destroy() { try { offWidgets(); } catch {} delete window.__nbxOs; document.removeEventListener('copy', onCopy); document.removeEventListener('keydown', onSw, true); document.removeEventListener('keyup', onSwUp, true); document.removeEventListener('keydown', onWsKeys, true); document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
+    destroy() { removeEventListener('nbx:apps', onApps); try { offWidgets(); } catch {} delete window.__nbxOs; document.removeEventListener('copy', onCopy); document.removeEventListener('keydown', onSw, true); document.removeEventListener('keyup', onSwUp, true); document.removeEventListener('keydown', onWsKeys, true); document.body.classList.remove('os-mode', 'os-dock-top', 'os-gnome'); for (const w of [...wins.values()]) { if (w.cleanup) try { w.cleanup(); } catch (e) { console.error(e); } } wins.clear(); offs.forEach((f) => f()); clearInterval(clockT); clearInterval(liveT); document.removeEventListener('keydown', onKeys, true); removeEventListener('resize', onResize); setWallpaper(null); },
     refresh() { applyWall(); paintIcons(); paintWidgets(); },
   };
 }

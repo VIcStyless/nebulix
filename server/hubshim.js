@@ -17,6 +17,8 @@ if(blocked(function(){return document.cookie}))try{Object.defineProperty(documen
 var no=function(){return Promise.reject(new DOMException('Not available here','SecurityError'))};
 if(blocked(function(){return navigator.serviceWorker}))try{Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:{register:no,getRegistration:function(){return Promise.resolve(undefined)},getRegistrations:function(){return Promise.resolve([])},ready:new Promise(function(){}),controller:null,addEventListener:function(){},removeEventListener:function(){},startMessages:function(){}}})}catch(e){}
 if(blocked(function(){return window.caches}))try{Object.defineProperty(window,'caches',{configurable:true,value:{open:no,match:function(){return Promise.resolve(undefined)},has:function(){return Promise.resolve(false)},keys:function(){return Promise.resolve([])},delete:function(){return Promise.resolve(false)}}})}catch(e){}
+var rq={},rn=0;window.addEventListener('message',function(e){var d=e.data;if(d&&d.nxHubRes===1&&rq[d.req]){rq[d.req](d.data);delete rq[d.req]}});function ask(m){return new Promise(function(res){var id=++rn;rq[id]=res;m.req=id;try{parent.postMessage(m,'*')}catch(e){res(null)}setTimeout(function(){if(rq[id]){delete rq[id];res(null)}},8000)})}
+window.Nebulix=window.Nebulix||{version:1,submitScore:function(score,label){return ask({nxHubApi:1,op:'score',score:Number(score)||0,label:String(label||'').slice(0,40)})},leaderboard:function(){return ask({nxHubApi:1,op:'board'})},me:function(){return ask({nxHubApi:1,op:'me'})}};
 })();`;
 // returns the HTML with the shim (and the player's snapshot) as the very first script of the page
 function inject(html, save) {

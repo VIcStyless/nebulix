@@ -10,6 +10,7 @@ import { sfx } from '../sfx.js';
 import { MORE_GAMES, MORE_FNS } from './arcade-more.js';
 import { THREE_GAMES, THREE_FNS } from './arcade-3d.js';
 import { PLUS_GAMES, PLUS_FNS } from './arcade-plus.js';
+import { CHESS_GAMES, CHESS_FNS } from './arcade-chess.js';
 
 const GAMES = [
   ['snake', 'Nebula Snake', 'snake', 'Eat stars, grow, don\'t crash.', 'pts'], ['2048', '2048', 'grid', 'Slide and merge tiles to reach 2048.', 'pts'],
@@ -17,6 +18,7 @@ const GAMES = [
   ...THREE_GAMES,
   ...MORE_GAMES,
   ...PLUS_GAMES,
+  ...CHESS_GAMES,
 ];
 const DUELS = [['ttt', 'Tic-Tac-Toe', 'x'], ['c4', 'Connect Four', 'grid'], ['rps', 'Rock Paper Scissors', 'scissors']];
 const RPS_IC = { r: 'rock', p: 'paper', s: 'scissors' };
@@ -71,7 +73,7 @@ export default {
       setAct(t('Playing {g}', { g: t(name) }));
       const best = (me.games[id] || {}).best || 0;
       const end = (score, ms) => submit(id, score, ms);
-      stopFn = ({ snake: snakeGame, 2048: game2048, aim: aimGame, typing: typingGame, ...MORE_FNS, ...THREE_FNS, ...PLUS_FNS })[id](stage, hud, end, best, { root, css, keysForMe });
+      stopFn = ({ snake: snakeGame, 2048: game2048, aim: aimGame, typing: typingGame, ...MORE_FNS, ...THREE_FNS, ...PLUS_FNS, ...CHESS_FNS })[id](stage, hud, end, best, { root, css, keysForMe });
     }
 
     // ---------- Snake ----------

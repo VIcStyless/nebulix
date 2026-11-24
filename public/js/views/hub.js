@@ -11,6 +11,7 @@ import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, 
 import { avatarEl } from '../cosmetics.js';
 import { zipFiles, filesFromDrop, filesFromInput, SKIP } from '../zipwrite.js';
 import { renderMarkdown } from '../markdown.js';
+import { gameApi } from '../gameapi.js';
 
 const dur = (s) => (s ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '');
 const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB';
@@ -92,6 +93,8 @@ function languages(files) {
   for (const f of files) { const m = LANG.find(([re]) => re.test(f.path)) || [null, 'Other', '#6e7681']; const k = m[1]; const cur = by.get(k) || { n: m[1], c: m[2], s: 0 }; cur.s += f.size || 1; by.set(k, cur); total += f.size || 1; }
   return [...by.values()].sort((a, b) => b.s - a.s).map((x) => Object.assign(x, { p: (x.s / Math.max(1, total)) * 100 }));
 }
+// buttons that update their own label: unlike busy(), this keeps their content (busy swaps it for a spinner and restores the old one)
+const lock = async (b, fn) => { if (b.disabled) return; b.disabled = true; b.classList.add('busy'); try { return await fn(); } finally { b.disabled = false; b.classList.remove('busy'); } };
 const fileIcon = (p) => (/\/$/.test(p) ? 'layers' : /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(p) ? 'image' : /\.(mp3|ogg|wav)$/i.test(p) ? 'music' : /\.(html?|m?js|css|json)$/i.test(p) ? 'terminal' : 'note');
 
 export default {
@@ -105,7 +108,7 @@ export default {
     const list = h('div.hbx-list'); const usageEl = h('div.hbx-usage'); const featEl = h('div'); const tabsBar = h('nav.hbx-utabs'); const tagsEl = h('div.hbx-topics'); const statsEl = h('div'); const mineEl = h('div.hbx-mine'); const colsEl = h('div');
     const search = h('input.input.hbx-search', { placeholder: t('Find a game, app, background or video…'), onInput: (e) => { q = e.target.value; clearTimeout(search.t); search.t = setTimeout(load, 250); } });
     const sortSel = h('select.select.hbx-sel', { onChange: (e) => { sort = e.target.value; load(); } }, [['new', 'Newest'], ['top', 'Most popular'], ['likes', 'Most stars'], ['comments', 'Most discussed'], ['rating', 'Best rated'], ['updated', 'Recently updated'], ['random', 'Random']].map(([v, l]) => h('option', { value: v }, t('Sort') + ': ' + t(l))));
-    const CH = [['all', t('Overview'), 'globe'], ['game', t('Games'), 'gamepad'], ['app', t('Apps'), 'cube'], ['wall', t('Backgrounds'), 'image'], ['video', t('Videos'), 'play'], ['saved', t('Saved'), 'bookmark'], ['history', t('History'), 'clock'], ['mine', t('My uploads'), 'book']];
+    const CH = [['all', t('Overview'), 'globe'], ['game', t('Games'), 'gamepad'], ['app', t('Apps'), 'cube'], ['wall', t('Backgrounds'), 'image'], ['video', t('Videos'), 'play'], ['installed', t('Installed'), 'download'], ['saved', t('Saved'), 'bookmark'], ['history', t('History'), 'clock'], ['mine', t('My uploads'), 'book']];
     const setMode = (m) => { mode = m; if (KINDS_TAB.includes(m)) ls('hub.kind', m); tag = ''; paintTabs(); load(); };
     const paintTabs = () => mount(tabsBar, CH.map(([k, l, ic]) => h('button.hbx-utab' + (mode === k ? '.on' : ''), { type: 'button', onClick: () => setMode(k) }, icon(ic, 15), h('span', l), counts[k] ? h('span.hbx-count', fmt.compact(counts[k])) : null)));
     const viewBtns = h('div.hbx-viewsw', [['list', 'menu', t('List')], ['grid', 'grid', t('Cards')]].map(([v, ic, l]) => h('button' + (viewMode === v ? '.on' : ''), { type: 'button', title: l, 'aria-label': l, onClick: (e) => { viewMode = v; ls('hub.view14', v); for (const b of viewBtns.children) b.classList.toggle('on', b === e.currentTarget); paintList(); } }, icon(ic, 15))));
@@ -124,7 +127,7 @@ export default {
     async function load() {
       mount(list, loading());
       try {
-        const qs = new URLSearchParams({ q, sort }); if (KINDS_TAB.includes(mode) && mode !== 'all') qs.set('kind', mode); if (mode === 'mine') qs.set('mine', 1); if (mode === 'saved') qs.set('saved', 1); if (mode === 'history') qs.set('history', 1); if (mode.startsWith('col:')) qs.set('col', mode.slice(4)); if (tag) qs.set('tag', tag);
+        const qs = new URLSearchParams({ q, sort }); if (KINDS_TAB.includes(mode) && mode !== 'all') qs.set('kind', mode); if (mode === 'mine') qs.set('mine', 1); if (mode === 'saved') qs.set('saved', 1); if (mode === 'installed') qs.set('installed', 1); if (mode === 'history') qs.set('history', 1); if (mode.startsWith('col:')) qs.set('col', mode.slice(4)); if (tag) qs.set('tag', tag);
         const r = await api.get('/api/hub?' + qs);
         const u = r.usage; const pct = Math.min(100, (u.used / Math.max(1, u.quota)) * 100);
         mount(usageEl, h('div.hbx-box', h('div.tiny.muted', t('Your storage')), h('div.hbx-ubar', h('i', { style: { width: pct + '%' } })), h('div.tiny', mb(u.used) + ' / ' + mb(u.quota))));
@@ -165,7 +168,7 @@ export default {
       mount(list, last.map(viewMode === 'grid' ? card : row));
     }
     function starBtn(it) {
-      const b = h('button.hbx-star' + (it.liked ? '.on' : ''), { type: 'button', onClick: (e) => { e.preventDefault(); e.stopPropagation(); busy(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); mount(b, icon('star', 14), r.liked ? t('Starred') : t('Star')); } catch (er) { toastErr(er); } }); } }, icon('star', 14), it.liked ? t('Starred') : t('Star'));
+      const b = h('button.hbx-star' + (it.liked ? '.on' : ''), { type: 'button', onClick: (e) => { e.preventDefault(); e.stopPropagation(); lock(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); mount(b, icon('star', 14), r.liked ? t('★ Starred') : t('Star')); } catch (er) { toastErr(er); } }); } }, icon('star', 14), it.liked ? t('★ Starred') : t('Star'));
       return b;
     }
     function row(it) {
@@ -220,6 +223,7 @@ export default {
     load();
 
     // ---------- one upload, shown like a repository ----------
+    var loadBoardRef = () => {}; // var: itemPage() can run before this line (deep links)
     async function itemPage(id, tab0) {
       mount(inner, loading());
       let d; try { d = await api.get('/api/hub/' + encodeURIComponent(id)); } catch (e) { mount(inner, emptyState('alert', t('Not found'), e.message, h('button.btn', { onClick: () => ctx.go('hub') }, t('Back')))); return; }
@@ -246,6 +250,7 @@ export default {
         addEventListener('message', onMsg);
         player = h('div.hb-player.game', fr);
       }
+      if (fr) gameApi(fr, it.id, { onBoard: () => setTimeout(loadBoardRef, 300) });
       let theater = false;
       const tools = code && fr ? h('div.hb-tools', h('button.btn.sm', { onClick: () => { try { fr.requestFullscreen(); } catch {} } }, icon('fullscreen', 14), t('Fullscreen')), h('button.btn.sm', { onClick: () => { const s = fr.src; try { fr.contentWindow.location.replace(s); } catch { fr.src = s; } } }, icon('refresh', 14), t('Restart')),
         h('button.btn.sm', { onClick: () => { theater = !theater; inner.classList.toggle('hbx-theater', theater); } }, icon('fullscreen', 14), t('Theater mode')),
@@ -254,9 +259,10 @@ export default {
 
       // header buttons: Save · Remix · Star (each with its counter, like a code site)
       const pairBtn = (ic, label, n, on, onClick) => { const b = h('button.hbx-pair' + (on ? '.on' : ''), { type: 'button', onClick: (e) => onClick(e, b) }, h('span.hbx-pair-l', icon(ic, 14), h('span', label)), n != null ? h('span.hbx-pair-n', fmt.compact(n)) : null); return b; };
-      const saveB = pairBtn('bookmark', it.saved ? t('Saved') : t('Save'), null, it.saved, (e, b) => busy(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/save`); it.saved = r.saved; b.classList.toggle('on', r.saved); b.querySelector('.hbx-pair-l span').textContent = r.saved ? t('Saved') : t('Save'); } catch (er) { toastErr(er); } }));
+      const saveB = pairBtn('bookmark', it.saved ? t('Saved') : t('Save'), null, it.saved, (e, b) => lock(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/save`); it.saved = r.saved; b.classList.toggle('on', r.saved); b.querySelector('.hbx-pair-l span').textContent = r.saved ? t('Saved') : t('Save'); } catch (er) { toastErr(er); } }));
+      const installB = code && it.files && (!it.sale || !it.sale.locked) ? pairBtn(it.installed ? 'check' : 'download', it.installed ? t('Installed') : t('Install'), null, it.installed, (e, b) => lock(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/install`); it.installed = r.installed; b.classList.toggle('on', r.installed); mount(b.querySelector('.hbx-pair-l'), icon(r.installed ? 'check' : 'download', 14), h('span', r.installed ? t('Installed') : t('Install'))); toast(r.installed ? t('Installed: it is now in the Nebulix OS start menu and desktop') : t('Uninstalled'), 'good'); dispatchEvent(new Event('nbx:apps')); } catch (er) { toastErr(er); } })) : null;
       const remixB = (it.allowRemix || it.mine) && it.files ? pairBtn('fork', t('Remix'), it.remixes || 0, false, async () => { try { const r = await api.post(`/api/hub/${it.id}/remix`); toast(t('Remix created as a private draft'), 'good'); ctx.go('hub', r.item.id); } catch (er) { toastErr(er); } }) : null;
-      const starB = pairBtn('star', it.liked ? t('Starred') : t('Star'), it.likes, it.liked, (e, b) => busy(b, async () => { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); b.querySelector('.hbx-pair-l span').textContent = r.liked ? t('Starred') : t('Star'); b.querySelector('.hbx-pair-n').textContent = fmt.compact(r.likes); if (r.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } }));
+      const starB = pairBtn('star', it.liked ? t('★ Starred') : t('Star'), it.likes, it.liked, (e, b) => lock(b, async () => { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); b.querySelector('.hbx-pair-l span').textContent = r.liked ? t('★ Starred') : t('Star'); b.querySelector('.hbx-pair-n').textContent = fmt.compact(r.likes); if (r.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } }));
       async function colMenu(anchor) {
         let r; try { r = await api.get('/api/hub/collections/of/' + it.id); } catch (e) { toastErr(e); return; }
         const ui = await import('../ui.js');
@@ -278,7 +284,7 @@ export default {
 
       const head = h('header.hbx-rhead',
         h('div.hbx-rtitle', icon(KIND_ICON[it.kind] || 'book', 18), it.owner ? h('a.hbx-rown', { href: '#/profile/' + it.owner.username }, it.owner.username) : h('span', '?'), h('span.hbx-slash', '/'), h('a.hbx-rname', { href: '#/hub/' + it.id }, it.title), h('span.hbx-lbl', it.public ? t('Public') : t('Private')), it.remixOf ? h('span.hbx-lbl', icon('fork', 11), ' ', h('a', { href: '#/hub/' + it.remixOf }, t('remix'))) : null),
-        h('div.hbx-ractions', modRemove, saveB, remixB, starB, it.kind === 'wall' ? h('button.btn.sm.primary', { onClick: async (e) => busy(e.currentTarget, async () => { try { const { setLiveBg } = await import('../livebg.js'); await setLiveBg({ id: it.id }); toast(t('Background applied. Adjust it in Appearance.'), 'good'); } catch (er) { toastErr(er); } }) }, icon('image', 14), t('Use as background')) : null));
+        h('div.hbx-ractions', modRemove, installB, saveB, remixB, starB, it.kind === 'wall' ? h('button.btn.sm.primary', { onClick: async (e) => busy(e.currentTarget, async () => { try { const { setLiveBg } = await import('../livebg.js'); await setLiveBg({ id: it.id }); toast(t('Background applied. Adjust it in Appearance.'), 'good'); } catch (er) { toastErr(er); } }) }, icon('image', 14), t('Use as background')) : null));
 
       // tabs
       const TABS = [['play', code ? t('Play') : t('Watch'), 'play'], code && it.files ? ['code', t('Code'), 'terminal'] : null, code ? ['releases', t('Releases'), 'tag', it.version] : null, ['reviews', t('Reviews'), 'star', it.rating ? it.rating.n : 0], ['discuss', t('Discussions'), 'chat', it.comments], ['media', t('Media'), 'image', (it.shots || []).length], it.mine ? ['settings', t('Settings'), 'gear'] : null].filter(Boolean);
@@ -288,13 +294,17 @@ export default {
 
       // About sidebar (always visible next to the tab)
       let filesCache = null; const getFiles = async () => { if (filesCache) return filesCache; if (!code || !it.files) return (filesCache = { files: [], entry: '' }); try { filesCache = await api.get(`/api/hub/${it.id}/files`); } catch { filesCache = { files: [], entry: '' }; } return filesCache; };
-      const langEl = h('div');
+      const langEl = h('div'); const boardEl = h('div'); loadBoardRef = () => loadBoard();
+      const loadBoard = () => api.get(`/api/hub/${it.id}/board`, { quiet: true }).then((r) => mount(boardEl, r.board.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', '🏆 ' + t('Leaderboard')), it.mine || ['owner', 'admin', 'mod'].includes(S.me.role) ? h('button.btn.sm.ghost', { title: t('Reset the leaderboard'), onClick: async () => { if (await confirmBox(t('Reset the leaderboard of “{t}”?', { t: it.title }), { danger: true })) { await api.del(`/api/hub/${it.id}/board`).catch(toastErr); loadBoard(); } } }, icon('refresh', 13)) : null),
+        h('ol.hbx-board', r.board.slice(0, 10).map((x) => h('li' + (x.me ? '.me' : ''), h('span.hbx-rank', String(x.rank)), x.user ? avatarEl(x.user, { size: 20 }) : null, h('span.grow.ellipsis', x.user ? x.user.displayName || x.user.username : '?'), h('b', Number(x.score).toLocaleString())))), r.mine && r.mine.rank > 10 ? h('div.tiny.muted', t('Your rank: #{r}', { r: r.mine.rank })) : null, h('div.tiny.muted', t('Scores are sent by the game itself.'))) : null)).catch(() => {});
+      if (code && it.files) loadBoard();
       const about = h('aside.hbx-about',
         h('div.hbx-box', h('div.hbx-boxh', h('b', t('About'))), it.desc ? h('p.small', { style: 'white-space:pre-wrap;margin:0 0 10px' }, it.desc.slice(0, 600)) : h('p.small.muted', t('No description.')),
           it.tags && it.tags.length ? h('div.hbx-topics', it.tags.map((x) => h('a.hbx-topic', { href: '#/hub?tag=' + encodeURIComponent(x) }, x))) : null,
           h('ul.hbx-facts', h('li', icon('star', 14), h('b', fmt.compact(it.likes)), ' ' + t('stars')), h('li', icon('eye', 14), h('b', fmt.compact(it.views)), ' ' + t('views')), h('li', icon('fork', 14), h('b', fmt.compact(it.remixes || 0)), ' ' + t('remixes')), h('li', icon('chat', 14), h('b', fmt.compact(it.comments || 0)), ' ' + t('comments')),
             h('li', icon('clock', 14), t('Created {d}', { d: fmt.date(it.created) })), it.size ? h('li', icon('download', 14), mb(it.size)) : null, code ? h('li', icon('shield', 14), it.runMode === 'native' ? t('Runs natively') : it.runMode === 'domain' ? t('Runs on the games domain') : t('Runs sandboxed')) : null)),
         code ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Releases')), h('span.hbx-count', String(it.version || 1))), h('div.hbx-rel-mini', icon('tag', 15), h('div', h('b', 'v' + (it.version || 1)), ' ', h('span.hbx-latest', t('Latest')), h('div.tiny.muted', rel(it.updated || it.created))))) : null,
+        code && it.files ? boardEl : null,
         code && it.files ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Languages'))), langEl) : null,
         d.more && d.more.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('More like this'))), d.more.slice(0, 6).map((m) => h('a.hbx-mini', { href: '#/hub/' + m.id }, h('i.hbx-kdot', { style: { background: KIND_COLOR[m.kind] || '#8b949e' } }), h('span.ellipsis', (m.owner ? m.owner.username : '?') + ' / ', h('b', m.title))))) : null);
       if (code && it.files) getFiles().then((f) => { const L = languages(f.files); mount(langEl, h('div.hbx-langbar', L.map((x) => h('i', { style: { width: x.p + '%', background: x.c }, title: x.n }))), h('ul.hbx-langs', L.map((x) => h('li', h('i', { style: { background: x.c } }), h('b', x.n), ' ', h('span.muted', x.p.toFixed(1) + '%'))))); });
