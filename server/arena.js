@@ -358,8 +358,8 @@ const DUELISH = ['duel', 'real', 'box'];
 async function newRoom(game, opts = {}) {
   await shared(); const duelish = DUELISH.includes(game);
   const room = { id: rid(6), game, duelish, bf: game === 'real' || game === 'box', ents: new Map(), phase: game === 'ops' ? 'warm' : duelish ? 'wait' : 'lobby', until: now() + (game === 'ops' ? 5000 : duelish ? (opts.priv ? DUEL.privWait : DUEL.wait) : 20000), created: now(), builds: new Map(), score: { atk: 0, def: 0 }, round: 0,
-    seed: game === 'royale' ? 'nebula-royale-' + Math.floor(Math.random() * 5) : game === 'duel' ? 'court' : duelish ? game : 'depot', ranked: !!opts.ranked, priv: opts.priv || null, allowed: opts.allowed || null, pot: opts.pot || 0, escrow: opts.escrow || null, botBoost: opts.botBoost || 0 };
-  room.map = game === 'ops' ? SH.opsMap() : game === 'duel' ? SH.duelMap() : room.bf ? SH.bfMap(game) : SH.royaleMap(room.seed); rooms.set(room.id, room);
+    seed: game === 'royale' ? 'nebula-royale-' + Math.floor(Math.random() * 5) : game === 'duel' ? SH.DUEL_MAPS[Math.floor(Math.random() * SH.DUEL_MAPS.length)] : duelish ? game : SH.OPS_MAPS[Math.floor(Math.random() * SH.OPS_MAPS.length)], ranked: !!opts.ranked, priv: opts.priv || null, allowed: opts.allowed || null, pot: opts.pot || 0, escrow: opts.escrow || null, botBoost: opts.botBoost || 0 };
+  room.map = game === 'ops' ? SH.opsMap(room.seed) : game === 'duel' ? SH.duelMap(room.seed) : room.bf ? SH.bfMap(game) : SH.royaleMap(room.seed); rooms.set(room.id, room);
   if (game === 'ops') { for (let i = 0; i < OPS_MAX; i++) ent(room, { bot: true, team: 'atk', name: BOT_NAMES[i] }); for (let i = 0; i < OPS_MAX; i++) ent(room, { bot: true, team: 'def', name: BOT_NAMES[i + 8] }); }
   if (!timer) timer = setInterval(tickAll, 50);
   return room;

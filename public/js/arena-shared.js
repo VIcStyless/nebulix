@@ -4,11 +4,11 @@
 
 // dmg per body hit, rate = seconds between shots, range in metres, spread in radians, head = headshot multiplier
 export const WEAPONS = {
-  pistol: { n: ['Pulse pistol', 'Pistola de pulso'], dmg: 26, rate: 0.17, mag: 12, reload: 1.3, range: 60, spread: 0.008, auto: false, head: 2.4, price: 0, slot: 2 },
-  smg: { n: ['Comet SMG', 'Subfusil Cometa'], dmg: 17, rate: 0.075, mag: 30, reload: 1.8, range: 45, spread: 0.022, auto: true, head: 1.8, price: 1200, slot: 1 },
-  shotgun: { n: ['Breaker shotgun', 'Escopeta Rompe'], dmg: 11, pellets: 8, rate: 0.85, mag: 6, reload: 2.4, range: 22, spread: 0.07, auto: false, head: 1.6, price: 1100, slot: 1 },
-  rifle: { n: ['Nova rifle', 'Rifle Nova'], dmg: 30, rate: 0.1, mag: 30, reload: 2.2, range: 120, spread: 0.012, auto: true, head: 3.6, price: 2700, slot: 1 },
-  lance: { n: ['Lance sniper', 'Francotirador Lanza'], dmg: 92, rate: 1.3, mag: 5, reload: 2.8, range: 260, spread: 0.035, scopeSpread: 0.0006, auto: false, head: 2.2, price: 4500, slot: 1, scope: true },
+  pistol: { n: ['9 mm pistol', 'Pistola 9 mm'], dmg: 26, rate: 0.17, mag: 12, reload: 1.3, range: 60, spread: 0.008, auto: false, head: 2.4, price: 0, slot: 2 },
+  smg: { n: ['Submachine gun', 'Subfusil'], dmg: 17, rate: 0.075, mag: 30, reload: 1.8, range: 45, spread: 0.022, auto: true, head: 1.8, price: 1200, slot: 1 },
+  shotgun: { n: ['Pump shotgun', 'Escopeta de corredera'], dmg: 11, pellets: 8, rate: 0.85, mag: 6, reload: 2.4, range: 22, spread: 0.07, auto: false, head: 1.6, price: 1100, slot: 1 },
+  rifle: { n: ['Assault rifle', 'Fusil de asalto'], dmg: 30, rate: 0.1, mag: 30, reload: 2.2, range: 120, spread: 0.012, auto: true, head: 3.6, price: 2700, slot: 1 },
+  lance: { n: ['Sniper rifle', 'Fusil de francotirador'], dmg: 92, rate: 1.3, mag: 5, reload: 2.8, range: 260, spread: 0.035, scopeSpread: 0.0006, auto: false, head: 2.2, price: 4500, slot: 1, scope: true },
 };
 export const ARMOR_PRICE = 650; export const KIT_PRICE = 400;
 // Royale rarities: damage multiplier and colour
@@ -19,7 +19,9 @@ export function rng(seed) { let a = typeof seed === 'number' ? seed >>> 0 : [...
 
 // ---------- Nebula Ops: "Nebula Depot" (attackers spawn south, defenders north, sites A west and B east) ----------
 // box: { x, z, w, d, h, y?, m: material }   m: wall | brick | crate | cont0..3 | metal | glass
-export function opsMap() {
+export const OPS_MAPS = ['depot', 'harbor'];
+export function opsMap(name = 'depot') {
+  if (name === 'harbor') return harborMap();
   const B = []; const box = (x, z, w, d, h, m = 'wall', y = 0) => B.push({ x, z, w, d, h, y, m });
   const W = 46, D = 38;
   box(0, -D, W * 2, 1.2, 7, 'brick'); box(0, D, W * 2, 1.2, 7, 'brick'); box(-W, 0, 1.2, D * 2, 7, 'brick'); box(W, 0, 1.2, D * 2, 7, 'brick');
@@ -116,7 +118,9 @@ export function losBoxes(boxes, ax, ay, az, bx, by, bz) {
 // every round both players get the same weapon, in this order; first to 5 wins
 export const DUEL_ROT = ['pistol', 'smg', 'shotgun', 'rifle', 'lance'];
 export const DUEL_WIN = 5;
-export function duelMap() {
+export const DUEL_MAPS = ['court', 'yard', 'temple'];
+export function duelMap(name = 'court') {
+  if (name === 'yard' || name === 'temple') return duelVariant(name);
   const B = []; const box = (x, z, w, d, h, m = 'wall', y = 0) => B.push({ x, z, w, d, h, y, m });
   const W = 22, D = 15;
   box(0, -D, W * 2, 1, 6, 'metal'); box(0, D, W * 2, 1, 6, 'metal'); box(-W, 0, 1, D * 2, 6, 'metal'); box(W, 0, 1, D * 2, 6, 'metal');
@@ -148,3 +152,42 @@ export function spawnBox(gx, gz) { return [{ k: 'wall', gx, gy: 0, gz, dir: 0 },
 
 // Quick chat (13.8): preset phrases only, so there is nothing to moderate. N opens the wheel, 1–8 sends.
 export const QUICK = [['Nice shot!', '¡Buen tiro!'], ['Good game', 'Buena partida'], ['Help!', '¡Ayuda!'], ['Enemy here!', '¡Enemigo aquí!'], ['Thanks!', '¡Gracias!'], ['Need materials', 'Necesito materiales'], ['On my way', 'Voy para allá'], ['Well played', 'Bien jugado']];
+
+// ---------- 13.8 maps ----------
+// "Harbor" for Nebula Ops: a port with stacked containers, a crane and two warehouses. Same spawns and sites as Depot.
+function harborMap() {
+  const B = []; const box = (x, z, w, d, h, m = 'wall', y = 0) => B.push({ x, z, w, d, h, y, m });
+  const W = 46, D = 38;
+  box(0, -D, W * 2, 1.2, 7, 'metal'); box(0, D, W * 2, 1.2, 7, 'metal'); box(-W, 0, 1.2, D * 2, 7, 'metal'); box(W, 0, 1.2, D * 2, 7, 'metal');
+  box(-14, 24, 18, 1, 4, 'brick'); box(14, 24, 18, 1, 4, 'brick'); box(-14, -26, 18, 1, 4, 'brick'); box(14, -26, 18, 1, 4, 'brick');
+  // mid: container canyon
+  for (const [x, z, c] of [[-8, 8, 0], [-8, -2, 1], [8, 6, 2], [8, -6, 3], [0, -12, 1]]) { box(x, z, 2.6, 6.2, 2.7, 'cont' + c); }
+  box(-8, 8, 2.6, 6.2, 2.7, 'cont2', 2.7); box(8, -6, 2.6, 6.2, 2.7, 'cont0', 2.7);
+  // crane: legs and beam (cover from above is not modelled, the beam is high)
+  box(-3, 0, 1, 1, 9, 'metal'); box(3, 0, 1, 1, 9, 'metal'); box(0, 0, 7, 1, 0.8, 'metal', 9);
+  // A warehouse (west)
+  box(-30, -25, 18, 1, 6, 'brick'); box(-39, -16, 1, 18, 6, 'brick'); box(-21, -20, 1, 9, 6, 'brick'); box(-34, -7, 9, 1, 6, 'brick');
+  box(-34, -12, 2.6, 6.2, 2.7, 'cont3'); box(-33, -21, 1.4, 1.4, 1.4, 'crate'); box(-25, -12, 1.4, 1.4, 1.4, 'crate'); box(-25, -12, 1.2, 1.2, 1.2, 'crate', 1.4);
+  box(-26, 8, 1, 20, 4, 'wall'); box(-36, 2, 14, 1, 4, 'wall'); box(-15, -6, 8, 1, 4, 'wall');
+  // B dock (east): open pier with low cover and a big ship hull wall
+  box(44, -12, 2, 30, 5, 'metal'); box(30, -18, 6.2, 2.6, 2.7, 'cont1'); box(24, -10, 2.6, 6.2, 2.7, 'cont2'); box(34, -8, 1.4, 1.4, 1.4, 'crate'); box(28, -24, 1.4, 1.4, 1.4, 'crate');
+  box(20, -4, 1, 12, 4.5, 'brick'); box(36, 2, 14, 1, 4.5, 'brick'); box(26, 12, 1, 18, 4, 'wall'); box(36, 18, 12, 1, 4, 'wall'); box(14, 14, 6, 6, 3.4, 'brick');
+  box(-12, 16, 6.2, 2.6, 2.7, 'cont0'); box(12, 18, 1.4, 1.4, 1.4, 'crate'); box(-4, -18, 1.4, 1.4, 1.4, 'crate');
+  const spawns = { atk: [], def: [] };
+  for (let i = 0; i < 5; i++) { spawns.atk.push({ x: -8 + i * 4, z: 31, yaw: 0 }); spawns.def.push({ x: -8 + i * 4, z: -32, yaw: Math.PI }); }
+  return { boxes: B, spawns, sites: { A: { x: -29, z: -16, r: 6 }, B: { x: 28, z: -15, r: 6.5 } }, size: { w: W, d: D }, name: 'Harbor', floor: 'concrete' };
+}
+// Duel arenas: "Neon Yard" (container maze) and "Stone Temple" (pillars and a raised centre). Mirrored, same size.
+function duelVariant(name) {
+  const B = []; const box = (x, z, w, d, h, m = 'wall', y = 0) => B.push({ x, z, w, d, h, y, m });
+  const W = 22, D = 15;
+  const wall = name === 'yard' ? 'metal' : 'brick';
+  box(0, -D, W * 2, 1, 6, wall); box(0, D, W * 2, 1, 6, wall); box(-W, 0, 1, D * 2, 6, wall); box(W, 0, 1, D * 2, 6, wall);
+  for (const s of [-1, 1]) {
+    if (name === 'yard') { box(s * 13, -5, 2.6, 6.2, 2.7, 'cont' + (s < 0 ? 0 : 1)); box(s * 13, 6, 6.2, 2.6, 2.7, 'cont' + (s < 0 ? 2 : 3)); box(s * 7, 0, 2.6, 6.2, 2.7, 'cont1'); box(s * 7, 0, 2.6, 6.2, 2.7, 'cont3', 2.7); box(s * 17, -10, 1.4, 1.4, 1.4, 'crate'); box(s * 4, 10, 1.4, 1.4, 1.4, 'crate'); box(s * 4, -10, 6.2, 2.6, 2.7, 'cont2'); }
+    else { for (const z of [-9, -3, 3, 9]) box(s * 11, z, 1.6, 1.6, 4.5, 'brick'); box(s * 16, 0, 1, 7, 1.3, 'brick'); box(s * 5, -7, 1.6, 1.6, 4.5, 'brick'); box(s * 5, 7, 1.6, 1.6, 4.5, 'brick'); }
+  }
+  if (name === 'yard') { box(0, 0, 1.4, 1.4, 1.4, 'crate'); box(0, -6, 1, 3, 1.2, 'metal'); box(0, 6, 1, 3, 1.2, 'metal'); }
+  else { box(0, 0, 6, 6, 0.6, 'brick'); box(0, 0, 2.2, 2.2, 1.2, 'glass', 0.6); }
+  return { boxes: B, spawns: { atk: [{ x: -19, z: 0, yaw: -Math.PI / 2 }], def: [{ x: 19, z: 0, yaw: Math.PI / 2 }] }, sites: {}, size: { w: W, d: D }, name: name === 'yard' ? 'Neon Yard' : 'Stone Temple' };
+}

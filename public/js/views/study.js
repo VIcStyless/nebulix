@@ -84,12 +84,15 @@ export default {
       const paintLike = () => mount(likeB, icon('heart', 14), ' ' + n.likes + ' ' + (n.liked ? t('Liked') : t('Like')));
       const saveB = h('button.btn.sm', { onClick: async () => { try { const r = await api.post('/api/study/save', { kind: 'note', id: n.id }); n.saved = r.saved; saveB.lastChild.textContent = ' ' + (n.saved ? t('Saved') : t('Save')); } catch (e) { toastErr(e); } } }, icon('bookmark', 14), h('span', ' ' + (n.saved ? t('Saved') : t('Save'))));
       paintLike();
+      const askIn = h('input.input', { placeholder: t('What do you want to know about this?'), onKeydown: (e) => { if (e.key === 'Enter') ask(); } });
+      const ask = () => { const q2 = askIn.value.trim(); if (!q2) return; askIn.value = ''; aiModal(q2, `${lng()} ${es() ? 'Eres un tutor. Contesta usando estos apuntes (y lo que sepas si hace falta), claro y con ejemplos.' : 'You are a tutor. Answer using these notes (and what you know if needed), clearly and with examples.'}\n\n${es() ? 'Pregunta' : 'Question'}: ${q2}\n\n${es() ? 'Apuntes' : 'Notes'} "${n.title}":\n${n.body.slice(0, 10000)}`); };
       mount(box, h('div.nst-read',
         h('div.row', { style: 'gap:8px;flex-wrap:wrap;align-items:center' }, h('button.btn.sm.ghost', { onClick: () => go('notes') }, icon('back', 14), t('Notes')), chip(n.subject), h('span.tiny.muted', L(LEVELS[n.level] || LEVELS.other)), h('span.grow'), likeB, saveB,
           h('button.btn.sm', { onClick: () => aiFromNote(n, 'cards') }, icon('layers', 14), t('Flashcards with AI')), h('button.btn.sm', { onClick: () => aiFromNote(n, 'quiz') }, icon('flag', 14), t('Quiz with AI')), h('button.btn.sm', { onClick: () => aiFromNote(n, 'summary') }, icon('spark', 14), t('Summary')),
           n.mine ? h('button.btn.sm', { onClick: () => editNote(n) }, icon('edit', 14), t('Edit')) : h('button.btn.sm.ghost', { title: t('Report'), onClick: async () => { if (await confirmBox(t('Report these notes as wrong or inappropriate?'))) { try { await api.post('/api/study/report', { kind: 'note', id: n.id }); toast(t('Thanks, the team will check it'), 'good'); } catch (e) { toastErr(e); } } } }, icon('flag', 14))),
         h('h1', n.title), h('div.tiny.muted', (n.author ? '@' + n.author.username + ' · ' : '') + fmt.date(n.updated || n.created) + ' · ' + t('{n} views', { n: n.views })),
-        h('article.nst-md', renderMarkdown(n.body, { go: ctx.go }))));
+        h('article.nst-md', renderMarkdown(n.body, { go: ctx.go })),
+        h('section.card.nst-ask', h('h3', icon('spark', 16), ' ', t('Ask the AI about these notes')), h('div.nst-send', askIn, h('button.btn.primary', { onClick: ask }, icon('send', 15))), h('div.row', { style: 'gap:6px;flex-wrap:wrap' }, [t('Explain the hardest part simply'), t('Give me 3 exam-style questions'), t('Make a mnemonic to remember it')].map((q2) => h('button.btn.sm', { onClick: () => { askIn.value = q2; ask(); } }, q2))))));
     }
     async function editNote(n) {
       const title = h('input.input', { value: n ? n.title : '', maxlength: 120, placeholder: t('E.g. Cell division: mitosis and meiosis') });
@@ -120,6 +123,13 @@ export default {
       if (!qs.length) return toast(t('The AI could not make it now. Try again in a moment.'), 'err');
       runQuiz(n.title, qs);
     }
+    // 13.8: AI everywhere in Study — one streaming answer in a modal
+    async function aiModal(title, prompt) {
+      const out = h('div.nst-md', loading()); modal({ title, cls: 'wide', body: out, actions: [{ label: t('Close') }] }); let txt = '';
+      try { await askNova({ messages: [{ role: 'user', content: prompt }], onText: (d) => { txt += d; mount(out, renderMarkdown(txt, { done: false })); } }); mount(out, renderMarkdown(txt || t('The AI is busy, try again in a moment'))); }
+      catch { mount(out, h('span.error', t('The AI is busy, try again in a moment'))); }
+    }
+    const lng = () => (es() ? 'Responde en español.' : 'Answer in English.');
     // a multiple-choice quiz in a modal (AI quizzes and deck tests)
     function runQuiz(title, qs) {
       let i = 0, right = 0; const wrong = []; const bodyEl = h('div.nst-quiz'); const m = modal({ title: title, cls: 'wide', body: bodyEl, actions: [{ label: t('Close') }] });
@@ -264,7 +274,7 @@ export default {
       function paint() {
         const bySub = {}; for (const g of grades) (bySub[g.subject] = bySub[g.subject] || []).push(g); const all = overall(grades);
         mount(wrap, h('div.nst-kpis', kpi('chart', t('Overall average'), all === null ? '—' : all.toFixed(2)), kpi('book', t('Subjects'), String(Object.keys(bySub).length)), kpi('check', t('Passed subjects'), String(Object.values(bySub).filter((l) => avgOf(l) >= 5).length))),
-          h('div.nst-bar', h('button.btn.primary', { onClick: add }, icon('plus', 15), t('Add grade')), h('button.btn', { onClick: need }, icon('target', 15), t('What do I need?'))),
+          h('div.nst-bar', h('button.btn.primary', { onClick: add }, icon('plus', 15), t('Add grade')), h('button.btn', { onClick: need }, icon('target', 15), t('What do I need?')), grades.length ? h('button.btn', { onClick: () => { const bySub2 = {}; for (const g of grades) (bySub2[sName(g.subject)] = bySub2[sName(g.subject)] || []).push(((g.score / g.max) * 10).toFixed(1) + ' (×' + g.weight + ')'); aiModal(t('AI advice on your grades'), `${lng()} ${es() ? 'Eres un orientador escolar. Analiza estas notas (sobre 10, con su peso), di qué va bien y qué peligra, y da un plan concreto de 2 semanas para subir las más flojas.' : 'You are a school counsellor. Analyse these grades (out of 10, with weight), say what is going well and what is at risk, and give a concrete 2-week plan to raise the weakest.'}\n\n${Object.entries(bySub2).map(([k, v]) => k + ': ' + v.join(', ')).join('\n')}`); } }, icon('spark', 15), t('AI advice')) : null),
           Object.keys(bySub).length ? h('div.nst-subjgrid', Object.entries(bySub).map(([s, l]) => { const a = avgOf(l); return h('section.card.nst-gcard', h('div.row', { style: 'justify-content:space-between;align-items:center' }, chip(s), h('b.nst-avg' + (a >= 5 ? '.ok' : '.bad'), a.toFixed(2))), h('div.nst-gbar', h('i', { style: { width: Math.min(100, a * 10) + '%', background: a >= 5 ? 'var(--ok,#22c55e)' : '#ef4444' } })),
             l.map((g) => h('div.nst-grow', h('span.grow', g.name || t('Grade')), h('span.tiny.muted', '×' + g.weight), h('b', ((g.score / g.max) * 10).toFixed(1)), h('button.btn.sm.ghost', { onClick: () => { grades = grades.filter((x) => x !== g); save(); paint(); } }, icon('x', 12))))); })) : h('div.empty', h('h3', t('No grades yet')), h('p.muted', t('Add your marks to see your averages and what you need to pass or reach a goal.'))));
       }
@@ -292,7 +302,7 @@ export default {
         const up = exams.filter((e) => !e.done).sort((a, b) => a.date - b.date); const done = exams.filter((e) => e.done);
         mount(wrap, h('div.nst-bar', h('button.btn.primary', { onClick: add }, icon('plus', 15), t('Add exam'))),
           up.length ? h('div.nst-examlist', up.map((e) => { const days = Math.ceil((e.date - Date.now()) / 86400000); return h('section.card.nst-examcard' + (days <= 3 ? '.soon' : ''), chip(e.subject), h('b', e.title), h('div.nst-count', days < 0 ? t('Past') : days === 0 ? t('Today!') : t('In {n} days', { n: days })), h('span.tiny.muted', new Date(e.date).toLocaleDateString()),
-            h('div.row', { style: 'gap:6px' }, h('button.btn.sm', { onClick: () => go('tutor') }, icon('spark', 13), t('Revise with AI')), h('button.btn.sm', { onClick: () => { e.done = true; save(); paint(); } }, icon('check', 13), t('Done')), h('button.btn.sm.ghost', { onClick: () => { exams = exams.filter((x) => x !== e); save(); paint(); } }, icon('trash', 13)))); })) : h('div.empty', h('h3', t('No exams coming up')), h('p.muted', t('Add your exams to see a countdown and plan your revision.'))),
+            h('div.row', { style: 'gap:6px' }, h('button.btn.sm', { onClick: () => aiModal(t('Study plan: {e}', { e: e.title }), `${lng()} ${es() ? 'Haz un plan de estudio día a día, realista y motivador, para este examen' : 'Make a realistic, motivating day-by-day study plan for this exam'}: "${e.title}" (${sName(e.subject)}). ${es() ? 'Faltan' : 'Days left'}: ${Math.max(1, days)}. ${es() ? 'Cada día: qué repasar, cuánto tiempo y una técnica (tarjetas, test, resumen). Termina con 5 consejos para el día del examen.' : 'Each day: what to review, how long and a technique (flashcards, test, summary). End with 5 tips for exam day.'}`) }, icon('spark', 13), t('Plan with AI')), h('button.btn.sm', { onClick: () => go('tutor') }, icon('spark', 13), t('Revise with AI')), h('button.btn.sm', { onClick: () => { e.done = true; save(); paint(); } }, icon('check', 13), t('Done')), h('button.btn.sm.ghost', { onClick: () => { exams = exams.filter((x) => x !== e); save(); paint(); } }, icon('trash', 13)))); })) : h('div.empty', h('h3', t('No exams coming up')), h('p.muted', t('Add your exams to see a countdown and plan your revision.'))),
           done.length ? h('details', h('summary.small.muted', t('Finished') + ' (' + done.length + ')'), done.map((e) => h('div.nst-exam', chip(e.subject), h('span.grow', e.title), h('button.btn.sm.ghost', { onClick: () => { exams = exams.filter((x) => x !== e); save(); paint(); } }, icon('trash', 12))))) : null);
       }
       async function add() {
