@@ -1,6 +1,6 @@
 // Nebulix 13.4 — Cloud gaming: big PC and console games streamed from powerful servers, plus games that run right here.
-// Streaming services need their own account and open in a new tab (they stream video over WebRTC, which only works
-// directly with them). Everything under "Play now in Nebulix" runs inside Nebulix. #/cloud
+// 13.8: streaming services open through the Nebulix proxy browser, with "open directly" as a fallback (WebRTC video
+// may not survive a proxy). Everything under "Play now in Nebulix" runs inside Nebulix. #/cloud
 import { h, mount } from '../util.js';
 import { t, pick2 } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -25,8 +25,11 @@ export default {
     mount(root, h('div.inner.cg',
       h('div.page-title', h('div', h('h2', t('Cloud gaming')), h('p', t('Big games streamed from powerful servers to any device — even a school laptop or a phone. You only need a good connection.')))),
       h('h3', t('Streaming services')),
-      h('div.cg-grid', SERVICES.map((s) => h('a.cg-card', { href: s.url, target: '_blank', rel: 'noopener noreferrer', style: { '--a': s.c[0], '--b': s.c[1] } }, h('div.cg-top', icon('monitor', 28), s.free ? h('span.pill', t('Free tier')) : null), h('b', s.n), h('p.small', pick2(s.d)), h('span.cg-open', t('Open'), ' ', icon('external', 13))))),
-      h('p.tiny.muted', t('These services are run by other companies and need their own account. They open in a new tab because they stream video directly to your browser. For the best result: wired connection or 5 GHz Wi-Fi, 15+ Mbps, and a gamepad.')),
+      // 13.8: services open inside the Nebulix browser (through the proxy) — handy where they are blocked. Streaming
+      // over WebRTC does not always survive a proxy, so each card also has "open directly" as a fallback.
+      h('div.cg-grid', SERVICES.map((sv) => h('div.cg-card', { style: { '--a': sv.c[0], '--b': sv.c[1] } }, h('div.cg-top', icon('monitor', 28), sv.free ? h('span.pill', t('Free tier')) : null), h('b', sv.n), h('p.small', pick2(sv.d)),
+        h('div.row', { style: 'gap:6px;flex-wrap:wrap;margin-top:auto' }, h('button.btn.sm.primary', { onClick: () => ctx.go('browse', { go: sv.url }) }, icon('globe', 13), t('Play through Nebulix')), h('a.btn.sm.ghost', { href: sv.url, target: '_blank', rel: 'noopener noreferrer' }, icon('external', 13), t('Open directly')))))),
+      h('p.tiny.muted', t('“Play through Nebulix” opens the service in the Nebulix browser (proxy), useful where it is blocked. Cloud streaming uses WebRTC, which may not work through a proxy: if the game does not start, use “Open directly”. You need your own account; wired connection or 5 GHz Wi-Fi, 15+ Mbps and a gamepad work best.')),
       h('h3', t('Play now in Nebulix')),
       h('div.cg-grid', HERE.map(([route, n, ic, d]) => h('button.cg-card.here', { onClick: () => ctx.go(route) }, h('div.cg-top', icon(ic, 28)), h('b', t(n)), h('p.small', pick2(d)), h('span.cg-open', t('Play'), ' ', icon('play', 13)))))));
     return () => {};

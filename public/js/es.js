@@ -5812,4 +5812,7 @@ export default {
   "Earn gems with the daily reward, levels, achievements and Premium. They are never sold for money.": "Gana gemas con la recompensa diaria, los niveles, los logros y Premium. Nunca se venden con dinero.",
   "Unequip": "Quitar",
   "Try combining {a} + {b}": "Prueba a combinar {a} + {b}",
+  "Play through Nebulix": "Jugar por Nebulix",
+  "Open directly": "Abrir directo",
+  "“Play through Nebulix” opens the service in the Nebulix browser (proxy), useful where it is blocked. Cloud streaming uses WebRTC, which may not work through a proxy: if the game does not start, use “Open directly”. You need your own account; wired connection or 5 GHz Wi-Fi, 15+ Mbps and a gamepad work best.": "«Jugar por Nebulix» abre el servicio en el navegador de Nebulix (proxy), útil donde está bloqueado. El juego en la nube usa WebRTC, que puede no funcionar a través de un proxy: si el juego no arranca, usa «Abrir directo». Necesitas tu propia cuenta; lo mejor es cable o wifi de 5 GHz, más de 15 Mbps y un mando.",
 };
