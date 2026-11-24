@@ -88,12 +88,25 @@ infrastructure each pending item needs). Status words mean:
 4. **Installed apps in the OS:** update badge and notice when the Hub version is newer than the last one opened
    (`os.appver` on the device); desktop icon menu with Open / Open in Nebulix Hub / Uninstall.
 
+## 3d. What phase 4 added (v14.5.0)
+
+1. **Calendar invitations:** `invites: [usernames]` on an event (friends only, max 20); guests get a notice and the event
+   under `invited` in `GET /api/calendar`; `POST /api/calendar/invited/:owner/:id { st: yes|no|maybe }` notifies the owner;
+   guests who said yes get the reminder. Tested with two accounts.
+2. **Multiplayer rooms** (`server/hubrooms.js`, WebSocket messages `hr_join / hr_msg / hr_leave`, events `hr_joined /
+   hr_peer / hr_msg / hr_error`): 16 players per room, 8 KB JSON messages, 30/s per player, private messages, cleanup on
+   disconnect. Tested with two real WebSocket clients (join, relay, size limit, cross-game isolation, leave on close).
+3. **App permissions:** optional `nebulix.json` (`permissions: camera | microphone | geolocation | midi`), read at publish,
+   new version and lazily for older uploads; `POST /api/hub/:id/perms`; the iframe `allow` attribute only includes granted
+   permissions; prompt before install and a banner on the game page. Tested end to end.
+4. **Creator docs:** `docs/GAME-API.md`.
+
 ## 4. Next phases (in order)
 
-1. App manifests and permissions for installed apps (camera, microphone, notifications) shown before install.
-2. Shared calendars and event invitations to friends.
-3. Game API: multiplayer rooms over the existing WebSocket.
-4. More arcade games: online chess and checkers through duels, Bubble Shooter, Tower Defense, Word Search.
+1. Online chess and checkers against friends through the existing duels system (server-side move validation).
+2. More arcade games: Bubble Shooter, Tower Defense, Word Search.
+3. A Hub page that documents the Game API for creators (from docs/GAME-API.md) and a starter template.
+4. Office: DOCX export, comments and co-editing.
 5. Office: DOCX export, comments, co-editing over WebSocket.
 6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
    the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.

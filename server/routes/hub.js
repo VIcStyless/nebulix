@@ -61,7 +61,14 @@ async function unpack(up) {
 
 function view(it, u) {
   const o = S.users[it.owner];
-  return { id: it.id, kind: it.kind, wtype: it.wtype || null, runMode: modeOf(it.runMode), gamesDomain: !!require('../config').gamesOrigin, title: it.title, desc: it.desc, tags: it.tags, owner: o ? publicUser(o) : null, files: it.files ? Object.keys(it.files).length : 0, allowDownload: !!it.allowDownload, allowRemix: !!it.allowRemix, remixOf: it.remixOf || null, remixes: it.remixes || 0, saved: !!(u && (u.hubSaved || []).includes(it.id)), installed: !!(u && (u.apps || []).includes(it.id)), comments: ((S.store.table('comments')[it.id]) || []).length, version: it.version || 1, updated: it.updated || it.created, views: it.views || 0, likes: (it.likes || []).length, liked: !!(u && (it.likes || []).includes(u.id)), created: it.created, size: it.size, thumb: it.thumb ? `/x/hub/t/${it.id}?v=${String(it.thumb).slice(0, 8)}` : null, rating: ratingOf(it.id), shots: (it.shots || []).map((s, i) => `/x/hub/s/${it.id}/${i}?v=${String(s).slice(0, 8)}`), game: it.game && items()[it.game] ? { id: it.game, title: items()[it.game].title } : null, chapters: it.chapters || null, mine: !!(u && u.id === it.owner), duration: it.duration || 0, public: it.public !== false, official: it.official || null, sale: it.files && (it.kind === 'game' || it.kind === 'app') ? require('../vault').saleView(it, u) : null };
+  return { id: it.id, kind: it.kind, wtype: it.wtype || null, runMode: modeOf(it.runMode), gamesDomain: !!require('../config').gamesOrigin, title: it.title, desc: it.desc, tags: it.tags, owner: o ? publicUser(o) : null, files: it.files ? Object.keys(it.files).length : 0, allowDownload: !!it.allowDownload, allowRemix: !!it.allowRemix, remixOf: it.remixOf || null, remixes: it.remixes || 0, saved: !!(u && (u.hubSaved || []).includes(it.id)), installed: !!(u && (u.apps || []).includes(it.id)), perms: it.perms || [], granted: (u && u.appPerms && u.appPerms[it.id]) || [], comments: ((S.store.table('comments')[it.id]) || []).length, version: it.version || 1, updated: it.updated || it.created, views: it.views || 0, likes: (it.likes || []).length, liked: !!(u && (it.likes || []).includes(u.id)), created: it.created, size: it.size, thumb: it.thumb ? `/x/hub/t/${it.id}?v=${String(it.thumb).slice(0, 8)}` : null, rating: ratingOf(it.id), shots: (it.shots || []).map((s, i) => `/x/hub/s/${it.id}/${i}?v=${String(s).slice(0, 8)}`), game: it.game && items()[it.game] ? { id: it.game, title: items()[it.game].title } : null, chapters: it.chapters || null, mine: !!(u && u.id === it.owner), duration: it.duration || 0, public: it.public !== false, official: it.official || null, sale: it.files && (it.kind === 'game' || it.kind === 'app') ? require('../vault').saleView(it, u) : null };
+}
+// Nebulix 3.0 app manifest: an optional nebulix.json at the root of a game/app may ask for device permissions.
+// The frame only receives a permission when the player has allowed it for that upload (see /api/hub/:id/perms).
+const PERMS = ['camera', 'microphone', 'geolocation', 'midi'];
+function manifestPerms(it) {
+  const f = it.files && it.files['nebulix.json']; if (!f || (f.size || 0) > 8192) return [];
+  try { const j = JSON.parse(blobs.readBuffer(f.sha).toString('utf8')); return [...new Set((Array.isArray(j.permissions) ? j.permissions : []).map(String))].filter((p) => PERMS.includes(p)); } catch { return []; }
 }
 module.exports = function register(r) {
   require('../hubseed').start();
@@ -91,7 +98,7 @@ module.exports = function register(r) {
     if (up.kind === 'wall' && VIDEO.test(wext)) { it.wtype = 'video'; it.sha = up.sha; it.type = blobs.typeOf(up.name).startsWith('video/') ? blobs.typeOf(up.name) : 'video/mp4'; }
     else if (up.kind === 'wall' && IMAGE.test(wext)) { it.wtype = 'image'; it.sha = up.sha; it.type = blobs.typeOf(up.name) || 'image/gif'; if (!c.body.thumb) it.thumb = up.sha; }
     else if (isVid(up.kind)) { it.sha = up.sha; it.type = blobs.typeOf(up.name).startsWith('video/') ? blobs.typeOf(up.name) : 'video/mp4'; }
-    else { if (up.kind === 'wall') it.wtype = 'html'; const pk = await unpack(up); it.files = pk.files; it.entry = pk.entry; it.version = 1; it.versions = [{ v: 1, at: now(), note: clean(c.body.note, 200) || '', size: pk.size, files: Object.keys(pk.files).length }]; }
+    else { if (up.kind === 'wall') it.wtype = 'html'; const pk = await unpack(up); it.files = pk.files; it.entry = pk.entry; it.perms = manifestPerms(it); it.version = 1; it.versions = [{ v: 1, at: now(), note: clean(c.body.note, 200) || '', size: pk.size, files: Object.keys(pk.files).length }]; }
     const th = c.body.thumb && pending.get(String(c.body.thumb)); if (th && th.uid === u.id && th.kind === 'thumb') { it.thumb = th.sha; pending.delete(c.body.thumb); }
     if (it.kind === 'clip' && c.body.game && items()[c.body.game] && items()[c.body.game].public !== false) it.game = String(c.body.game);
     blobs.charge(u, up.size); pending.delete(c.body.upload);
@@ -126,7 +133,7 @@ module.exports = function register(r) {
   });
   r.get('/api/hub/:id', { auth: true }, async (c) => {
     const it = items()[c.params.id]; if (!it || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Not found');
-    it.views = (it.views || 0) + 1; touch();
+    it.views = (it.views || 0) + 1; if (it.files && it.perms === undefined) it.perms = manifestPerms(it); touch();
     const u0 = c.user; u0.hubHistory = [it.id, ...(u0.hubHistory || []).filter((x) => x !== it.id)].slice(0, 40); S.store.touch('users');
     const more = Object.values(items()).filter((x) => x.id !== it.id && x.kind === it.kind && x.public !== false).sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12).map((x) => view(x, c.user));
     return { item: Object.assign(view(it, c.user), { src: srcOf(it, c.user), versions: (it.versions || []).slice(-20).reverse() }), more };
@@ -155,7 +162,7 @@ module.exports = function register(r) {
     const u = c.user; const it = items()[c.params.id]; if (!it || it.owner !== u.id || !it.files) throw new HttpError(404, 'no_item', 'Not found');
     const up = pending.get(String(c.body.upload || '')); if (!up || up.uid !== u.id || up.kind === 'thumb') throw new HttpError(400, 'no_upload', 'Upload the new files first');
     const pk = await unpack(up); blobs.charge(u, up.size - (it.size || 0)); pending.delete(c.body.upload); // storage is counted on the uploaded size, like the first version
-    it.files = pk.files; it.entry = pk.entry; it.size = up.size; it.version = (it.version || 1) + 1; it.updated = now();
+    it.files = pk.files; it.entry = pk.entry; it.perms = manifestPerms(it); it.size = up.size; it.version = (it.version || 1) + 1; it.updated = now();
     it.versions = (it.versions || [{ v: 1, at: it.created, note: '', size: it.size }]).concat({ v: it.version, at: now(), note: clean(c.body.note, 200), size: pk.size, files: Object.keys(pk.files).length }).slice(-30);
     touch(); return { item: view(it, u) };
   });
@@ -203,6 +210,11 @@ module.exports = function register(r) {
     touch(); S.store.touch('users'); return { unlocked: true, achievement: { id, title: defs[id].title, desc: defs[id].desc } };
   });
   r.delete('/api/hub/:id/ach', { auth: true }, async (c) => { const it = items()[c.params.id]; if (!it) throw new HttpError(404, 'no_item', 'Not found'); if (it.owner !== c.user.id && !['owner', 'admin', 'mod'].includes(c.user.role)) throw new HttpError(403, 'forbidden', 'Not allowed'); it.achs = {}; it.achPlayers = {}; touch(); return { ok: true }; });
+  r.post('/api/hub/:id/perms', { auth: true, limit: [30, 60000, 'user'] }, async (c) => {
+    const it = items()[c.params.id]; if (!it || !it.files) throw new HttpError(404, 'no_item', 'Not found');
+    const want = (Array.isArray(c.body.grant) ? c.body.grant : []).map(String).filter((p) => (it.perms || []).includes(p));
+    const u = c.user; u.appPerms = u.appPerms || {}; if (want.length) u.appPerms[it.id] = want; else delete u.appPerms[it.id]; S.store.touch('users'); return { granted: want };
+  });
   // Nebulix 3.0 App Store: install games and apps into Nebulix OS (start menu, dock, their own windows)
   r.post('/api/hub/:id/install', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {
     const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Only games and apps can be installed');

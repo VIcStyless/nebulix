@@ -6288,4 +6288,18 @@ export default {
   "Install apps": "Instalar apps",
   "Install Hub games and apps into Nebulix OS; you are told when they get a new version.": "Instala juegos y apps del Hub en Nebulix OS; te avisa cuando tienen una versión nueva.",
   "JSON, regex, encoders, UUIDs, timestamps, cron, colours, diff and more.": "JSON, regex, codificadores, UUID, marcas de tiempo, cron, colores, comparador y más.",
+  // Nebulix 3.0 phase 4
+  "@{u} invited you": "@{u} te ha invitado",
+  "Your answer: {a}": "Tu respuesta: {a}",
+  "Not going": "No voy",
+  "Maybe": "Quizá",
+  "Invite friends": "Invitar a amigos",
+  "Add friends to invite them to your events.": "Añade amigos para invitarlos a tus eventos.",
+  "{n} invitations": "{n} invitaciones",
+  "“{n}” asks for permissions": "«{n}» pide permisos",
+  "This game or app wants to use the following. It runs isolated from your account either way; you can change this later.": "Este juego o app quiere usar lo siguiente. En cualquier caso funciona aislado de tu cuenta; puedes cambiarlo más tarde.",
+  "Permissions: {p}": "Permisos: {p}",
+  "This game asks for: {p}": "Este juego pide: {p}",
+  "Microphone": "Micrófono",
+  "MIDI devices": "Dispositivos MIDI",
 };

@@ -6,6 +6,8 @@ import { t } from '../i18n.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, modal, confirmBox, loading, segEl } from '../ui.js';
+import { S } from '../state.js';
+import { avatarEl } from '../cosmetics.js';
 
 const DAY = 86400000;
 const lang = () => document.documentElement.lang || 'es';
@@ -42,7 +44,16 @@ export default {
     try { data = await api.get('/api/calendar'); } catch (e) { toastErr(e); }
     const save = async (kind, obj) => { try { const r = await api.post('/api/calendar/' + kind, obj); const list = data[kind]; const k = kind === 'events' ? r.event : r.task; const i = list.findIndex((x) => x.id === k.id); if (i >= 0) list[i] = k; else list.push(k); paint(); return k; } catch (e) { toastErr(e); return null; } };
     const del = async (kind, id) => { try { await api.del('/api/calendar/' + kind + '/' + id); data[kind] = data[kind].filter((x) => x.id !== id); paint(); } catch (e) { toastErr(e); } };
-    const occIn = (from, to) => data.events.flatMap((e) => occurrences(e, from, to)).sort((a, b) => a.start - b.start);
+    const allEvents = () => [...data.events, ...(data.invited || []).filter((x) => x.st !== 'no').map((x) => Object.assign({ inv: true, remind: -1 }, x))];
+    const occIn = (from, to) => allEvents().flatMap((e) => occurrences(e, from, to)).sort((a, b) => a.start - b.start);
+    const ST = { pending: ['⏳', 'Waiting'], yes: ['✓', 'Going'], no: ['✗', 'Not going'], maybe: ['?', 'Maybe'] };
+    const openEv = (e) => (e.inv ? inviteModal(e) : eventEditor(e));
+    function inviteModal(e) {
+      const answer = async (st) => { try { await api.post(`/api/calendar/invited/${e.owner.id}/${e.id}`, { st }); const x = data.invited.find((y) => y.id === e.id && y.owner.id === e.owner.id); if (x) x.st = st; toast(t(ST[st][1]), 'good', 1200); paint(); return true; } catch (er) { toastErr(er); return false; } };
+      modal({ title: e.title, body: h('div.col.gap', h('div.row', { style: 'gap:8px;align-items:center' }, avatarEl(e.owner, { size: 28 }), h('span', t('@{u} invited you', { u: e.owner.username }))), h('div', icon('clock', 14), ' ', e.allDay ? fmtD(e.start, { weekday: 'long', day: 'numeric', month: 'long' }) : fmtD(e.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + fmtT(e.start) + ' – ' + fmtT(e.end)),
+        e.place ? h('div', '📍 ', e.place) : null, e.notes ? h('p.small', { style: 'white-space:pre-wrap' }, e.notes) : null, h('div.small.muted', t('Your answer: {a}', { a: t(ST[e.st][1]) }) + ' · ' + t('{n} going', { n: e.guests }))),
+        actions: [{ label: '✗ ' + t('Not going'), onClick: () => answer('no') }, { label: '? ' + t('Maybe'), onClick: () => answer('maybe') }, { label: '✓ ' + t('Going'), kind: 'primary', onClick: () => answer('yes') }] });
+    }
 
     function eventEditor(e0, at) {
       const e = e0 || { title: '', start: at || +new Date(cursor).setHours(new Date().getHours() + 1, 0, 0, 0), end: 0, allDay: false, color: data.colors[0] || '#8b7bff', repeat: 'none', remind: 10, place: '', notes: '' }; if (!e.end) e.end = e.start + 3600000;
@@ -50,14 +61,17 @@ export default {
       const allDay = h('input', { type: 'checkbox', checked: e.allDay, onChange: () => { st.disabled = et.disabled = allDay.checked; } }); st.disabled = et.disabled = e.allDay;
       const rep = h('select.select', REPEAT.map(([v, l]) => h('option', { value: v, selected: e.repeat === v }, t(l)))); const rem = h('select.select', REMIND.map(([v, l]) => h('option', { value: v, selected: e.remind === v }, t(l))));
       const place = h('input.input', { value: e.place || '', placeholder: t('Place (optional)'), maxlength: 120 }); const notes = h('textarea.input', { rows: 3, placeholder: t('Notes'), maxlength: 2000 }); notes.value = e.notes || '';
+      const friends = (S.friends && S.friends.friends) || []; const guests = new Map(((e0 && e0.guests) || []).map((g) => [g.user.username, g.st]));
+      const picked = new Set(guests.keys());
+      const inviteBox = friends.length ? h('div.cal-inv', h('b.small', t('Invite friends')), h('div.cal-invl', friends.map((fr) => { const st = guests.get(fr.username); return h('label.cal-invf' + (picked.has(fr.username) ? '.on' : ''), h('input', { type: 'checkbox', checked: picked.has(fr.username), onChange: (ev) => { if (ev.target.checked) picked.add(fr.username); else picked.delete(fr.username); ev.target.parentNode.classList.toggle('on', ev.target.checked); } }), avatarEl(fr, { size: 22 }), h('span.grow', fr.displayName || fr.username), st ? h('span.cal-st.' + st, ST[st][0] + ' ' + t(ST[st][1])) : null); }))) : h('p.tiny.muted', t('Add friends to invite them to your events.'));
       let color = e.color; const cols = h('div.cal-cols', (data.colors || []).map((c) => h('button.cal-col' + (c === color ? '.on' : ''), { type: 'button', style: { background: c }, onClick: (ev) => { color = c; cols.querySelectorAll('.on').forEach((x) => x.classList.remove('on')); ev.currentTarget.classList.add('on'); } })));
-      modal({ title: e0 ? t('Edit event') : t('New event'), body: h('div.col.gap', title, h('div.cal-2', date, h('label.row', { style: 'gap:6px;align-items:center' }, allDay, t('All day'))), h('div.cal-2', st, et), h('div.cal-2', rep, rem), place, notes, cols),
+      modal({ title: e0 ? t('Edit event') : t('New event'), body: h('div.col.gap', title, h('div.cal-2', date, h('label.row', { style: 'gap:6px;align-items:center' }, allDay, t('All day'))), h('div.cal-2', st, et), h('div.cal-2', rep, rem), place, notes, cols, inviteBox),
         actions: [e0 ? { label: t('Delete'), kind: 'danger', onClick: async () => { if (await confirmBox(t('Delete “{n}”?', { n: e0.title }), { danger: true })) { await del('events', e0.id); return true; } return false; } } : null, { label: t('Cancel') },
           { label: t('Save'), kind: 'primary', onClick: async () => { if (!title.value.trim()) { toast(t('Give the event a title'), 'err'); return false; } const start = allDay.checked ? fromInputs(date.value, '00:00') : fromInputs(date.value, st.value); let end = allDay.checked ? start + DAY - 60000 : fromInputs(date.value, et.value); if (end <= start) end = start + 3600000;
-            const r = await save('events', { id: e0 && e0.id, title: title.value, start, end, allDay: allDay.checked, repeat: rep.value, remind: Number(rem.value), color, place: place.value, notes: notes.value }); if (r) toast(t('Saved'), 'good', 1200); return !!r; } }].filter(Boolean) });
+            const r = await save('events', { id: e0 && e0.id, title: title.value, start, end, allDay: allDay.checked, repeat: rep.value, remind: Number(rem.value), color, place: place.value, notes: notes.value, invites: [...picked] }); if (r) toast(t('Saved'), 'good', 1200); return !!r; } }].filter(Boolean) });
       setTimeout(() => title.focus(), 50);
     }
-    const chip = (o) => h('button.cal-ev', { style: { '--c': o.e.color }, title: o.e.title, onClick: (ev) => { ev.stopPropagation(); eventEditor(o.e); } }, o.e.allDay ? '' : h('b', fmtT(o.start)), ' ', o.e.title, o.e.repeat !== 'none' ? ' ↻' : '');
+    const chip = (o) => h('button.cal-ev' + (o.e.inv ? '.inv' : '') + (o.e.inv && o.e.st === 'pending' ? '.pend' : ''), { style: { '--c': o.e.color }, title: o.e.title + (o.e.inv ? ' · @' + o.e.owner.username : ''), onClick: (ev) => { ev.stopPropagation(); openEv(o.e); } }, o.e.inv ? '✉ ' : '', o.e.allDay ? '' : h('b', fmtT(o.start)), ' ', o.e.title, o.e.repeat !== 'none' ? ' ↻' : '');
     // Study exams (read-only here; edited in Study → Exams)
     const examChip = (x) => h('a.cal-ex' + (x.done ? '.done' : ''), { href: '#/study/exams', title: x.subject + ' · ' + x.title, onClick: (ev) => ev.stopPropagation() }, '📚 ', x.subject ? h('b', x.subject + ' ') : null, x.title);
     const examsIn = (d0, d1) => (data.exams || []).filter((x) => x.date >= d0 && x.date < d1);
@@ -67,7 +81,7 @@ export default {
       const label = view === 'month' ? cursor.toLocaleDateString(lang(), { month: 'long', year: 'numeric' }) : view === 'week' ? (() => { const s = weekStart(); return fmtD(+s, { day: 'numeric', month: 'short' }) + ' – ' + fmtD(+s + 6 * DAY, { day: 'numeric', month: 'short', year: 'numeric' }); })() : '';
       const step = (k) => { if (view === 'month') cursor.setMonth(cursor.getMonth() + k); else cursor = new Date(+cursor + k * 7 * DAY); paint(); };
       mount(head, h('div.cal-bar', view === 'month' || view === 'week' ? [h('button.btn.sm.ghost', { onClick: () => step(-1), 'aria-label': t('Previous') }, '‹'), h('button.btn.sm', { onClick: () => { cursor = sod(Date.now()); paint(); } }, t('Today')), h('button.btn.sm.ghost', { onClick: () => step(1), 'aria-label': t('Next') }, '›'), h('h3.cal-label', label)] : h('div.grow'),
-        h('div.grow'), segEl([['month', t('Month')], ['week', t('Week')], ['agenda', t('Agenda')], ['tasks', t('Tasks')]], view, (v) => { view = v; ls('cal.view', v); history.replaceState(null, '', '#/calendar/' + v); paint(); }),
+        h('div.grow'), (() => { const p = (data.invited || []).filter((x) => x.st === 'pending'); return p.length ? h('button.btn.sm.cal-pendbtn', { onClick: () => inviteModal(Object.assign({ inv: true }, p[0])) }, '✉ ' + t('{n} invitations', { n: p.length })) : null; })(), segEl([['month', t('Month')], ['week', t('Week')], ['agenda', t('Agenda')], ['tasks', t('Tasks')]], view, (v) => { view = v; ls('cal.view', v); history.replaceState(null, '', '#/calendar/' + v); paint(); }),
         h('button.btn.primary.sm', { onClick: () => (view === 'tasks' ? taskEditor(null) : eventEditor(null)) }, icon('plus', 14), view === 'tasks' ? t('New task') : t('New event'))));
     }
     const weekStart = () => { const d = sod(cursor); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; };
@@ -83,7 +97,7 @@ export default {
         return h('div.cal-wcol' + (d0 === +sod(nowMs) ? '.today' : ''), h('div.cal-wh', fmtD(d0)), h('div.cal-wall', examsIn(d0, d0 + DAY).map(examChip), all.map(chip), data.tasks.filter((k) => k.due && k.due >= d0 && k.due < d0 + DAY).map(taskChip)),
           h('div.cal-wgrid', { style: { height: (H1 - H0) * PX + 'px' }, onDblclick: (ev) => { const y = ev.offsetY; eventEditor(null, d0 + (H0 + Math.floor(y / PX)) * 3600000); } },
             Array.from({ length: H1 - H0 }, (_, k) => h('i.cal-hl', { style: { top: k * PX + 'px' } })), d0 === +sod(nowMs) ? h('i.cal-now', { style: { top: ((nowMs - d0) / 3600000 - H0) * PX + 'px' } }) : null,
-            evs.map((o) => { const s = Math.max(o.start, d0 + H0 * 3600000), e = Math.min(o.end, d0 + H1 * 3600000); return h('button.cal-wev', { style: { '--c': o.e.color, top: ((s - d0) / 3600000 - H0) * PX + 'px', height: Math.max(20, (e - s) / 3600000 * PX - 2) + 'px' }, onClick: () => eventEditor(o.e) }, h('b', o.e.title), h('span', fmtT(o.start) + ' – ' + fmtT(o.end))); }))); });
+            evs.map((o) => { const s = Math.max(o.start, d0 + H0 * 3600000), e = Math.min(o.end, d0 + H1 * 3600000); return h('button.cal-wev', { style: { '--c': o.e.color, top: ((s - d0) / 3600000 - H0) * PX + 'px', height: Math.max(20, (e - s) / 3600000 * PX - 2) + 'px' }, onClick: () => openEv(o.e) }, h('b', o.e.title), h('span', fmtT(o.start) + ' – ' + fmtT(o.end))); }))); });
       mount(body, h('div.cal-week', h('div.cal-hours', h('div.cal-wh'), h('div.cal-wall'), Array.from({ length: H1 - H0 }, (_, k) => h('span', { style: { height: PX + 'px' } }, pad2(H0 + k) + ':00'))), cols));
     }
     function paintAgenda() {
@@ -91,7 +105,7 @@ export default {
       for (const k of data.tasks) if (k.due && !k.done && k.due >= from && k.due < from + 60 * DAY) { const d = +sod(k.due); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ task: k, start: k.due }); }
       for (const x of data.exams || []) if (!x.done && x.date >= from && x.date < from + 60 * DAY) { const d = +sod(x.date); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ exam: x, start: x.date }); }
       const days = [...byDay.keys()].sort((a, b) => a - b);
-      mount(body, days.length ? h('div.cal-agenda', days.map((d) => h('section', h('h4', fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), d === from ? h('span.pill', t('Today')) : null), byDay.get(d).sort((a, b) => a.start - b.start).map((o) => (o.exam ? h('div.cal-ag', { style: { '--c': '#a855f7' } }, h('span.cal-agt', t('Exam')), examChip(o.exam)) : o.task ? h('div.cal-ag.task', h('span.cal-agt', fmtT(o.start)), taskChip(o.task)) : h('div.cal-ag', { style: { '--c': o.e.color } }, h('span.cal-agt', o.e.allDay ? t('All day') : fmtT(o.start) + ' – ' + fmtT(o.end)), h('button.cal-agb', { onClick: () => eventEditor(o.e) }, h('b', o.e.title), o.e.place ? h('span.muted', ' · ' + o.e.place) : null, o.e.remind >= 0 ? ' 🔔' : '', o.e.repeat !== 'none' ? ' ↻' : ''))))))) : h('div.empty', h('div.empty-art', icon('calendar', 26)), h('h3', t('Nothing in the next 60 days')), h('button.btn.primary', { onClick: () => eventEditor(null) }, t('New event'))));
+      mount(body, days.length ? h('div.cal-agenda', days.map((d) => h('section', h('h4', fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), d === from ? h('span.pill', t('Today')) : null), byDay.get(d).sort((a, b) => a.start - b.start).map((o) => (o.exam ? h('div.cal-ag', { style: { '--c': '#a855f7' } }, h('span.cal-agt', t('Exam')), examChip(o.exam)) : o.task ? h('div.cal-ag.task', h('span.cal-agt', fmtT(o.start)), taskChip(o.task)) : h('div.cal-ag', { style: { '--c': o.e.color } }, h('span.cal-agt', o.e.allDay ? t('All day') : fmtT(o.start) + ' – ' + fmtT(o.end)), h('button.cal-agb', { onClick: () => openEv(o.e) }, h('b', o.e.title), o.e.place ? h('span.muted', ' · ' + o.e.place) : null, o.e.remind >= 0 ? ' 🔔' : '', o.e.repeat !== 'none' ? ' ↻' : ''))))))) : h('div.empty', h('div.empty-art', icon('calendar', 26)), h('h3', t('Nothing in the next 60 days')), h('button.btn.primary', { onClick: () => eventEditor(null) }, t('New event'))));
     }
     function taskEditor(k0) {
       const k = k0 || { title: '', notes: '', project: proj !== 'all' ? proj : 'Inbox', prio: 0, due: null, remind: false, subs: [], done: false };

@@ -2,6 +2,31 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.5",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 4: invitations, multiplayer rooms for Hub games and app permissions",
+      "es": "Nebulix 3.0, fase 4: invitaciones, salas multijugador para juegos del Hub y permisos de apps"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Calendar: invite friends to your events. They get a notification, the event appears in their calendar and they answer going, maybe or not going; you see every answer, and guests who are going also get the reminder.",
+        "es": "Calendario: invita a amigos a tus eventos. Reciben una notificación, el evento aparece en su calendario y responden voy, quizá o no voy; tú ves cada respuesta, y los invitados que van también reciben el recordatorio."
+      },
+      {
+        "type": "new",
+        "en": "Game API: multiplayer rooms for Hub games (Nebulix.room.join, send, leave and events), up to 16 players per room, over the Nebulix connection.",
+        "es": "API de juegos: salas multijugador para los juegos del Hub (Nebulix.room.join, send, leave y eventos), hasta 16 jugadores por sala, sobre la conexión de Nebulix."
+      },
+      {
+        "type": "new",
+        "en": "App permissions: a game can ask for camera, microphone, location or MIDI in a nebulix.json file. Players see the request before installing or playing and the game only gets what they allow.",
+        "es": "Permisos de apps: un juego puede pedir cámara, micrófono, ubicación o MIDI en un archivo nebulix.json. Los jugadores ven la petición antes de instalar o jugar y el juego solo recibe lo que permitan."
+      }
+    ]
+  },
+  {
     "v": "14.4",
     "date": "2026-11-24",
     "title": {

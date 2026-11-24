@@ -11,7 +11,7 @@ import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, 
 import { avatarEl } from '../cosmetics.js';
 import { zipFiles, filesFromDrop, filesFromInput, SKIP } from '../zipwrite.js';
 import { renderMarkdown } from '../markdown.js';
-import { gameApi } from '../gameapi.js';
+import { gameApi, allowExtra, missingPerms, askPerms, PERM_INFO } from '../gameapi.js';
 
 const dur = (s) => (s ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '');
 const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB';
@@ -239,11 +239,11 @@ export default {
       }
       else if (it.runMode === 'native') {
         // native: the real page on the games domain, inside Nebulix, with no sandbox and no proxy — like a Chrome tab
-        fr = h('iframe.hb-frame', { src: it.src, title: it.title, allow: 'cross-origin-isolated; fullscreen; autoplay; gamepad; clipboard-write; clipboard-read; screen-wake-lock; accelerometer; gyroscope; midi; encrypted-media; picture-in-picture; web-share; xr-spatial-tracking', allowfullscreen: '' });
+        fr = h('iframe.hb-frame', { src: it.src, title: it.title, allow: 'cross-origin-isolated; fullscreen; autoplay; gamepad; clipboard-write; clipboard-read; screen-wake-lock; accelerometer; gyroscope; midi; encrypted-media; picture-in-picture; web-share; xr-spatial-tracking' + allowExtra(it).replace('; midi', ''), allowfullscreen: '' });
         player = h('div.hb-player.game', fr);
       }
       else {
-        fr = h('iframe.hb-frame', { src: it.src, title: it.title, sandbox: it.runMode === 'domain' ? 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-downloads allow-orientation-lock allow-presentation' : null, allow: 'fullscreen; autoplay; gamepad; clipboard-write; clipboard-read; screen-wake-lock; accelerometer; gyroscope; picture-in-picture; web-share; xr-spatial-tracking', allowfullscreen: '' });
+        fr = h('iframe.hb-frame', { src: it.src, title: it.title, sandbox: it.runMode === 'domain' ? 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-downloads allow-orientation-lock allow-presentation' : null, allow: 'fullscreen; autoplay; gamepad; clipboard-write; clipboard-read; screen-wake-lock; accelerometer; gyroscope; picture-in-picture; web-share; xr-spatial-tracking' + allowExtra(it), allowfullscreen: '' });
         // the game's saves arrive from the sandbox (see server/hubshim.js) and are kept on the player's account
         let saveT = 0; let pending = null;
         const onMsg = (e) => { if (!fr.isConnected) { removeEventListener('message', onMsg); return; } if (e.source !== fr.contentWindow || !e.data || e.data.nxHubSave !== 1) return; pending = { ls: e.data.ls || {}, ck: String(e.data.ck || '') }; clearTimeout(saveT); saveT = setTimeout(() => { const b = pending; pending = null; api.put(`/api/hub/${it.id}/gamesave`, b, { quiet: true }).catch(() => {}); }, 1500); };
@@ -260,7 +260,7 @@ export default {
       // header buttons: Save · Remix · Star (each with its counter, like a code site)
       const pairBtn = (ic, label, n, on, onClick) => { const b = h('button.hbx-pair' + (on ? '.on' : ''), { type: 'button', onClick: (e) => onClick(e, b) }, h('span.hbx-pair-l', icon(ic, 14), h('span', label)), n != null ? h('span.hbx-pair-n', fmt.compact(n)) : null); return b; };
       const saveB = pairBtn('bookmark', it.saved ? t('Saved') : t('Save'), null, it.saved, (e, b) => lock(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/save`); it.saved = r.saved; b.classList.toggle('on', r.saved); b.querySelector('.hbx-pair-l span').textContent = r.saved ? t('Saved') : t('Save'); } catch (er) { toastErr(er); } }));
-      const installB = code && it.files && (!it.sale || !it.sale.locked) ? pairBtn(it.installed ? 'check' : 'download', it.installed ? t('Installed') : t('Install'), null, it.installed, (e, b) => lock(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/install`); it.installed = r.installed; b.classList.toggle('on', r.installed); mount(b.querySelector('.hbx-pair-l'), icon(r.installed ? 'check' : 'download', 14), h('span', r.installed ? t('Installed') : t('Install'))); toast(r.installed ? t('Installed: it is now in the Nebulix OS start menu and desktop') : t('Uninstalled'), 'good'); dispatchEvent(new Event('nbx:apps')); } catch (er) { toastErr(er); } })) : null;
+      const installB = code && it.files && (!it.sale || !it.sale.locked) ? pairBtn(it.installed ? 'check' : 'download', it.installed ? t('Installed') : t('Install'), null, it.installed, (e, b) => lock(b, async () => { try { if (!it.installed && missingPerms(it).length) await askPerms(it); const r = await api.post(`/api/hub/${it.id}/install`); it.installed = r.installed; b.classList.toggle('on', r.installed); mount(b.querySelector('.hbx-pair-l'), icon(r.installed ? 'check' : 'download', 14), h('span', r.installed ? t('Installed') : t('Install'))); toast(r.installed ? t('Installed: it is now in the Nebulix OS start menu and desktop') : t('Uninstalled'), 'good'); dispatchEvent(new Event('nbx:apps')); } catch (er) { toastErr(er); } })) : null;
       const remixB = (it.allowRemix || it.mine) && it.files ? pairBtn('fork', t('Remix'), it.remixes || 0, false, async () => { try { const r = await api.post(`/api/hub/${it.id}/remix`); toast(t('Remix created as a private draft'), 'good'); ctx.go('hub', r.item.id); } catch (er) { toastErr(er); } }) : null;
       const starB = pairBtn('star', it.liked ? t('★ Starred') : t('Star'), it.likes, it.liked, (e, b) => lock(b, async () => { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); b.querySelector('.hbx-pair-l span').textContent = r.liked ? t('★ Starred') : t('Star'); b.querySelector('.hbx-pair-n').textContent = fmt.compact(r.likes); if (r.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } }));
       async function colMenu(anchor) {
@@ -305,7 +305,7 @@ export default {
         h('div.hbx-box', h('div.hbx-boxh', h('b', t('About'))), it.desc ? h('p.small', { style: 'white-space:pre-wrap;margin:0 0 10px' }, it.desc.slice(0, 600)) : h('p.small.muted', t('No description.')),
           it.tags && it.tags.length ? h('div.hbx-topics', it.tags.map((x) => h('a.hbx-topic', { href: '#/hub?tag=' + encodeURIComponent(x) }, x))) : null,
           h('ul.hbx-facts', h('li', icon('star', 14), h('b', fmt.compact(it.likes)), ' ' + t('stars')), h('li', icon('eye', 14), h('b', fmt.compact(it.views)), ' ' + t('views')), h('li', icon('fork', 14), h('b', fmt.compact(it.remixes || 0)), ' ' + t('remixes')), h('li', icon('chat', 14), h('b', fmt.compact(it.comments || 0)), ' ' + t('comments')),
-            h('li', icon('clock', 14), t('Created {d}', { d: fmt.date(it.created) })), it.size ? h('li', icon('download', 14), mb(it.size)) : null, code ? h('li', icon('shield', 14), it.runMode === 'native' ? t('Runs natively') : it.runMode === 'domain' ? t('Runs on the games domain') : t('Runs sandboxed')) : null)),
+            h('li', icon('clock', 14), t('Created {d}', { d: fmt.date(it.created) })), it.size ? h('li', icon('download', 14), mb(it.size)) : null, (it.perms || []).length ? h('li', icon('lock', 14), t('Permissions: {p}', { p: it.perms.map((p) => PERM_INFO[p][0] + ' ' + t(PERM_INFO[p][1]) + ((it.granted || []).includes(p) ? ' ✓' : '')).join(', ') })) : null, code ? h('li', icon('shield', 14), it.runMode === 'native' ? t('Runs natively') : it.runMode === 'domain' ? t('Runs on the games domain') : t('Runs sandboxed')) : null)),
         code ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Releases')), h('span.hbx-count', String(it.version || 1))), h('div.hbx-rel-mini', icon('tag', 15), h('div', h('b', 'v' + (it.version || 1)), ' ', h('span.hbx-latest', t('Latest')), h('div.tiny.muted', rel(it.updated || it.created))))) : null,
         code && it.files ? boardEl : null,
         code && it.files ? achEl : null,
@@ -314,7 +314,7 @@ export default {
       if (code && it.files) getFiles().then((f) => { const L = languages(f.files); mount(langEl, h('div.hbx-langbar', L.map((x) => h('i', { style: { width: x.p + '%', background: x.c }, title: x.n }))), h('ul.hbx-langs', L.map((x) => h('li', h('i', { style: { background: x.c } }), h('b', x.n), ' ', h('span.muted', x.p.toFixed(1) + '%'))))); });
 
       async function paintBody() {
-        if (tab === 'play') { mount(body, player, tools, h('div.hbx-under', h('h2.tube-h', it.title), h('div.row', { style: 'gap:6px;flex-wrap:wrap' }, h('button.btn.sm', { onClick: (e) => codeMenu(e.currentTarget) }, icon('more', 14), t('More'))))); return; }
+        if (tab === 'play') { const miss = fr ? missingPerms(it) : []; mount(body, miss.length ? h('div.hbx-perm', h('span', '🔐 ' + t('This game asks for: {p}', { p: miss.map((p) => PERM_INFO[p][0] + ' ' + t(PERM_INFO[p][1])).join(', ') })), h('button.btn.sm.primary', { onClick: async () => { await askPerms(it); itemPage(it.id); } }, t('Review'))) : null, player, tools, h('div.hbx-under', h('h2.tube-h', it.title), h('div.row', { style: 'gap:6px;flex-wrap:wrap' }, h('button.btn.sm', { onClick: (e) => codeMenu(e.currentTarget) }, icon('more', 14), t('More'))))); return; }
         if (tab === 'code') {
           mount(body, loading()); const f = await getFiles(); if (tab !== 'code') return;
           const base = (it.src || '').slice(0, (it.src || '').length - String(f.entry || '').split('/').map(encodeURIComponent).join('/').length);
