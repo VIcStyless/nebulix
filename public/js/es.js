@@ -5815,4 +5815,6 @@ export default {
   "Play through Nebulix": "Jugar por Nebulix",
   "Open directly": "Abrir directo",
   "“Play through Nebulix” opens the service in the Nebulix browser (proxy), useful where it is blocked. Cloud streaming uses WebRTC, which may not work through a proxy: if the game does not start, use “Open directly”. You need your own account; wired connection or 5 GHz Wi-Fi, 15+ Mbps and a gamepad work best.": "«Jugar por Nebulix» abre el servicio en el navegador de Nebulix (proxy), útil donde está bloqueado. El juego en la nube usa WebRTC, que puede no funcionar a través de un proxy: si el juego no arranca, usa «Abrir directo». Necesitas tu propia cuenta; lo mejor es cable o wifi de 5 GHz, más de 15 Mbps y un mando.",
+  "Model for this conversation": "Modelo de esta conversación",
+  "This conversation now uses {m}": "Esta conversación usa ahora {m}",
 };

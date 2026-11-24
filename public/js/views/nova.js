@@ -74,7 +74,10 @@ function build(root, ctx) {
     rec.onend = () => { rec = null; micBtn.classList.remove('rec'); ta.focus(); }; rec.onerror = (e) => { if (e.error === 'not-allowed') toast(t('Microphone access was blocked.'), 'err'); };
     try { rec.start(); micBtn.classList.add('rec'); } catch { rec = null; }
   }
-  const composer = h('div.nv2-composer', attachRow, imgBar, h('div.nv2-box', h('div.nv2-boxtop', ta), h('div.nv2-boxbot', h('button.nv2-ib', { type: 'button', title: t('Attach files (code, text)'), onClick: () => fileIn.click() }, icon('plus', 18)), webBtn, imgBtn, autoBtn, modeBtn, h('span.grow'), micBtn, sendBtn)), foot, fileIn);
+  // 13.8: the model is chosen per conversation (the chip next to the mode button); new chats start with your last choice
+  const modelChip = h('button.nv2-mode.nv2-mchip', { type: 'button', title: t('Model for this conversation'), onClick: (e) => modelMenu(e.currentTarget) });
+  const paintChip = () => mount(modelChip, icon('cpu', 15), h('span', modelName()), icon('down', 12));
+  const composer = h('div.nv2-composer', attachRow, imgBar, h('div.nv2-box', h('div.nv2-boxtop', ta), h('div.nv2-boxbot', h('button.nv2-ib', { type: 'button', title: t('Attach files (code, text)'), onClick: () => fileIn.click() }, icon('plus', 18)), webBtn, imgBtn, autoBtn, modeBtn, modelChip, h('span.grow'), micBtn, sendBtn)), foot, fileIn);
   const main = h('main.nv2-main', head, h('div.nv2-scroll', list, jump), composer);
   const wrap = h('div.nv2' + (sideOpen ? '.side-open' : ''), side, main, h('div.nv2-scrim', { onClick: () => toggleSide(false) }));
   mount(root, wrap);
@@ -162,7 +165,8 @@ function build(root, ctx) {
   // ---------- models ----------
   const modelName = () => (model === 'auto' ? t('Auto') : (models.find((m) => m.id === model) || { label: model }).label);
   const dot = (st) => h('span.nv2-mdot' + (!st ? '' : st.ok ? '.ok' : '.bad'));
-  async function loadModels() { try { const r = await api.get('/api/ai/models', { quiet: true }); models = r.free ? r.models : []; if (r.keyed) models = r.keyed.choices || []; } catch { models = []; } paintHead(); }
+  async function loadModels() { setTimeout(paintChip, 0); try { const r = await api.get('/api/ai/models', { quiet: true }); models = r.free ? r.models : []; if (r.keyed) models = r.keyed.choices || []; } catch { models = []; } paintHead(); paintChip(); }
+  function pickModel(id) { model = id; ls('nova.model', id); if (cur) { cur.model = id; if (!cur.isNew && cur.msgs.length) save(); } paintHead(); paintChip(); toast(t('This conversation now uses {m}', { m: modelName() }), 'good', 1600); }
   function modelMenu(anchor) {
     const items = [
       { label: 'Nova · ' + t('Chat'), icon: mode === 'chat' ? 'check' : 'chat', onClick: () => setMode('chat') },
@@ -171,8 +175,8 @@ function build(root, ctx) {
       { hr: true },
     ];
     if (models.length) {
-      items.push({ label: t('Auto — the best one available'), icon: model === 'auto' ? 'check' : 'zap', onClick: () => { model = 'auto'; ls('nova.model', model); paintHead(); } });
-      for (const m of models) items.push({ label: m.label + ' · ' + m.by.replace(/ \(open weights\)/, '') + (m.status ? (m.status.ok ? ' · ' + t('working') : ' · ' + t('busy')) : ''), icon: model === m.id ? 'check' : m.tags.includes('code') ? 'terminal' : m.tags.includes('reasoning') ? 'spark' : 'chat', onClick: () => { model = m.id; ls('nova.model', model); paintHead(); } });
+      items.push({ label: t('Auto — the best one available'), icon: model === 'auto' ? 'check' : 'zap', onClick: () => pickModel('auto') });
+      for (const m of models) items.push({ label: m.label + ' · ' + m.by.replace(/ \(open weights\)/, '') + (m.status ? (m.status.ok ? ' · ' + t('working') : ' · ' + t('busy')) : ''), icon: model === m.id ? 'check' : m.tags.includes('code') ? 'terminal' : m.tags.includes('reasoning') ? 'spark' : 'chat', onClick: () => pickModel(m.id) });
       items.push({ hr: true }, { label: t('Check models…'), icon: 'activity', onClick: checker });
     } else items.push({ label: status ? (status.mode === 'local' ? t('Built-in helper (no AI connected)') : t('Model: {m}', { m: status.model || '?' })) : '…', disabled: true });
     openMenu(items, anchor);
@@ -248,15 +252,15 @@ function build(root, ctx) {
     const old = ls('nova.convos'); if (Array.isArray(old) && old.length && !ls('nova.migrated')) { for (const c of old.slice(0, 30)) { const id = 'm' + (c.id || cid()).replace(/[^A-Za-z0-9]/g, '').slice(0, 20).padEnd(6, '0'); try { await api.put('/api/ai/chats/' + id, { title: c.title, msgs: (c.msgs || []).map((m) => ({ role: m.role, content: m.content })) }); } catch {} } ls('nova.migrated', 1); try { chats = (await api.get('/api/ai/chats')).chats; } catch {} }
     paintSide();
   }
-  function newChat() { if (streaming) stop(); cur = { id: cid(), title: t('New chat'), msgs: [], mode, isNew: true }; attach = []; paintAttach(); paint(); paintSide(); ta.value = ''; autosize(); setTimeout(() => ta.focus(), 20); if (innerWidth <= 900) toggleSide(false); }
+  function newChat() { if (streaming) stop(); cur = { id: cid(), title: t('New chat'), msgs: [], mode, model: ls('nova.model') || 'auto', isNew: true }; model = cur.model; paintChip(); attach = []; paintAttach(); paint(); paintSide(); ta.value = ''; autosize(); setTimeout(() => ta.focus(), 20); if (innerWidth <= 900) toggleSide(false); }
   async function openChat(id) {
     if (streaming) stop(); if (cur && cur.id === id) return;
-    try { const r = await api.get('/api/ai/chats/' + id); cur = { id, title: r.chat.title, msgs: r.chat.msgs, mode: r.chat.mode || 'chat' }; mode = cur.mode; paintMode(); stick = true; paint(); paintSide(); bottom(); if (innerWidth <= 900) toggleSide(false); } catch (e) { toastErr(e); }
+    try { const r = await api.get('/api/ai/chats/' + id); cur = { id, title: r.chat.title, msgs: r.chat.msgs, mode: r.chat.mode || 'chat', model: r.chat.model || 'auto' }; mode = cur.mode; model = cur.model; paintMode(); paintChip(); paintHead(); stick = true; paint(); paintSide(); bottom(); if (innerWidth <= 900) toggleSide(false); } catch (e) { toastErr(e); }
   }
   let saveT = 0;
   function save(now) {
     clearTimeout(saveT); if (!cur || !cur.msgs.length) return;
-    const doit = async () => { const c = cur; if (c.isNew) { c.title = titleOf(c.msgs); c.isNew = false; } const body = { title: c.title, mode: c.mode || mode, msgs: c.msgs.filter((m) => m.content).map((m) => ({ role: m.role, content: m.content, t: m.t, model: m.model })) };
+    const doit = async () => { const c = cur; if (c.isNew) { c.title = titleOf(c.msgs); c.isNew = false; } const body = { title: c.title, mode: c.mode || mode, model: c.model || 'auto', msgs: c.msgs.filter((m) => m.content).map((m) => ({ role: m.role, content: m.content, t: m.t, model: m.model })) };
       try { await api.put('/api/ai/chats/' + c.id, body); } catch {} const ex = chats.find((x) => x.id === c.id); if (ex) { ex.title = c.title; ex.updated = Date.now(); ex.mode = body.mode; } else chats.unshift({ id: c.id, title: c.title, updated: Date.now(), mode: body.mode, pin: false }); sortChats(); paintSide(); };
     if (now) doit(); else saveT = setTimeout(doit, 600);
   }

@@ -410,7 +410,7 @@ module.exports = function register(r) {
     const list = myChats(c.user); let x = list.find((y) => y.id === c.params.id);
     const msgs = (Array.isArray(c.body.msgs) ? c.body.msgs : []).slice(-200).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 30000), t: Number(m.t) || Date.now(), model: m.model ? String(m.model).slice(0, 40) : undefined }));
     if (!x) { if (list.length >= 150) { list.sort((a, b) => a.updated - b.updated); list.splice(0, list.length - 149); } x = { id: c.params.id, created: Date.now() }; list.push(x); }
-    x.title = String(c.body.title || x.title || 'New chat').replace(/\s+/g, ' ').slice(0, 80); x.msgs = msgs; x.mode = c.body.mode === 'code' ? 'code' : 'chat'; if (c.body.pin !== undefined) x.pin = !!c.body.pin; x.updated = Date.now();
+    x.title = String(c.body.title || x.title || 'New chat').replace(/\s+/g, ' ').slice(0, 80); x.msgs = msgs; x.mode = c.body.mode === 'code' ? 'code' : 'chat'; if (c.body.model !== undefined) x.model = /^[A-Za-z0-9._:/-]{1,80}$/.test(String(c.body.model)) ? String(c.body.model) : 'auto'; if (c.body.pin !== undefined) x.pin = !!c.body.pin; x.updated = Date.now();
     S.store.touch('aichats'); return { ok: true };
   });
   r.patch('/api/ai/chats/:id', { auth: true, limit: [60, 60000, 'user'] }, async (c) => { const x = myChats(c.user).find((y) => y.id === c.params.id); if (!x) throw new HttpError(404, 'no_chat', 'Chat not found'); if (c.body.title !== undefined) x.title = String(c.body.title || '').replace(/\s+/g, ' ').slice(0, 80) || x.title; if (c.body.pin !== undefined) x.pin = !!c.body.pin; S.store.touch('aichats'); return { ok: true }; });
