@@ -2,6 +2,76 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.0",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 14: a fresh new look, total makeovers and a redesigned Hub",
+      "es": "Nebulix 14: un look nuevo y fresco, cambios totales y un Hub rediseñado"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Nebulix 14 design, the new default: floating glass panels, a living aurora behind everything, glowing markers on the open page, springy buttons and segmented tabs. The previous look is one click away in Appearance (“Classic Nebulix”).",
+        "es": "Diseño Nebulix 14, el nuevo por defecto: paneles de cristal flotantes, una aurora viva detrás de todo, marcadores brillantes en la página abierta, botones elásticos y pestañas segmentadas. El look anterior está a un clic en Apariencia («Nebulix clásico»)."
+      },
+      {
+        "type": "new",
+        "en": "Total makeovers: 13 one-click looks that change the design, menu layout, colours and screen effect at once (Night City, Cotton Candy, Retro Desktop, Hologram, Bento, Sketchbook, Winter Night, Firefly Forest, Valentine and more).",
+        "es": "Cambios totales: 13 looks de un clic que cambian a la vez el diseño, el menú, los colores y el efecto de pantalla (Ciudad nocturna, Algodón de azúcar, Escritorio retro, Holograma, Bento, Cuaderno, Noche de invierno, Bosque de luciérnagas, San Valentín y más)."
+      },
+      {
+        "type": "new",
+        "en": "7 new designs that change the whole app: Dev (code site), Cyberpunk, Kawaii, Retro desktop, Bento, Holographic and Sketchbook.",
+        "es": "7 diseños nuevos que cambian la app entera: Dev (web de código), Cyberpunk, Kawaii, Escritorio retro, Bento, Holográfico y Cuaderno."
+      },
+      {
+        "type": "new",
+        "en": "Theme studio: 8 more fonts and a separate heading font and weight, button styles (solid, outline, soft, pill, 3D, glowing), card styles (outline, floating, accent stripe, gradient border, neon, paper), background textures, hover effects (glow, grow, 3D tilt), page transitions (slide, zoom, unblur, flip), scrollbars and gradient titles.",
+        "es": "Estudio de temas: 8 fuentes más y fuente y grosor propios para los títulos, estilos de botón (sólido, contorno, suave, píldora, 3D, brillante), estilos de tarjeta (contorno, flotante, franja, borde degradado, neón, papel), texturas de fondo, efectos al pasar el ratón (brillo, agrandar, inclinación 3D), transiciones de página (deslizar, zoom, desenfoque, giro), barras de desplazamiento y títulos con degradado."
+      },
+      {
+        "type": "new",
+        "en": "Palette generator: make a whole theme from one colour with a colour harmony (analogous, complementary, triadic, split, monochrome), take the palette from a picture, swap the accents or turn any theme light or dark. “Surprise me” now mixes all the new styles too.",
+        "es": "Generador de paletas: crea un tema entero a partir de un color con una armonía (análogos, complementarios, tríada, divididos, monocromo), saca la paleta de una imagen, intercambia los acentos o convierte cualquier tema en claro u oscuro. «Sorpréndeme» ahora mezcla también todos los estilos nuevos."
+      },
+      {
+        "type": "new",
+        "en": "6 new animated backgrounds: snowfall, fireflies, a honeycomb that lights up under the mouse, confetti, rain and orbits. 9 new preset themes.",
+        "es": "6 fondos animados nuevos: nevada, luciérnagas, un panal que se ilumina bajo el ratón, confeti, lluvia y órbitas. 9 temas predefinidos nuevos."
+      },
+      {
+        "type": "new",
+        "en": "Screen effects over the whole app (snow, sakura petals, autumn leaves, shooting stars, bubbles, hearts, confetti), sparks when you click, a glowing cursor trail, and automatic day/night themes by the time of day.",
+        "es": "Efectos de pantalla sobre toda la app (nieve, pétalos de sakura, hojas de otoño, estrellas fugaces, burbujas, corazones, confeti), chispas al hacer clic, estela brillante del cursor y temas automáticos de día y noche según la hora."
+      },
+      {
+        "type": "improved",
+        "en": "Nebulix Hub redesigned like a code-hosting site: a dashboard with your uploads and collections, a feed of uploads with topics, stars and kind colours, and a repository page for each upload with Play, Code (file browser with folders, line numbers and README), Releases, Reviews, Discussions, Media and Settings (with a danger zone), plus an About sidebar with a languages bar.",
+        "es": "Nebulix Hub rediseñado como una web de código: un panel con tus subidas y colecciones, un feed de subidas con temas, estrellas y colores por tipo, y una página tipo repositorio para cada subida con Jugar, Código (explorador con carpetas, números de línea y README), Versiones, Reseñas, Conversaciones, Medios y Ajustes (con zona de peligro), además de una barra lateral «Acerca de» con barra de lenguajes."
+      },
+      {
+        "type": "fixed",
+        "en": "Hub: the code viewer can open the files of games that run on the games domain.",
+        "es": "Hub: el visor de código ya abre los archivos de los juegos que se ejecutan en el dominio de juegos."
+      },
+      {
+        "type": "improved",
+        "en": "3D games: floating damage numbers, bursts and shockwave rings on eliminations, camera shake when you get hit (Nebula Ops and Arena), a smooth gliding camera and light-catching dust in the 3D Casino, rings and bursts at checkpoints and the finish line in Nebula Worlds.",
+        "es": "Juegos 3D: números de daño flotantes, explosiones y ondas expansivas al eliminar, temblor de cámara al recibir daño (Nebula Ops y Arena), cámara suave y polvo que brilla con la luz en el Casino 3D, y anillos y explosiones en los puntos de control y la meta de Nebula Worlds."
+      },
+      {
+        "type": "improved",
+        "en": "Market Rush has new graphics: a neon trading floor, glowing candles, a light trail behind your paddle, sparks and floating points, a timer ring and a combo bar.",
+        "es": "Market Rush tiene gráficos nuevos: un parqué de neón, velas brillantes, estela de luz detrás de tu barra, chispas y puntos flotantes, un anillo de tiempo y una barra de combo."
+      },
+      {
+        "type": "improved",
+        "en": "More animation everywhere: cards come in one after another, buttons shine on hover, windows spring open over a blurred page, and coin and gem counters bounce when they change.",
+        "es": "Más animación en todas partes: las tarjetas entran una detrás de otra, los botones brillan al pasar el ratón, las ventanas se abren con rebote sobre la página desenfocada y los contadores de monedas y gemas saltan al cambiar."
+      }
+    ]
+  },
+  {
     v: '13.8', date: '2026-11-23', title: { en: 'Nebulix Study, push notifications, installable app and more', es: 'Nebulix Estudio, notificaciones push, app instalable y más' },
     changes: [
       { type: 'new', en: "Nebulix Study: study notes shared by students (by subject and year, search, likes, saves), flashcards with spaced repetition (review, all cards, test and write modes), an AI tutor that guides you step by step, quizzes, flashcards and summaries made with AI from any notes, live class quizzes with a 6-digit PIN and a podium, a grade tracker with averages and \"what do I need\", an exam planner with reminders the day before, and tools (Pomodoro, scientific calculator, unit converter, formulas, word counter). Studying earns up to 120 coins a day.", es: "Nebulix Estudio: apuntes compartidos por estudiantes (por asignatura y curso, búsqueda, me gusta y guardados), tarjetas con repetición espaciada (repaso, todas, test y escribir), un tutor de IA que te guía paso a paso, tests, tarjetas y resúmenes hechos con IA desde cualquier apunte, quizzes en directo para clase con PIN de 6 cifras y podio, control de notas con medias y «¿qué necesito?», planificador de exámenes con aviso el día antes y herramientas (Pomodoro, calculadora científica, conversor de unidades, fórmulas, contador de palabras). Estudiar da hasta 120 monedas al día." },

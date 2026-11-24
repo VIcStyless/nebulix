@@ -8,6 +8,8 @@ import { toast, toastErr } from '../ui.js';
 import { liveBgCfg, setLiveBg } from '../livebg.js';
 import * as theme from '../theme.js';
 import { LAYOUTS, setLayout, layoutNow, DESIGNS, designNow, setDesign } from '../app.js';
+import * as FX from '../fx14.js';
+import { ls } from '../util.js';
 
 const ns = 'http://www.w3.org/2000/svg';
 const svg = (w, hh, kids) => { const s = document.createElementNS(ns, 'svg'); s.setAttribute('viewBox', `0 0 ${w} ${hh}`); for (const [tag, a] of kids) { const e = document.createElementNS(ns, tag); for (const k in a) e.setAttribute(k, a[k]); s.appendChild(e); } return s; };
@@ -26,7 +28,10 @@ const SHOTS = {
   launcher: () => [...content(8, 6, 104, 64), R(4, 60, 13, 13, 'lk-n', 7), ...[[40, 22], [54, 22], [68, 22], [40, 36], [54, 36], [68, 36]].map(([x, y]) => R(x, y, 10, 10, 'lk-g', 3)), R(34, 16, 50, 34, 'lk-o', 5)],
 };
 const DESIGN_INFO = {
-  seven: 'Floating glass panels, gradient buttons and soft motion. The new default look.', classic: 'Clean cards with soft depth. The look before 7.0.', glass: 'Frosted, translucent panels over the animated background.', brutal: 'Thick borders, hard shadows, loud type.',
+  fourteen: 'Floating glass, aurora light, glowing markers and springy motion. The new default look.', dev: 'Dense, square and quiet, like a code-hosting site.', cyber: 'Cut corners, scanlines and glitchy titles.',
+  kawaii: 'Pastel, puffy and bouncy. Everything is round.', bevel: 'Bevelled buttons and title bars from a late-90s computer.', bento: 'Big calm tiles and huge titles.',
+  holo: 'Iridescent foil that slowly shifts colour.', sketch: 'Hand-drawn wobbly lines, like a notebook.',
+  seven: 'Floating glass panels, gradient buttons and soft motion. The look of Nebulix 7 to 13.', classic: 'Clean cards with soft depth. The look before 7.0.', glass: 'Frosted, translucent panels over the animated background.', brutal: 'Thick borders, hard shadows, loud type.',
   retro: 'Monospace terminal with scanlines and glow.', paper: 'Editorial serif type and quiet lines.', neon: 'Cut corners and glowing edges.',
   soft: 'Puffy, rounded “clay” shapes with gentle shadows.', minimal: 'No boxes, only spacing and thin lines.', comic: 'Bold outlines, tilted stickers and halftone dots.', aurora: 'Glowing gradient borders that slowly shift colour.',
 };
@@ -50,6 +55,21 @@ export default {
       const lay = layoutNow(); const des = designNow(); const cur = theme.getTheme();
       mount(inner,
         h('div.page-title', h('div', h('h2', icon('palette', 22), ' ', t('Appearance')), h('p', t('Change where the menu lives, the design and the colours. Everything applies instantly.')))),
+        h('h3.lk-h', icon('spark', 17), ' ', t('Total makeover'), h('span.tiny.muted', ' · ' + t('changes everything at once'))),
+        h('div.f14-mk-grid', FX.MAKEOVERS.map((mk) => { const th = FX.makeoverTheme(mk); const c = th.colors; const on = FX.makeoverNow() === mk.id;
+          return h('button.f14-mk' + (on ? '.on' : ''), { type: 'button', onClick: async () => { setDesign(mk.design); setLayout(mk.layout); const ap = theme.apply(th); FX.setScreenFx(mk.fx || 'none'); ls('fx14.mk', mk.id); paint(); toast(t('New look: {n}', { n: t(mk.name) }), 'good', 1800); try { await api.patch('/api/profile', { settings: { activeTheme: ap } }); } catch {} } },
+            h('div.f14-mk-art', { style: { background: `linear-gradient(135deg, ${c.bg}, ${th.bg.c1 || c.bg})` } }, h('i.a1', { style: { background: c.surface, borderRadius: Math.min(th.ui.radius, 10) + 'px' } }), h('i.a2', { style: { background: c.surface2 } }), h('i.a3', { style: { background: c.surface, border: '1px solid ' + c.border, borderRadius: Math.min(th.ui.radius, 12) + 'px' } }), h('i.a4', { style: { background: `linear-gradient(135deg, ${c.accent}, ${c.accent2})`, borderRadius: Math.min(th.ui.radius, 12) + 'px' } }), h('b', mk.emoji)),
+            h('div.f14-mk-txt', h('b', on ? '✓ ' : '', t(mk.name)), h('span', t(mk.desc)))); })),
+        h('h3.lk-h', icon('star', 17), ' ', t('Screen effects'), h('span.tiny.muted', ' · ' + t('over the whole app'))),
+        h('div.f14-fx-row', FX.SCREEN_FX.map(([k, l, e]) => h('button' + (FX.screenFxNow() === k ? '.on' : ''), { type: 'button', onClick: () => { FX.setScreenFx(k); paint(); } }, e + ' ' + t(l)))),
+        h('h3.lk-h', icon('target', 17), ' ', t('Cursor effects')),
+        (() => { const pf = FX.pointerFxNow(); const tog = (k, l, e) => h('button' + (pf[k] ? '.on' : ''), { type: 'button', onClick: () => { FX.setPointerFx(Object.assign({}, pf, { [k]: !pf[k] })); paint(); } }, e + ' ' + t(l) + (pf[k] ? ' ✓' : '')); return h('div.f14-fx-row', tog('click', 'Sparks when you click', '✨'), tog('trail', 'Glowing cursor trail', '☄️')); })(),
+        h('h3.lk-h', icon('sun', 17), ' ', t('Day and night'), h('span.tiny.muted', ' · ' + t('switch theme by the time of day'))),
+        (() => { const dn = FX.dayNightNow(); const names = theme.PRESETS.map((p) => p.name); const save = (patch) => { FX.setDayNight(Object.assign({}, dn, patch)); paint(); };
+          const sel = (v, on) => h('select.select', { style: 'width:auto', onChange: (e) => on(e.target.value) }, names.map((n) => h('option', { value: n, selected: n === v }, n)));
+          const hr = (v, on) => h('select.select', { style: 'width:auto', onChange: (e) => on(Number(e.target.value)) }, Array.from({ length: 24 }, (_, i) => h('option', { value: i, selected: i === v }, String(i).padStart(2, '0') + ':00')));
+          return h('div.card.row', { style: 'gap:10px;flex-wrap:wrap;align-items:center' }, h('label.row', { style: 'gap:8px;align-items:center' }, h('input', { type: 'checkbox', checked: dn.on, onChange: (e) => save({ on: e.target.checked }) }), h('b', t('Automatic'))),
+            h('span', '☀️ ' + t('Day')), sel(dn.day, (v) => save({ day: v })), h('span', t('from')), hr(dn.from, (v) => save({ from: v })), h('span', '🌙 ' + t('Night')), sel(dn.night, (v) => save({ night: v })), h('span', t('from')), hr(dn.to, (v) => save({ to: v }))); })(),
         h('h3.lk-h', icon('layout', 17), ' ', t('Menu layout'), h('span.tiny.muted', ' · ' + t('saved on this device'))),
         h('div.lk-grid', LAYOUTS.map(([k, l]) => h('button.lk-card' + (k === lay ? '.on' : ''), { type: 'button', onClick: () => { setLayout(k); paint(); toast(t('Layout: {n}', { n: t(l) }), 'good', 1400); } },
           h('div.lk-shot', svg(120, 76, SHOTS[k] ? SHOTS[k]() : [])), h('div.lk-name', k === lay ? icon('check', 14) : null, t(l))))),

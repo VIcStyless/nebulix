@@ -50,7 +50,7 @@ const LOADERS = {
 };
 const KEEP = new Set(['browse', 'chat', 'dm']);
 
-let nexus = null, crumbEl = null; let shell = null, viewsEl = null, titleEl = null, railEl = null, current = null, desk = null; const cache = {}; const mounted = {};
+let fx14mod = null; let nexus = null, crumbEl = null; let shell = null, viewsEl = null, titleEl = null, railEl = null, current = null, desk = null; const cache = {}; const mounted = {};
 // Desktop mode (Nebulix OS) is a separate experience that runs in its own tab (/?os=1). The classic interface is never changed by it.
 const OS_TAB = new URLSearchParams(location.search).has('os');
 const osMode = () => OS_TAB;
@@ -138,7 +138,7 @@ export function setLayout(v) {
 }
 export function layoutMenu(anchor) { openMenu(LAYOUTS.map(([k, l]) => ({ label: t(l), icon: layoutNow() === k ? 'check' : 'layout', onClick: () => setLayout(k) })), anchor); }
 // Design skins change the whole look (shapes, type, depth) on top of any colour theme.
-export const DESIGNS = [['seven', 'Nebulix 7'], ['studio', 'Studio (clean)'], ['classic', 'Classic'], ['glass', 'Glass'], ['brutal', 'Brutalist'], ['retro', 'Retro terminal'], ['paper', 'Editorial'], ['neon', 'Neon'], ['soft', 'Soft clay'], ['minimal', 'Minimal'], ['comic', 'Comic'], ['aurora', 'Aurora glow']];
+export const DESIGNS = [['fourteen', 'Nebulix 14'], ['seven', 'Nebulix 7'], ['studio', 'Studio (clean)'], ['classic', 'Classic'], ['glass', 'Glass'], ['brutal', 'Brutalist'], ['retro', 'Retro terminal'], ['paper', 'Editorial'], ['neon', 'Neon'], ['soft', 'Soft clay'], ['minimal', 'Minimal'], ['comic', 'Comic'], ['aurora', 'Aurora glow'], ['dev', 'Dev (code site)'], ['cyber', 'Cyberpunk'], ['kawaii', 'Kawaii'], ['bevel', 'Retro desktop'], ['bento', 'Bento'], ['holo', 'Holographic'], ['sketch', 'Sketchbook']];
 // "App launcher" layout: no menu bar at all; a round button opens a full-screen grid of every app (Esc closes it).
 let launcherEl = null;
 export function closeLauncher() { if (launcherEl) { launcherEl.remove(); launcherEl = null; document.removeEventListener('keydown', launcherKey, true); } }
@@ -156,7 +156,7 @@ export function openLauncher() {
   launcherEl = h('div.ln-ov', { onClick: (e) => { if (e.target === launcherEl) closeLauncher(); } }, h('div.ln-box', h('div.ln-head', icon('grid', 18), q, h('button.btn.ghost.icon', { 'aria-label': t('Close'), onClick: closeLauncher }, icon('x', 18))), list));
   document.body.appendChild(launcherEl); paint(); document.addEventListener('keydown', launcherKey, true); setTimeout(() => q.focus(), 30);
 }
-export const designNow = () => { try { const v = JSON.parse(localStorage.getItem('nbx.design')); return DESIGNS.some((d) => d[0] === v) ? v : 'seven'; } catch { return 'seven'; } };
+export const designNow = () => { try { const v = JSON.parse(localStorage.getItem('nbx.design')); return DESIGNS.some((d) => d[0] === v) ? v : 'fourteen'; } catch { return 'fourteen'; } };
 export function setDesign(v) { try { localStorage.setItem('nbx.design', JSON.stringify(v)); } catch {} const de = document.documentElement; if (v === 'studio') { de.dataset.design = 'seven'; de.dataset.look = 'studio'; return; } delete de.dataset.look; if (v === 'classic') delete de.dataset.design; else de.dataset.design = v; }
 // 7.0: the old default ("classic") was saved on every start, so it is not a real choice. Move those people to the
 // new default once; anyone who picked another design keeps it (Home offers them the new one).
@@ -165,6 +165,9 @@ try { if (!localStorage.getItem('nbx.design7')) { localStorage.setItem('nbx.desi
 // 13.3: back to the Nebulix 7 design by default; "Studio" stays as an option in Settings → Appearance. Undo the automatic
 // move to Studio from 13.2 once (anyone who picks Studio again keeps it).
 try { if (!localStorage.getItem('nbx.design133')) { localStorage.setItem('nbx.design133', '1'); if (JSON.parse(localStorage.getItem('nbx.design')) === 'studio') localStorage.setItem('nbx.design', JSON.stringify('seven')); } } catch {}
+// 14.0: the fresh "Nebulix 14" design is the new default. People on the old default (Nebulix 7) move to it once;
+// anyone can go back in Appearance. (The old look is also kept as a one-click makeover there.)
+try { if (!localStorage.getItem('nbx.design14')) { localStorage.setItem('nbx.design14', '1'); const was = JSON.parse(localStorage.getItem('nbx.design')); if (!was || was === 'seven') { localStorage.setItem('nbx.design', JSON.stringify('fourteen')); localStorage.setItem('nbx.new14', '1'); } } } catch {}
 setDesign(designNow());
 export function designMenu(anchor) { openMenu(DESIGNS.map(([k, l]) => ({ label: t(l), icon: designNow() === k ? 'check' : 'palette', onClick: () => setDesign(k) })), anchor); }
 export function logoMenu(anchor) { openMenu(LOGOS.map(([k, l]) => ({ label: t(l), icon: null, onClick: () => { setLogo(k); toast(t('Logo changed'), 'good', 1500); } })), anchor); }
@@ -244,7 +247,7 @@ async function accountMenu(anchor) {
     { label: st && (st.text || st.emoji) ? `${st.emoji || ''} ${st.text || ''}`.trim() : t('Set a status…'), icon: 'smile', onClick: () => statusModal() }, { hr: true },
     { label: t('My profile'), icon: 'user', onClick: () => go('profile') }, { label: t('Achievements'), icon: 'trophy', onClick: () => go('progress') }, { label: t('Settings'), icon: 'gear', onClick: () => go('settings') },
     { label: dnd() ? t('Turn off Do not disturb') : t('Do not disturb'), icon: dnd() ? 'bell' : 'micoff', onClick: () => { try { localStorage.setItem('nbx.dnd', dnd() ? '0' : '1'); } catch {} inbox.load(); toast(dnd() ? t('Do not disturb is on. Notifications wait quietly in the inbox.') : t('Do not disturb is off.'), 'good'); } },
-    { label: theme.getTheme().mode === 'light' ? t('Dark mode') : t('Light mode'), icon: theme.getTheme().mode === 'light' ? 'moon' : 'sun', onClick: async () => { const p = theme.PRESETS.find((x) => x.name === (theme.getTheme().mode === 'light' ? 'Graphite' : 'Paper')); const th = theme.apply(theme.fromPreset(p)); try { await api.patch('/api/profile', { settings: { activeTheme: th } }); } catch {} } },
+    { label: theme.getTheme().mode === 'light' ? t('Dark mode') : t('Light mode'), icon: theme.getTheme().mode === 'light' ? 'moon' : 'sun', onClick: async () => { const p = theme.PRESETS.find((x) => x.name === (theme.getTheme().mode === 'light' ? 'Nebulix 14' : 'Paper')); const th = theme.apply(theme.fromPreset(p)); try { await api.patch('/api/profile', { settings: { activeTheme: th } }); } catch {} } },
     { label: t('Design'), icon: 'palette', onClick: () => designMenu(anchor) }, { label: t('Menu layout'), icon: 'layout', onClick: () => layoutMenu(anchor) }, { label: t('Appearance'), icon: 'palette', onClick: () => go('look') }, { label: t('App logo'), icon: 'star', onClick: () => logoMenu(anchor) },
     desk ? { label: t('Close desktop mode'), icon: 'power', onClick: closeDesktop } : { label: t('Open desktop mode'), icon: 'desktop', onClick: openDesktop },
     { label: t('Lock screen') + '  (Ctrl+Shift+L)', icon: 'lock', onClick: () => import('./lock.js').then((m) => m.lockNow()) },
@@ -287,6 +290,8 @@ function palette() {
     ...LANGS.filter(([c]) => c !== getLang()).map(([code, name]) => ({ label: t('Switch language to {l}', { l: name }), hint: t('Action'), icon: 'globe', run: () => changeLang(code) })),
     { label: t('Compose a song with Nebula Synth'), hint: 'Pulse', icon: 'music', run: () => go('music', { s: 'synth' }) },
     { label: t('Listen to the radio'), hint: 'Pulse', icon: 'music', run: () => go('music', { s: 'radio' }) },
+    ...(fx14mod ? fx14mod.MAKEOVERS.map((mk) => ({ label: t('Makeover: {n}', { n: t(mk.name) }), hint: t('Appearance'), icon: 'spark', run: async () => { setDesign(mk.design); setLayout(mk.layout); const th = theme.apply(fx14mod.makeoverTheme(mk)); fx14mod.setScreenFx(mk.fx || 'none'); try { localStorage.setItem('nbx.fx14.mk', JSON.stringify(mk.id)); } catch {} try { await api.patch('/api/profile', { settings: { activeTheme: th } }); } catch {} toast(t('New look: {n}', { n: t(mk.name) }), 'good'); } })) : []),
+    ...(fx14mod ? fx14mod.SCREEN_FX.map(([k, l, e]) => ({ label: t('Screen effect: {n}', { n: t(l) }), hint: t('Appearance'), icon: 'star', run: () => fx14mod.setScreenFx(k) })) : []),
     ...theme.PRESETS.map((p) => ({ label: t('Theme: {n}', { n: p.name }), hint: t('Theme'), icon: 'palette', run: async () => { const th = theme.apply(theme.fromPreset(p)); try { await api.patch('/api/profile', { settings: { activeTheme: th } }); } catch {} toast(t('Theme applied'), 'good'); } })),
     { label: t('Log out'), hint: t('Action'), icon: 'logout', run: logout },
     { label: t('Lock screen'), hint: t('Action'), icon: 'lock', run: () => import('./lock.js').then((m) => m.lockNow()) },
@@ -359,6 +364,8 @@ async function afterLogin() {
   if (S.me.lang && S.me.lang !== getLang()) await loadLang(S.me.lang);
   const at = S.me.settings && S.me.settings.activeTheme; theme.apply(at ? theme.upgrade(theme.normalize(at)) : theme.normalize(theme.DEFAULT));
   theme.applyUi((S.me.settings && S.me.settings.ui) || {});
+  import('./fx14.js').then((m) => { fx14mod = m; m.initFx14(); }).catch(() => {});
+  try { if (localStorage.getItem('nbx.new14') === '1') { localStorage.removeItem('nbx.new14'); setTimeout(() => toast(t('Welcome to Nebulix 14: a brand-new look. You can go back to the old one in Appearance.'), 'good', 7000), 1800); } } catch {}
   import('./livebg.js').then((m) => m.applyLiveBg()).catch(() => {});
   import('./lock.js').then((m) => m.initLock()).catch(() => {});
   import('./nova-float.js').then((m) => m.initNovaFloat()).catch(() => {});

@@ -5,16 +5,29 @@ import { setBackground, setMotion } from './starfield.js';
 export const FONTS = {
   system: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', rounded: 'ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", "Segoe UI", system-ui, sans-serif',
   mono: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace', serif: 'ui-serif, Georgia, "Times New Roman", serif', pixel: '"Courier New", Courier, monospace',
+  // 14.0: more type (system fonts only: nothing is downloaded)
+  geometric: '"Avenir Next", Avenir, Montserrat, "Century Gothic", Futura, "Segoe UI", system-ui, sans-serif', humanist: 'Optima, Candara, "Gill Sans", "Noto Sans", "Segoe UI", system-ui, sans-serif',
+  condensed: '"Bahnschrift SemiCondensed", Bahnschrift, "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif-condensed, sans-serif', slab: 'Rockwell, "Roboto Slab", "Zilla Slab", "Courier New", Georgia, serif',
+  hand: '"Segoe Print", "Bradley Hand", "Chalkboard SE", "Comic Sans MS", "Comic Neue", cursive', display: 'Impact, Haettenschweiler, "Arial Black", "Franklin Gothic Heavy", sans-serif',
+  elegant: 'Didot, "Bodoni MT", "Playfair Display", "Book Antiqua", Palatino, Georgia, serif', wide: 'Verdana, Tahoma, "DejaVu Sans", Geneva, sans-serif',
 };
+// 14.0: many more ways to shape a theme. Each one is a data-* attribute on <html> styled in fourteen.css.
+export const BTN_STYLES = ['gradient', 'solid', 'outline', 'soft', 'pill', '3d', 'glow'];
+export const CARD_STYLES = ['default', 'outline', 'elevated', 'accent', 'gborder', 'neon', 'paper'];
+export const PATTERNS = ['none', 'dots', 'grid', 'lines', 'diagonal', 'cross', 'hex', 'noise', 'waves'];
+export const HOVERS = ['lift', 'glow', 'scale', 'tilt', 'none'];
+export const ENTERS = ['fade', 'slide', 'zoom', 'blur', 'flip', 'none'];
+export const SCROLLS = ['thin', 'accent', 'hidden'];
 export const COLOR_KEYS = ['bg', 'surface', 'surface2', 'text', 'muted', 'accent', 'accent2', 'success', 'warn', 'danger', 'border'];
-export const BG_TYPES = ['stars', 'nebula', 'aurora', 'grid', 'particles', 'waves', 'matrix', 'bokeh', 'bubbles', 'blobs', 'mesh', 'lava', 'gradient', 'solid', 'image', 'space3d', 'tunnel3d', 'crystals3d', 'city3d'];
+export const BG_TYPES = ['stars', 'nebula', 'aurora', 'grid', 'particles', 'waves', 'matrix', 'bokeh', 'bubbles', 'blobs', 'mesh', 'lava', 'gradient', 'solid', 'image', 'space3d', 'tunnel3d', 'crystals3d', 'city3d', 'snow', 'fireflies', 'hexgrid', 'confetti', 'rain', 'orbits'];
 // Surface treatment for panels, buttons and menus. "glass"/"aero"/"mica" are translucent and need a bg behind.
 export const SURFACES = ['flat', 'glass', 'aero', 'mica', 'neo'];
 export const DEFAULT = {
-  v: 1, name: 'Graphite', mode: 'dark',
-  colors: { bg: '#0b0c0e', surface: '#131418', surface2: '#1a1c21', text: '#ececef', muted: '#8a8f98', accent: '#d4ff3f', accent2: '#5eead4', success: '#4ade80', warn: '#fbbf24', danger: '#f87171', border: '#24262c' },
-  bg: { type: 'solid', c1: '#0b0c0e', c2: '#0b0c0e', c3: '#0b0c0e', angle: 160, dim: 0, image: '', stars: { density: .6, speed: .5, twinkle: .7, color: '#ffffff' } },
-  ui: { radius: 10, blur: 0, glow: 0, shadow: .35, density: 1, font: 'system', fontScale: 1, anim: 1, border: 1, surface: 'flat' }, chat: { bubble: 'flat' }, customCss: '',
+  // 14.0: the fresh default — deep ink blue with a violet → mint accent and drifting fireflies
+  v: 1, name: 'Nebulix 14', mode: 'dark',
+  colors: { bg: '#07080f', surface: '#0f1120', surface2: '#161a2e', text: '#eef0ff', muted: '#8e94b8', accent: '#8b7bff', accent2: '#3ee6c4', success: '#4ade80', warn: '#fbbf24', danger: '#fb7185', border: '#23284a' },
+  bg: { type: 'fireflies', c1: '#0c0f24', c2: '#07080f', c3: '#1d1a4a', angle: 160, dim: 0, image: '', stars: { density: .5, speed: .4, twinkle: .7, color: '#ffffff' } },
+  ui: { radius: 16, blur: 18, glow: .35, shadow: .45, density: 1, font: 'system', fontScale: 1, anim: 1, border: 1, surface: 'flat', headFont: 'geometric', btn: 'gradient', card: 'default', pattern: 'none', patternAlpha: .5, hover: 'lift', enter: 'fade', scroll: 'thin', headGrad: false, headWeight: 700 }, chat: { bubble: 'flat' }, customCss: '',
 };
 // The 2.0 default, kept as a preset; saved copies of it are upgraded to Graphite on load (see loadSaved).
 const OLD_DEFAULT = { bg: '#0a0719', accent: '#8b5cf6', name: 'Nebula Dark' };
@@ -22,7 +35,8 @@ const LIGHT = { bg: '#f6f6f4', surface: '#ffffff', surface2: '#efefec', text: '#
 const mk = (name, mode, colors, bg, ui, extra) => ({ name, mode, colors, bg, ui: ui || {}, ...(extra || {}) });
 const FLAT = { radius: 10, blur: 0, glow: 0, shadow: .35 };
 export const PRESETS = [
-  mk('Graphite', 'dark', {}, {}, {}),
+  mk('Nebulix 14', 'dark', {}, {}, {}),
+  mk('Graphite', 'dark', { bg: '#0b0c0e', surface: '#131418', surface2: '#1a1c21', text: '#ececef', muted: '#8a8f98', accent: '#d4ff3f', accent2: '#5eead4', success: '#4ade80', warn: '#fbbf24', danger: '#f87171', border: '#24262c' }, { type: 'solid', c1: '#0b0c0e', c2: '#0b0c0e', c3: '#0b0c0e' }, { radius: 10, blur: 0, glow: 0, shadow: .35, headFont: 'same' }),
   mk('Paper', 'light', LIGHT, { type: 'solid', c1: '#f6f6f4', c2: '#f6f6f4', c3: '#f6f6f4' }, Object.assign({}, FLAT, { shadow: .5 }), { chat: { bubble: 'flat' } }),
   mk('Carbon Orange', 'dark', { bg: '#0d0d0d', surface: '#151515', surface2: '#1d1d1d', text: '#f2f0ed', muted: '#8f8a84', accent: '#ff6a2b', accent2: '#ffb86b', border: '#282725' }, { type: 'solid', c1: '#0d0d0d', c2: '#0d0d0d', c3: '#0d0d0d' }, FLAT, { chat: { bubble: 'flat' } }),
   mk('Arctic', 'dark', { bg: '#0a0e14', surface: '#10161f', surface2: '#161e2a', text: '#e6edf5', muted: '#7d8a9c', accent: '#7cc4ff', accent2: '#a5f3fc', border: '#1f2a38' }, { type: 'solid', c1: '#0a0e14', c2: '#0a0e14', c3: '#0a0e14' }, FLAT, { chat: { bubble: 'flat' } }),
@@ -86,6 +100,16 @@ export const PRESETS = [
   mk('Neon Tunnel 3D', 'dark', { bg: '#05010d', surface: '#110722', surface2: '#1b0d33', text: '#fdf4ff', muted: '#b39ccf', accent: '#f0abfc', accent2: '#22d3ee', border: '#2e1650' }, { type: 'tunnel3d', c1: '#12052a', c2: '#e879f9', c3: '#22d3ee', angle: 160 }, { surface: 'glass', radius: 14, blur: 20, glow: .6, shadow: .5 }, { chat: { bubble: 'glass' } }),
   mk('Crystal Cave 3D', 'dark', { bg: '#020c12', surface: '#071923', surface2: '#0c2533', text: '#e6fbff', muted: '#86aebb', accent: '#2dd4bf', accent2: '#a78bfa', border: '#123544' }, { type: 'crystals3d', c1: '#042f3a', c2: '#2dd4bf', c3: '#a78bfa', angle: 160 }, { surface: 'glass', radius: 16, blur: 18, glow: .35, shadow: .5 }, { chat: { bubble: 'glass' } }),
   mk('Synth City 3D', 'dark', { bg: '#0a0216', surface: '#150628', surface2: '#200a3a', text: '#fff1fb', muted: '#c59ad6', accent: '#ff3cac', accent2: '#ffb000', border: '#36125a' }, { type: 'city3d', c1: '#1a0533', c2: '#ff3cac', c3: '#ffb000', angle: 160 }, { surface: 'glass', radius: 12, blur: 16, glow: .5, shadow: .5 }, { chat: { bubble: 'glass' } }),
+  // ---- 14.0: the makeover palettes (also one-click "Total makeover" packs in Appearance) ----
+  mk('Night City', 'dark', {bg: '#05060a',surface: '#0d0f17',surface2: '#151925',text: '#e9f6ff',muted: '#7d8aa3',accent: '#00f0ff',accent2: '#ff2a6d',warn: '#fcee0a',border: '#1f2a3d'}, {type: 'rain',c1: '#0a0f1f',c2: '#05060a',c3: '#1a0f2e',stars: {density: 0.7,speed: 0.8,twinkle: 0,color: '#8fd8ff'}}, {radius: 2,glow: 0.7,font: 'condensed',headFont: 'condensed',btn: 'solid',pattern: 'lines',patternAlpha: 0.25,enter: 'blur',hover: 'glow'}),
+  mk('Cotton Candy', 'light', {bg: '#fff4fa',surface: '#ffffff',surface2: '#ffe8f4',text: '#4a1d3d',muted: '#9a6487',accent: '#ff5fa8',accent2: '#8f7bff',success: '#16a34a',warn: '#c2410c',danger: '#e11d48',border: '#ffd0e8'}, {type: 'bubbles',c1: '#ffd6ea',c2: '#fff4fa',c3: '#e2dbff'}, {radius: 24,font: 'rounded',headFont: 'rounded',btn: 'pill',card: 'default',pattern: 'dots',patternAlpha: 0.35,hover: 'scale',enter: 'zoom'}),
+  mk('Retro Desktop', 'light', {bg: '#3a7d7c',surface: '#d4d0c8',surface2: '#c0bdb5',text: '#101010',muted: '#4a4a4a',accent: '#0a246a',accent2: '#3a6ea5',success: '#0b7a0b',warn: '#9a6700',danger: '#b00000',border: '#808080'}, {type: 'solid',c1: '#3a7d7c',c2: '#3a7d7c',c3: '#3a7d7c'}, {radius: 0,font: 'wide',headFont: 'wide',btn: 'solid',hover: 'none',enter: 'none',shadow: 0}),
+  mk('Hologram', 'dark', {bg: '#0a0714',surface: '#141024',surface2: '#1c1733',text: '#f6f0ff',muted: '#a99cc8',accent: '#c58bff',accent2: '#7cffcb',border: '#2e2650'}, {type: 'orbits',c1: '#1a1033',c2: '#0a0714',c3: '#3b2a6b'}, {radius: 18,glow: 0.5,headFont: 'geometric',hover: 'tilt',enter: 'flip',headGrad: true}),
+  mk('Bento', 'light', {bg: '#eceae4',surface: '#ffffff',surface2: '#f4f2ec',text: '#141414',muted: '#6b6860',accent: '#ff5a1f',accent2: '#1f6bff',success: '#15803d',warn: '#b45309',danger: '#dc2626',border: '#dedad0'}, {type: 'solid',c1: '#eceae4',c2: '#eceae4',c3: '#eceae4'}, {radius: 28,font: 'geometric',headFont: 'geometric',headWeight: 800,btn: 'pill',hover: 'scale',enter: 'slide',shadow: 0.2}),
+  mk('Sketchbook', 'light', {bg: '#fbf8ef',surface: '#fffdf6',surface2: '#f4efe0',text: '#23211c',muted: '#6d675a',accent: '#2f6fed',accent2: '#e8590c',success: '#2b8a3e',warn: '#b35c00',danger: '#c92a2a',border: '#cfc7b0'}, {type: 'solid',c1: '#fbf8ef',c2: '#fbf8ef',c3: '#fbf8ef'}, {radius: 4,font: 'hand',headFont: 'hand',pattern: 'grid',patternAlpha: 0.45,btn: 'solid',hover: 'none',enter: 'fade'}),
+  mk('Winter Night', 'dark', {bg: '#060b16',surface: '#0e1728',surface2: '#142038',text: '#eaf4ff',muted: '#8ea6c4',accent: '#7cc4ff',accent2: '#c9b6ff',border: '#1e2f4d'}, {type: 'snow',c1: '#0c1a33',c2: '#060b16',c3: '#1b2b4f',stars: {density: 0.7,speed: 0.5,twinkle: 0.5,color: '#ffffff'}}, {surface: 'glass',blur: 20,radius: 18,glow: 0.35,hover: 'glow',enter: 'blur'}),
+  mk('Firefly Forest', 'dark', {bg: '#07110b',surface: '#0e1d14',surface2: '#15291c',text: '#eafbe9',muted: '#8fb49a',accent: '#b5e655',accent2: '#ffcf5c',border: '#1f3a28'}, {type: 'fireflies',c1: '#0c2416',c2: '#07110b',c3: '#2a3d12'}, {radius: 20,font: 'humanist',headFont: 'slab',card: 'elevated',hover: 'lift',enter: 'slide'}),
+  mk('Valentine', 'dark', {bg: '#14060c',surface: '#220c16',surface2: '#2e1120',text: '#ffeef4',muted: '#d29ab0',accent: '#ff4d8d',accent2: '#ffb36b',border: '#4a1a2e'}, {type: 'bokeh',c1: '#3a0d20',c2: '#14060c',c3: '#5a1a3a'}, {radius: 22,font: 'rounded',headFont: 'elegant',headGrad: true,btn: 'glow',hover: 'scale',enter: 'zoom'}),
 ];
 const num = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? clamp(v, a, b) : d; };
 const col = (v, d) => (typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v) ? v : d);
@@ -94,7 +118,9 @@ export function normalize(t) {
   const out = {
     v: 1, name: String(t.name || 'Untitled theme').slice(0, 40), mode: t.mode === 'light' ? 'light' : 'dark', colors: {},
     bg: { type: BG_TYPES.includes(b.type) ? b.type : 'solid', c1: col(b.c1, d.bg.c1), c2: col(b.c2, d.bg.c2), c3: col(b.c3, d.bg.c3), angle: Math.round(num(b.angle, 0, 360, 160)), dim: num(b.dim, 0, .9, 0), image: typeof b.image === 'string' ? b.image : '', stars: { density: num(s.density, 0, 1, .6), speed: num(s.speed, 0, 3, .5), twinkle: num(s.twinkle, 0, 1, .7), color: col(s.color, '#ffffff') } },
-    ui: { radius: Math.round(num(u.radius, 0, 28, 10)), blur: Math.round(num(u.blur, 0, 40, 0)), glow: num(u.glow, 0, 1, 0), shadow: num(u.shadow, 0, 1, .35), density: num(u.density, .85, 1.15, 1), font: FONTS[u.font] ? u.font : 'system', fontScale: num(u.fontScale, .9, 1.2, 1), anim: num(u.anim, 0, 2, 1), border: Math.round(num(u.border, 0, 3, 1)), surface: SURFACES.includes(u.surface) ? u.surface : 'flat' },
+    ui: { radius: Math.round(num(u.radius, 0, 28, 10)), blur: Math.round(num(u.blur, 0, 40, 0)), glow: num(u.glow, 0, 1, 0), shadow: num(u.shadow, 0, 1, .35), density: num(u.density, .85, 1.15, 1), font: FONTS[u.font] ? u.font : 'system', fontScale: num(u.fontScale, .9, 1.2, 1), anim: num(u.anim, 0, 2, 1), border: Math.round(num(u.border, 0, 3, 1)), surface: SURFACES.includes(u.surface) ? u.surface : 'flat',
+      headFont: FONTS[u.headFont] ? u.headFont : 'same', btn: BTN_STYLES.includes(u.btn) ? u.btn : 'gradient', card: CARD_STYLES.includes(u.card) ? u.card : 'default', pattern: PATTERNS.includes(u.pattern) ? u.pattern : 'none', patternAlpha: num(u.patternAlpha, 0, 1, .5),
+      hover: HOVERS.includes(u.hover) ? u.hover : 'lift', enter: ENTERS.includes(u.enter) ? u.enter : 'fade', scroll: SCROLLS.includes(u.scroll) ? u.scroll : 'thin', headGrad: !!u.headGrad, headWeight: Math.round(num(u.headWeight, 400, 900, 700) / 100) * 100 },
     chat: { bubble: ['flat', 'rounded', 'glass'].includes((t.chat || {}).bubble) ? t.chat.bubble : 'rounded' }, customCss: typeof t.customCss === 'string' ? t.customCss.slice(0, 4000) : '',
   };
   const base = out.mode === 'light' ? LIGHT : d.colors; // a light theme that leaves a colour out must not inherit the dark defaults
@@ -136,13 +162,14 @@ export function varsOf(t) {
   const c = t.colors; const u = t.ui; const v = {};
   for (const k of COLOR_KEYS) v['--' + k] = c[k];
   v['--on-accent'] = onAccent(c.accent, c.accent2);
-  Object.assign(v, { '--radius': u.radius + 'px', '--blur': u.blur + 'px', '--glow': String(u.glow), '--shadow': String(u.shadow), '--density': String(u.density), '--fscale': String(u.fontScale), '--anim': String(u.anim), '--bw': u.border + 'px', '--font': FONTS[u.font] });
+  Object.assign(v, { '--radius': u.radius + 'px', '--blur': u.blur + 'px', '--glow': String(u.glow), '--shadow': String(u.shadow), '--density': String(u.density), '--fscale': String(u.fontScale), '--anim': String(u.anim), '--bw': u.border + 'px', '--font': FONTS[u.font], '--font-head': FONTS[u.headFont] || FONTS[u.font], '--hw': String(u.headWeight || 700), '--pat-a': String(u.patternAlpha ?? .5) });
   return v;
 }
 export function apply(theme, { persist = true } = {}) {
   const t = normalize(theme); current = t; const root = document.documentElement; const v = varsOf(t);
   for (const [k, x] of Object.entries(v)) root.style.setProperty(k, x);
   root.dataset.mode = t.mode; root.dataset.bubble = t.chat.bubble; root.dataset.surface = t.ui.surface;
+  Object.assign(root.dataset, { btn: t.ui.btn, card: t.ui.card, pattern: t.ui.pattern, hover: t.ui.hover, enter: t.ui.enter, scroll: t.ui.scroll, hgrad: t.ui.headGrad ? '1' : '' });
   const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', t.colors.bg);
   let st = document.getElementById('nbx-custom-css');
   if (!st) { st = document.createElement('style'); st.id = 'nbx-custom-css'; document.head.appendChild(st); }

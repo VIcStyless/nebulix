@@ -12,6 +12,7 @@ import { autoTier, rtxPipeline } from '../rtx.js';
 import { buildHero, animateHero, makeBlock, makeWorldEnv, themeOf, glowTex, lerpAngle, engineReset } from '../worlds-engine.js';
 import { sfx } from '../sfx.js';
 import { builder } from './worlds-builder.js';
+import { makeFx3d, motes } from '../fx3d.js';
 
 const L = pick2;
 const DIFF = { easy: ['Easy', '#22c55e'], medium: ['Medium', '#f59e0b'], hard: ['Hard', '#ef4444'] };
@@ -147,6 +148,7 @@ export default {
       renderer.setPixelRatio(tier === 'high' ? Math.min(2, devicePixelRatio || 1) : tier === 'med' ? 1 : 0.8); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.shadowMap.enabled = shadows; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       box.prepend(renderer.domElement); renderer.domElement.className = 'wd-cv';
       const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(lv.fog, lv.kind === 'hangout' ? 0.007 : 0.0042);
+      const fx3 = makeFx3d(THREE, scene); const dust3 = motes(THREE, scene, { count: 220, area: 70, height: 16, color: '#ffffff', size: 0.08 });
       const cam = new THREE.PerspectiveCamera(66, 16 / 9, 0.1, 900);
       scene.add(new THREE.HemisphereLight(new THREE.Color(lv.sky[0]).lerp(new THREE.Color('#ffffff'), 0.65), new THREE.Color(lv.fog).multiplyScalar(0.6), 1.25));
       const sun = new THREE.DirectionalLight(lv.lava ? '#ffd2a8' : '#fff4e0', 2.6); sun.castShadow = shadows; sun.shadow.mapSize.set(tier === 'high' ? 2048 : 1024, tier === 'high' ? 2048 : 1024); Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, far: 140 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; scene.add(sun, sun.target);
@@ -250,6 +252,7 @@ export default {
       // ---- physics ----
       const overlaps = (b, x, y, z) => Math.abs(x - b.x) < b.w / 2 + RAD && Math.abs(z - b.z) < b.d / 2 + RAD && y < b.y + b.h / 2 && y + HGT > b.y - b.h / 2;
       async function finishRun() {
+        try { fx3.ring({ x: me.x, z: me.z }, '#facc15', { r: 6, y: me.y + 0.05 }); fx3.burst({ x: me.x, y: me.y + 1, z: me.z }, '#facc15', { n: 70, speed: 8 }); fx3.burst({ x: me.x, y: me.y + 1, z: me.z }, '#a78bfa', { n: 40, speed: 6 }); } catch {}
         done = true; const ms = Math.round(performance.now() - t0); snd('win'); confetti(innerWidth / 2, innerHeight / 3, 90); if (locked()) document.exitPointerLock();
         // ghost + best splits for this device
         let localPb = false; if (!ghost || ms < ghost.ms) { localPb = true; try { localStorage.setItem(GKEY, JSON.stringify({ ms, f: rec.slice(0, 7000) })); ghost = { ms, f: rec.slice(0, 7000) }; } catch {} }
@@ -297,7 +300,7 @@ export default {
           if (g.k === 'fall' && !g.touched) g.touched = ts;
           if (g.k === 'bounce') { me.vy = 19; me.ground = null; me.jumps = 1; snd('coin'); meObj.userData.squash = -0.8; for (let i = 0; i < 12; i++) spark('#f472b6', { x: me.x, y: me.y, z: me.z }, { life: 600, vy: 2, spread: 0.8 }); }
           if (g.k === 'check' && me.check !== g) {
-            me.check = g; me.cp = g.n; snd('coin'); g.glow && g.glow(true); for (let i = 0; i < 24; i++) spark('#4ade80', { x: g.x, y: g.y + 0.6, z: g.z }, { life: 900, vy: 3 + Math.random() * 2, spread: 1.6 });
+            me.check = g; me.cp = g.n; fx3.ring({ x: g.x, z: g.z }, '#4ade80', { r: 3.2, y: g.y + 0.08 }); snd('coin'); g.glow && g.glow(true); for (let i = 0; i < 24; i++) spark('#4ade80', { x: g.x, y: g.y + 0.6, z: g.z }, { life: 900, vy: 3 + Math.random() * 2, spread: 1.6 });
             if (started && lv.kind === 'obby' && !done) { const tt = now - t0; runSplits[g.n] = tt; const bs = bestSplits[g.n]; const diff = bs ? tt - bs : null; mount(splitEl, h('div.wd-sp' + (diff === null ? '' : diff <= 0 ? '.good' : '.bad'), h('b', '🚩 ' + g.n), ' ' + tms(tt), diff === null ? null : h('span', ' ' + (diff <= 0 ? '−' : '+') + tms(Math.abs(diff))))); splitEl.classList.remove('show'); void splitEl.offsetWidth; splitEl.classList.add('show'); }
             else toast(t('Checkpoint {n}', { n: g.n }), 'good', 1200);
           }
@@ -337,10 +340,11 @@ export default {
         if (now - hudT > 100) { hudT = now; const help = t('WASD · Space jump · Shift sprint · F dash · click: mouse look · ⚙ controls');
           if (lv.kind === 'obby') mount(hud, h('span.wd-time', started ? tms(done ? 0 : now - t0) : t('Move to start the timer')), h('span.pill', '🚩 ' + me.cp + '/' + Math.floor(blocks.filter((b) => b.k === 'check').length)), ghost ? h('span.pill' + (ghostOn ? '' : '.muted'), '👻 ' + tms(ghost.ms)) : null, h('span.wd-dash' + (me.dashCd > 0 || !me.canDash ? '.cd' : ''), '» ' + t('Dash')), h('span.tiny.wd-help', help));
           else mount(hud, h('span.wd-dash' + (me.dashCd > 0 || !me.canDash ? '.cd' : ''), '» ' + t('Dash')), h('span.tiny.wd-help', help)); }
+        dust3.update(ts || now / 1000); fx3.update(dt);
         if (post) post.render(); else renderer.render(scene, cam);
       }
       frame();
-      stopGame = () => { live = false; cancelAnimationFrame(raf); ro.disconnect(); ws.send({ t: 'w3_leave' }); if (locked()) document.exitPointerLock(); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('mouseup', onUp); document.removeEventListener('mousemove', onMove); offs.splice(0).forEach((f) => f()); if (post) post.dispose(); env.dispose(); scene.traverse((o) => { if (o.geometry && o.geometry.type !== 'ExtrudeGeometry') o.geometry.dispose(); }); engineReset(); renderer.dispose(); try { renderer.forceContextLoss(); } catch {} };
+      stopGame = () => { live = false; try { fx3.dispose(); dust3.dispose(); } catch {} cancelAnimationFrame(raf); ro.disconnect(); ws.send({ t: 'w3_leave' }); if (locked()) document.exitPointerLock(); document.removeEventListener('pointerlockchange', onLock); document.removeEventListener('keydown', onKey); document.removeEventListener('keyup', onKey); document.removeEventListener('mouseup', onUp); document.removeEventListener('mousemove', onMove); offs.splice(0).forEach((f) => f()); if (post) post.dispose(); env.dispose(); scene.traverse((o) => { if (o.geometry && o.geometry.type !== 'ExtrudeGeometry') o.geometry.dispose(); }); engineReset(); renderer.dispose(); try { renderer.forceContextLoss(); } catch {} };
     }
     lobby();
     return () => { if (stopGame) stopGame(); offs.forEach((f) => f()); };

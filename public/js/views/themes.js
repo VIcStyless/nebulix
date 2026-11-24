@@ -8,8 +8,15 @@ import * as theme from '../theme.js';
 import { toast, toastErr, confirmBox, promptBox, modal, openMenu, tabsEl, segEl, emptyState, loading, copyBtn, field, busy, switchEl } from '../ui.js';
 import { sfx } from '../sfx.js';
 
-const BG_LABEL = { stars: 'Starfield', nebula: 'Nebula', aurora: 'Aurora', grid: 'Retro grid', particles: 'Particle network', waves: 'Waves', matrix: 'Glyph rain', bokeh: 'Bokeh lights', bubbles: 'Bubbles', blobs: 'Liquid blobs', mesh: 'Soft mesh', lava: 'Lava lamp', gradient: 'Gradient', solid: 'Solid colour', image: 'Image' };
-const FONT_LABEL = { system: 'System', rounded: 'Rounded', mono: 'Monospace', serif: 'Serif', pixel: 'Pixel / terminal' };
+const BG_LABEL = { stars: 'Starfield', nebula: 'Nebula', aurora: 'Aurora', grid: 'Retro grid', particles: 'Particle network', waves: 'Waves', matrix: 'Glyph rain', bokeh: 'Bokeh lights', bubbles: 'Bubbles', blobs: 'Liquid blobs', mesh: 'Soft mesh', lava: 'Lava lamp', gradient: 'Gradient', solid: 'Solid colour', image: 'Image',
+  space3d: 'Space (3D)', tunnel3d: 'Neon tunnel (3D)', crystals3d: 'Crystal cave (3D)', city3d: 'Synth city (3D)', snow: 'Snowfall', fireflies: 'Fireflies', hexgrid: 'Honeycomb (follows the mouse)', confetti: 'Confetti', rain: 'Rain', orbits: 'Orbits' };
+const FONT_LABEL = { system: 'System', rounded: 'Rounded', mono: 'Monospace', serif: 'Serif', pixel: 'Pixel / terminal', geometric: 'Geometric', humanist: 'Humanist', condensed: 'Condensed', slab: 'Slab serif', hand: 'Handwritten', display: 'Display (heavy)', elegant: 'Elegant serif', wide: 'Wide' };
+const BTN_LABEL = { gradient: 'Gradient', solid: 'Solid', outline: 'Outline', soft: 'Soft tint', pill: 'Pill', '3d': '3D (pressable)', glow: 'Glowing' };
+const CARD_LABEL = { default: 'Default', outline: 'Outline only', elevated: 'Floating shadow', accent: 'Accent stripe', gborder: 'Gradient border', neon: 'Neon edge', paper: 'Paper' };
+const PAT_LABEL = { none: 'None', dots: 'Dots', grid: 'Grid', lines: 'Lines', diagonal: 'Diagonal stripes', cross: 'Crosses', hex: 'Hexagons', noise: 'Film grain', waves: 'Scales' };
+const HOVER_LABEL = { lift: 'Lift', glow: 'Glow', scale: 'Grow', tilt: '3D tilt', none: 'Nothing' };
+const ENTER_LABEL = { fade: 'Fade', slide: 'Slide in', zoom: 'Zoom', blur: 'Unblur', flip: 'Flip', none: 'None' };
+const SCROLL_LABEL = { thin: 'Thin', accent: 'Accent colour', hidden: 'Hidden' };
 const SURFACE_LABEL = { flat: 'Flat', glass: 'Glass', aero: 'Aero (glossy)', mica: 'Mica (Win 11)', neo: 'Neumorphism' };
 const COLOR_LABEL = { bg: 'Background', surface: 'Panels', surface2: 'Panels (alt)', text: 'Text', muted: 'Muted text', accent: 'Accent', accent2: 'Accent 2', success: 'Success', warn: 'Warning', danger: 'Danger', border: 'Borders' };
 
@@ -18,14 +25,35 @@ const hex2rgb = (x) => { const m = /^#?([0-9a-f]{6})/i.exec(x || ''); const n = 
 const lum = (hx) => { const [r, g, b] = hex2rgb(hx).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const contrast = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 function hsl(hh, s, l) { s /= 100; l /= 100; const k = (n) => (n + hh / 30) % 12; const a = s * Math.min(l, 1 - l); const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); const x = (v) => Math.round(v * 255).toString(16).padStart(2, '0'); return '#' + x(f(0)) + x(f(8)) + x(f(4)); }
+const hex2hsl = (x) => { let [r, g, b] = hex2rgb(x).map((v) => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let hh = 0, ss = 0; const l = (mx + mn) / 2; if (mx !== mn) { const d = mx - mn; ss = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); hh = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh *= 60; } return [hh, ss * 100, l * 100]; };
+// a whole palette from one colour and a colour harmony
+export function paletteFrom(base, harmony, light) {
+  const [hue, sat] = hex2hsl(base); const s2 = Math.max(45, Math.min(90, sat)); const off = { analogous: 35, complementary: 180, triadic: 120, split: 150, mono: 0 }[harmony] ?? 40; const h2 = (hue + off + 360) % 360; const h3 = (hue - (harmony === 'triadic' ? 120 : harmony === 'split' ? 150 : off / 2) + 360) % 360;
+  const colors = light
+    ? { bg: hsl(hue, 40, 97), surface: '#ffffff', surface2: hsl(hue, 45, 94), text: hsl(hue, 40, 12), muted: hsl(hue, 14, 40), accent: hsl(hue, s2, 45), accent2: hsl(h2, s2, harmony === 'mono' ? 32 : 44), success: '#15803d', warn: '#b45309', danger: '#dc2626', border: hsl(hue, 30, 86) }
+    : { bg: hsl(hue, 35, 5), surface: hsl(hue, 30, 9), surface2: hsl(hue, 28, 13), text: hsl(hue, 60, 95), muted: hsl(hue, 18, 64), accent: hsl(hue, s2, 66), accent2: hsl(h2, s2, harmony === 'mono' ? 80 : 64), success: '#4ade80', warn: '#fbbf24', danger: '#fb7185', border: hsl(hue, 25, 20) };
+  return { colors, bg3: hsl(h3, 60, light ? 88 : 22) };
+}
+// dominant colours of a picture (k-means-ish bucket count on a 64×64 copy)
+async function colorsFromImage(file) {
+  const url = URL.createObjectURL(file); const img = new Image(); img.src = url; await img.decode(); const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 64, 64); URL.revokeObjectURL(url);
+  const d = g.getImageData(0, 0, 64, 64).data; const buckets = new Map();
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; const k = ((d[i] >> 4) << 8) | ((d[i + 1] >> 4) << 4) | (d[i + 2] >> 4); const b = buckets.get(k) || { n: 0, r: 0, g: 0, b: 0 }; b.n++; b.r += d[i]; b.g += d[i + 1]; b.b += d[i + 2]; buckets.set(k, b); }
+  const toHex = (b) => '#' + [b.r / b.n, b.g / b.n, b.b / b.n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  const list = [...buckets.values()].sort((a, b) => b.n - a.n).map(toHex);
+  const vivid = list.map((x) => [x, hex2hsl(x)]).filter(([, [, sat, l]]) => sat > 35 && l > 25 && l < 80).map(([x]) => x);
+  return { dominant: list[0] || '#222222', vivid: vivid.length ? vivid : list };
+}
 function randomTheme() {
   const hue = Math.floor(Math.random() * 360); const light = Math.random() < 0.18; const h2 = (hue + 40 + Math.floor(Math.random() * 100)) % 360;
   const colors = light
     ? { bg: hsl(hue, 70, 96), surface: '#ffffff', surface2: hsl(hue, 70, 93), text: hsl(hue, 45, 14), muted: hsl(hue, 20, 42), accent: hsl(hue, 80, 52), accent2: hsl(h2, 85, 50), success: '#059669', warn: '#d97706', danger: '#e11d48', border: hsl(hue, 60, 85) }
     : { bg: hsl(hue, 60, 5), surface: hsl(hue, 50, 11), surface2: hsl(hue, 48, 16), text: hsl(hue, 100, 95), muted: hsl(hue, 30, 68), accent: hsl(hue, 90, 64), accent2: hsl(h2, 90, 62), success: '#34d399', warn: '#fbbf24', danger: '#fb7185', border: hsl(hue, 45, 28) };
-  const types = ['stars', 'nebula', 'aurora', 'grid', 'gradient'];
+  const types = ['stars', 'nebula', 'aurora', 'grid', 'gradient', 'fireflies', 'hexgrid', 'orbits', 'blobs', 'bokeh', 'waves', 'particles', 'snow'];
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
   return theme.normalize({ name: 'Surprise ' + hue, mode: light ? 'light' : 'dark', colors, bg: { type: light ? 'gradient' : types[Math.floor(Math.random() * types.length)], c1: hsl(hue, 70, light ? 92 : 14), c2: hsl(hue, 60, light ? 97 : 5), c3: hsl(h2, 75, light ? 90 : 26), angle: Math.floor(Math.random() * 360), stars: { density: 0.3 + Math.random() * 0.6, speed: Math.random() * 1.2, twinkle: Math.random(), color: '#ffffff' } },
-    ui: { radius: [4, 8, 14, 20, 26][Math.floor(Math.random() * 5)], glow: Math.round(Math.random() * 90) / 100, blur: 8 + Math.floor(Math.random() * 18), font: ['system', 'rounded', 'mono'][Math.floor(Math.random() * 3)] } });
+    ui: { radius: [4, 8, 14, 20, 26][Math.floor(Math.random() * 5)], glow: Math.round(Math.random() * 90) / 100, blur: 8 + Math.floor(Math.random() * 18), font: pick(['system', 'rounded', 'mono', 'geometric', 'humanist', 'wide']), headFont: pick(['same', 'geometric', 'display', 'elegant', 'slab', 'condensed', 'hand']),
+      btn: pick(theme.BTN_STYLES), card: pick(theme.CARD_STYLES), pattern: Math.random() < .5 ? 'none' : pick(theme.PATTERNS), patternAlpha: .3 + Math.random() * .4, hover: pick(theme.HOVERS), enter: pick(theme.ENTERS), headGrad: Math.random() < .35, headWeight: pick([600, 700, 800, 900]) } });
 }
 
 // ---------- preview card ----------
@@ -153,16 +181,27 @@ function build(root, ctx) {
   const slider = (label, min, max, step, get, set, f = (v) => v) => { const out = h('b.tiny', f(get())); const inp = h('input', { type: 'range', min: String(min), max: String(max), step: String(step), value: String(get()), 'aria-label': label, onInput: (e) => { const v = Number(e.target.value); set(v); out.textContent = f(v); live(); } }); return h('label.th-slider', h('span', label), inp, out); };
   const select = (label, opts, get, set) => h('label.th-select', h('span', label), h('select.select', { 'aria-label': label, onChange: (e) => { set(e.target.value); live(); if (label === t('Type')) paintStudio(); } }, opts.map(([v, l]) => h('option', { value: v, selected: v === get() }, l))));
 
+  function paletteTools(d) {
+    let harmony = 'analogous'; const baseIn = h('input', { type: 'color', value: d.colors.accent.slice(0, 7), 'aria-label': t('Base colour') });
+    const sw = h('div.f14-sw'); const showSw = () => mount(sw, ['bg', 'surface', 'accent', 'accent2', 'text'].map((k) => h('i', { style: { background: d.colors[k] }, title: k })));
+    const gen = () => { const p = paletteFrom(baseIn.value, harmony, d.mode === 'light'); Object.assign(d.colors, p.colors); d.bg.c1 = p.colors.bg; d.bg.c2 = p.colors.bg; d.bg.c3 = p.bg3; live(); paintStudio(); };
+    const hb = segEl([['analogous', t('Analogous')], ['complementary', t('Complementary')], ['triadic', t('Triadic')], ['split', t('Split')], ['mono', t('Monochrome')]], harmony, (v) => { harmony = v; });
+    showSw();
+    return h('div.col', { style: 'gap:8px;margin-bottom:10px' }, h('div.small.muted', t('Make a whole palette from one colour:')), h('div.f14-harm', baseIn, hb), h('div.f14-harm', h('button.btn.sm.primary', { type: 'button', onClick: gen }, icon('spark', 14), t('Generate palette')),
+      h('button.btn.sm', { type: 'button', onClick: async () => { const fl = await pickFile('image/*'); if (!fl) return; try { const c = await colorsFromImage(fl); baseIn.value = c.vivid[0] || c.dominant; harmony = 'analogous'; const p = paletteFrom(baseIn.value, 'analogous', d.mode === 'light'); Object.assign(d.colors, p.colors); if (c.vivid[1]) d.colors.accent2 = c.vivid[1]; d.bg.c3 = c.vivid[2] || p.bg3; live(); paintStudio(); toast(t('Palette taken from your picture'), 'good'); } catch (e) { toastErr(e); } } }, icon('image', 14), t('From a picture')),
+      h('button.btn.sm', { type: 'button', onClick: () => { const a = d.colors.accent; d.colors.accent = d.colors.accent2; d.colors.accent2 = a; live(); paintStudio(); } }, icon('refresh', 14), t('Swap accents')),
+      h('button.btn.sm', { type: 'button', onClick: () => { d.mode = d.mode === 'light' ? 'dark' : 'light'; baseIn.value = d.colors.accent.slice(0, 7); gen(); } }, icon(d.mode === 'light' ? 'moon' : 'sun', 14), d.mode === 'light' ? t('Make it dark') : t('Make it light'))), sw);
+  }
   function paintStudio() {
     const d = draft;
     prevHost = h('div'); contrastEl = h('div.row', { style: 'gap:6px;flex-wrap:wrap' });
-    const isImg = d.bg.type === 'image'; const isStars = d.bg.type === 'stars' || d.bg.type === 'nebula' || d.bg.type === 'aurora';
+    const isImg = d.bg.type === 'image'; const isStars = ['stars', 'nebula', 'aurora', 'snow', 'rain', 'fireflies', 'confetti', 'orbits'].includes(d.bg.type);
     const name = h('input.input', { value: d.name, maxlength: '40', 'aria-label': t('Theme name'), onInput: (e) => { d.name = e.target.value; dirty = true; } });
     const controls = h('div.th-controls',
       sect(t('Basics'), 'style', field(t('Name'), name),
         h('div.th-two', select(t('Start from'), [['', t('Choose…')]].concat(theme.PRESETS.map((p) => [p.name, p.name])), () => '', (v) => { const p = theme.PRESETS.find((x) => x.name === v); if (p) { draft = theme.fromPreset(p); dirty = true; theme.apply(draft, { persist: false }); paintStudio(); } }),
           select(t('Mode'), [['dark', t('Dark')], ['light', t('Light')]], () => d.mode, (v) => { d.mode = v; }))),
-      sect(t('Colours'), 'palette', h('div.th-colors', theme.COLOR_KEYS.map((k) => colorRow(k, t(COLOR_LABEL[k]), () => d.colors[k], (v) => { d.colors[k] = v; }))), contrastEl),
+      sect(t('Colours'), 'palette', paletteTools(d), h('div.th-colors', theme.COLOR_KEYS.map((k) => colorRow(k, t(COLOR_LABEL[k]), () => d.colors[k], (v) => { d.colors[k] = v; }))), contrastEl),
       sect(t('Background'), 'image', select(t('Type'), theme.BG_TYPES.map((v) => [v, t(BG_LABEL[v])]), () => d.bg.type, (v) => { d.bg.type = v; }),
         d.bg.type !== 'image' && d.bg.type !== 'solid' ? h('div.th-colors', colorRow('c1', t('Colour 1'), () => d.bg.c1, (v) => { d.bg.c1 = v; }), colorRow('c2', t('Colour 2'), () => d.bg.c2, (v) => { d.bg.c2 = v; }), colorRow('c3', t('Colour 3'), () => d.bg.c3, (v) => { d.bg.c3 = v; })) : null,
         d.bg.type === 'solid' ? colorRow('c2', t('Colour'), () => d.bg.c2, (v) => { d.bg.c2 = v; }) : null,
@@ -177,6 +216,17 @@ function build(root, ctx) {
         slider(t('Density'), 0.85, 1.15, 0.05, () => d.ui.density, (v) => { d.ui.density = v; }, (v) => (v < 1 ? t('Compact') : v > 1 ? t('Roomy') : t('Normal'))), slider(t('Text size'), 0.9, 1.2, 0.05, () => d.ui.fontScale, (v) => { d.ui.fontScale = v; }, (v) => Math.round(v * 100) + '%'),
         slider(t('Animation speed'), 0, 2, 0.1, () => d.ui.anim, (v) => { d.ui.anim = v; }, (v) => (v === 0 ? t('Off') : v.toFixed(1) + '×')), slider(t('Border width'), 0, 3, 1, () => d.ui.border, (v) => { d.ui.border = v; }, (v) => v + 'px'),
         select(t('Font'), Object.keys(theme.FONTS).map((k) => [k, t(FONT_LABEL[k])]), () => d.ui.font, (v) => { d.ui.font = v; }))),
+      sect(t('Style'), 'star', h('div.col', { style: 'gap:8px' },
+        select(t('Heading font'), [['same', t('Same as the text')]].concat(Object.keys(theme.FONTS).map((k) => [k, t(FONT_LABEL[k])])), () => d.ui.headFont || 'same', (v) => { d.ui.headFont = v; }),
+        slider(t('Heading weight'), 400, 900, 100, () => d.ui.headWeight || 700, (v) => { d.ui.headWeight = v; }, (v) => String(v)),
+        h('label.row', { style: 'gap:8px;align-items:center' }, h('input', { type: 'checkbox', checked: !!d.ui.headGrad, onChange: (e) => { d.ui.headGrad = e.target.checked; live(); } }), h('span', t('Gradient titles (accent → accent 2)'))),
+        select(t('Buttons'), theme.BTN_STYLES.map((k) => [k, t(BTN_LABEL[k])]), () => d.ui.btn || 'gradient', (v) => { d.ui.btn = v; }),
+        select(t('Cards'), theme.CARD_STYLES.map((k) => [k, t(CARD_LABEL[k])]), () => d.ui.card || 'default', (v) => { d.ui.card = v; }),
+        select(t('Texture'), theme.PATTERNS.map((k) => [k, t(PAT_LABEL[k])]), () => d.ui.pattern || 'none', (v) => { d.ui.pattern = v; }),
+        slider(t('Texture strength'), 0, 1, .05, () => d.ui.patternAlpha ?? .5, (v) => { d.ui.patternAlpha = v; }, (v) => Math.round(v * 100) + '%'),
+        select(t('When the mouse is over a card'), theme.HOVERS.map((k) => [k, t(HOVER_LABEL[k])]), () => d.ui.hover || 'lift', (v) => { d.ui.hover = v; }),
+        select(t('Page transition'), theme.ENTERS.map((k) => [k, t(ENTER_LABEL[k])]), () => d.ui.enter || 'fade', (v) => { d.ui.enter = v; }),
+        select(t('Scrollbars'), theme.SCROLLS.map((k) => [k, t(SCROLL_LABEL[k])]), () => d.ui.scroll || 'thin', (v) => { d.ui.scroll = v; }))),
       sect(t('Chat bubbles'), 'chat', segEl([['flat', t('Flat')], ['rounded', t('Rounded')], ['glass', t('Glass')]], d.chat.bubble, (v) => { d.chat.bubble = v; live(); })),
       sect(t('Advanced: custom CSS'), 'terminal', h('p.small.muted', t('Only applies on this device. It is removed when you share or publish a theme, and url() and @import are blocked for safety.')),
         (() => { const ta = h('textarea.input', { rows: '6', maxlength: '4000', spellcheck: 'false', placeholder: ':root { --accent: #ff4d9d; }\n.card { border-radius: 4px; }', 'aria-label': t('Custom CSS'), value: d.customCss, style: 'font-family:var(--mono);font-size:12px', onInput: (e) => { d.customCss = e.target.value; live(); } }); return ta; })()));

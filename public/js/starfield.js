@@ -9,7 +9,7 @@ let wall = null; // OS wallpaper override { type, image, dim, react }
 let cfg = base;
 let motion = 1; // personal animation level multiplier (Settings → Animations)
 let energySrc = null; let E = { bass: 0, mid: 0, high: 0, level: 0 }; let reactOn = true;
-let stars = [], shoot = [], nextShoot = 0, tt = 0, nodes = [], drops = [], blobs = [], bokeh = [], bubbles = [], glassBlobs = [];
+let stars = [], shoot = [], nextShoot = 0, tt = 0, nodes = [], drops = [], blobs = [], bokeh = [], bubbles = [], glassBlobs = [], fx14 = [];
 let mouse = { x: -1e4, y: -1e4 };
 let lavaCv = null, lavaCtx = null, lavaImg = null;
 const STATIC = ['solid', 'gradient', 'image', 'space3d', 'tunnel3d', 'crystals3d', 'city3d'];
@@ -36,7 +36,7 @@ const animating = () => cfg.anim * motion > 0 && !reduced() && !document.hidden 
 const area = () => (W * H) / (1280 * 720);
 function build() {
   const s = cfg.stars; const t = cfg.type;
-  const n = STATIC.includes(t) || ['matrix', 'lava', 'waves', 'bubbles', 'blobs', 'mesh'].includes(t) ? 0 : Math.round(clamp(s.density, 0, 1) * (W * H) / 9000 * (t === 'nebula' || t === 'aurora' ? .6 : t === 'particles' || t === 'bokeh' ? .25 : 1));
+  const n = STATIC.includes(t) || ['matrix', 'lava', 'waves', 'bubbles', 'blobs', 'mesh', 'snow', 'fireflies', 'hexgrid', 'confetti', 'rain', 'orbits'].includes(t) ? 0 : Math.round(clamp(s.density, 0, 1) * (W * H) / 9000 * (t === 'nebula' || t === 'aurora' ? .6 : t === 'particles' || t === 'bokeh' ? .25 : 1));
   stars = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, z: rand(.2, 1), p: Math.random() * 6.28, tw: rand(.4, 1.6) }));
   shoot = []; nextShoot = 2 + Math.random() * 5;
   nodes = t === 'particles' ? Array.from({ length: Math.round(clamp(70 * area(), 30, 140)) }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: rand(-18, 18), vy: rand(-18, 18), r: rand(1.2, 2.6), c: Math.random() < .5 })) : [];
@@ -45,6 +45,9 @@ function build() {
   bokeh = t === 'bokeh' ? Array.from({ length: Math.round(clamp(34 * area(), 18, 60)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: rand(18, 90), v: rand(6, 22), p: Math.random() * 6.28, k: Math.floor(Math.random() * 3) })) : [];
   bubbles = t === 'bubbles' ? Array.from({ length: Math.round(clamp(30 * area(), 16, 54)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: rand(8, 46), v: rand(10, 36), p: Math.random() * 6.28, sway: rand(6, 18), k: Math.floor(Math.random() * 3) })) : [];
   glassBlobs = (t === 'blobs' || t === 'mesh') ? Array.from({ length: t === 'mesh' ? 4 : 6 }, (_, i) => ({ px: Math.random() * 6.28, py: Math.random() * 6.28, sx: rand(.04, .11), sy: rand(.035, .09), r: rand(.3, .52), k: i % 3 })) : [];
+  // 14.0 backgrounds: one shared particle list
+  const nfx = { snow: 140, fireflies: 46, confetti: 90, rain: 160, orbits: 7, hexgrid: 0 }[t] || 0;
+  fx14 = Array.from({ length: Math.round(nfx * clamp(area(), .5, 1.6) * (t === 'orbits' ? 1 / clamp(area(), .5, 1.6) : 1) * (.4 + clamp(s.density, 0, 1) * .9)) }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, r: t === 'orbits' ? 60 + i * 70 : rand(1, t === 'snow' ? 3.6 : 3), v: rand(.5, 1.5), p: Math.random() * 6.283, k: Math.floor(Math.random() * 3), a: Math.random() * 6.283, w: rand(-3, 3) }));
   if (t === 'lava') { lavaCv = lavaCv || document.createElement('canvas'); lavaCv.width = Math.max(40, Math.round(W / 8)); lavaCv.height = Math.max(24, Math.round(H / 8)); lavaCtx = lavaCv.getContext('2d'); lavaImg = lavaCtx.createImageData(lavaCv.width, lavaCv.height); }
 }
 function compose() {
@@ -245,4 +248,62 @@ function frame(dt) {
   else if (t === 'blobs' || t === 'mesh') drawBlobs(); else if (t === 'bubbles') drawBubbles(dt);
   if (stars.length) drawStars(dt);
   if (t === 'particles') drawParticles(dt); else if (t === 'matrix') drawMatrix(dt);
+  else if (t === 'snow') drawSnow(dt); else if (t === 'fireflies') drawFireflies(dt); else if (t === 'hexgrid') drawHex(); else if (t === 'confetti') drawConfetti(dt); else if (t === 'rain') drawRain(dt); else if (t === 'orbits') drawOrbits(dt);
+}
+
+// ---- 14.0 backgrounds ----
+const sp14 = () => (cfg.stars.speed || .5) * 2;
+function drawSnow(dt) {
+  const col = cfg.stars.color || '#ffffff';
+  for (const f of fx14) {
+    f.y += (18 + f.r * 14) * f.v * dt * sp14() * (1 + E.level); f.x += Math.sin(tt * .8 + f.p) * 14 * dt + (mouse.x > 0 ? (f.x - mouse.x) / Math.max(40, Math.hypot(f.x - mouse.x, f.y - mouse.y) ** 1.4) * 30 : 0);
+    if (f.y > H + 6) { f.y = -6; f.x = Math.random() * W; } if (f.x < -6) f.x = W + 6; else if (f.x > W + 6) f.x = -6;
+    ctx.fillStyle = hex(col, .35 + f.r / 8); ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.283); ctx.fill();
+  }
+}
+function drawFireflies(dt) {
+  const cols = [cfg.accent, cfg.accent2, cfg.c3]; ctx.globalCompositeOperation = 'lighter';
+  for (const f of fx14) {
+    f.a += f.w * .1 * dt; f.x += Math.cos(f.a) * 22 * dt * sp14(); f.y += Math.sin(f.a * 1.3) * 18 * dt * sp14();
+    if (f.x < -20) f.x = W + 20; else if (f.x > W + 20) f.x = -20; if (f.y < -20) f.y = H + 20; else if (f.y > H + 20) f.y = -20;
+    const glow = (.35 + .65 * Math.max(0, Math.sin(tt * f.v * 2 + f.p))) * (1 + E.high); const r = 10 + f.r * 5;
+    const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r); g.addColorStop(0, hex(cols[f.k], .9 * glow)); g.addColorStop(.25, hex(cols[f.k], .35 * glow)); g.addColorStop(1, hex(cols[f.k], 0));
+    ctx.fillStyle = g; ctx.fillRect(f.x - r, f.y - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+function drawHex() {
+  const R = 26, w = R * Math.sqrt(3), hh = R * 1.5; ctx.lineWidth = 1;
+  for (let row = -1, y = 0; y < H + R * 2; row++, y = row * hh) for (let col = -1; col * w < W + w; col++) {
+    const x = col * w + (row % 2 ? w / 2 : 0); const d = Math.hypot(x - mouse.x, y - mouse.y); const wave = .5 + .5 * Math.sin(tt * .9 - (x + y) * .006);
+    const lit = Math.max(0, 1 - d / 220) + wave * .25 + E.level * .4;
+    ctx.strokeStyle = hex(d < 220 ? cfg.accent : cfg.c3, .08 + lit * .35); ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const an = Math.PI / 3 * i + Math.PI / 6; const px = x + Math.cos(an) * (R - 2), py = y + Math.sin(an) * (R - 2); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.stroke(); if (lit > .75) { ctx.fillStyle = hex(cfg.accent, (lit - .75) * .35); ctx.fill(); }
+  }
+}
+function drawConfetti(dt) {
+  const cols = [cfg.accent, cfg.accent2, cfg.c3, '#ffd166', '#ef476f'];
+  for (const f of fx14) {
+    f.y += (30 + f.v * 40) * dt * sp14(); f.x += Math.sin(tt + f.p) * 20 * dt; f.a += f.w * dt;
+    if (f.y > H + 10) { f.y = -10; f.x = Math.random() * W; }
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.a); ctx.scale(1, Math.cos(tt * 3 + f.p)); ctx.fillStyle = hex(cols[(f.k + Math.floor(f.p)) % cols.length], .75); ctx.fillRect(-4, -2, 8, 4); ctx.restore();
+  }
+}
+function drawRain(dt) {
+  ctx.strokeStyle = hex(cfg.stars.color || '#a5c8ff', .28); ctx.lineWidth = 1.1; ctx.beginPath();
+  for (const f of fx14) {
+    f.y += (420 + f.v * 260) * dt * sp14() * .6; f.x -= 60 * dt; if (f.y > H) { f.y = -20 - Math.random() * 100; f.x = Math.random() * (W + 100); }
+    const l = 10 + f.r * 5; ctx.moveTo(f.x, f.y); ctx.lineTo(f.x - l * .14, f.y + l);
+  }
+  ctx.stroke();
+}
+function drawOrbits(dt) {
+  const cx = W * .5, cy = H * .5; ctx.lineWidth = 1; const cols = [cfg.accent, cfg.accent2, cfg.c3];
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 70); g.addColorStop(0, hex(cfg.accent, .55 + E.bass * .3)); g.addColorStop(1, hex(cfg.accent, 0)); ctx.fillStyle = g; ctx.fillRect(cx - 70, cy - 70, 140, 140);
+  for (const f of fx14) {
+    f.a += dt * sp14() * .5 * (90 / f.r); ctx.strokeStyle = hex(cfg.c3, .14); ctx.beginPath(); ctx.ellipse(cx, cy, f.r, f.r * .42, -.3, 0, 6.283); ctx.stroke();
+    const x = cx + Math.cos(f.a) * f.r * Math.cos(-.3) - Math.sin(f.a) * f.r * .42 * Math.sin(-.3); const y = cy + Math.cos(f.a) * f.r * Math.sin(-.3) + Math.sin(f.a) * f.r * .42 * Math.cos(-.3);
+    const rr = 3 + f.k * 2; const gg = ctx.createRadialGradient(x, y, 0, x, y, rr * 4); gg.addColorStop(0, hex(cols[f.k], .95)); gg.addColorStop(.3, hex(cols[f.k], .4)); gg.addColorStop(1, hex(cols[f.k], 0)); ctx.fillStyle = gg; ctx.fillRect(x - rr * 4, y - rr * 4, rr * 8, rr * 8);
+  }
 }

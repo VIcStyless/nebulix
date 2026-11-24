@@ -3,7 +3,7 @@
 //  • tilt      — tiles lean towards the cursor in 3D
 //  • ripple    — a soft ink ripple where you press a button
 // All of it is skipped when the user prefers reduced motion (OS setting or the in-app switch).
-const SPOT = '.site-tile, .spot, .card, .kpi, .app-tile, .cl-card, .auth-card';
+const SPOT = '.site-tile, .spot, .card, .hb-card, .hbx-row, .kpi, .app-tile, .cl-card, .auth-card';
 const TILT = '.site-tile, .th-prev, .rd-card, .syn-style, .game-card, .arc-card';
 const RIPPLE = '.btn.primary, .btn.lg, .app-tile, .site-tile, .nv-chip, .chip, .rail-btn, .nv-game';
 
@@ -17,6 +17,7 @@ function onMove(e) {
     const r = el.getBoundingClientRect();
     el.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
     el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+    el.style.setProperty('--tx', (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(2)); el.style.setProperty('--ty', (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(2));
   }
   if (e.pointerType === 'touch' || reduced()) return;
   const tl = t.closest(TILT);

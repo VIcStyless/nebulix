@@ -139,6 +139,15 @@ module.exports = function register(r) {
     const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Not found');
     return { entry: it.entry || 'index.html', files: Object.entries(it.files).map(([path, f]) => ({ path, size: f.size || 0 })).sort((a, b) => a.path.localeCompare(b.path)) };
   });
+  // 14.0: one text file of a game/app for the code viewer (served by Nebulix itself: the games domain is another origin).
+  // Plain text only, never run here; same visibility as the file list above.
+  r.get('/api/hub/:id/raw', { auth: true, limit: [240, 60000, 'user'] }, async (c) => {
+    const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Not found');
+    const p = String(c.query.path || ''); const f = it.files[p]; if (!f) throw new HttpError(404, 'no_file', 'File not found');
+    if (!/\.(html?|css|m?js|json|txt|md|svg|xml|csv)$/i.test(p)) throw new HttpError(415, 'not_text', 'Only text files can be shown');
+    const buf = blobs.readBuffer(f.sha); const cut = buf.length > 1048576;
+    return { path: p, size: buf.length, cut, text: buf.subarray(0, 1048576).toString('utf8') };
+  });
   // publish a new version of a game/app (same link, likes and views)
   r.post('/api/hub/:id/version', { auth: true, verified: true, limit: [20, 3600000, 'user'] }, async (c) => {
     const u = c.user; const it = items()[c.params.id]; if (!it || it.owner !== u.id || !it.files) throw new HttpError(404, 'no_item', 'Not found');

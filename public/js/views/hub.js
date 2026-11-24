@@ -10,6 +10,7 @@ import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, modal, switchEl, promptBox } from '../ui.js';
 import { avatarEl } from '../cosmetics.js';
 import { zipFiles, filesFromDrop, filesFromInput, SKIP } from '../zipwrite.js';
+import { renderMarkdown } from '../markdown.js';
 
 const dur = (s) => (s ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '');
 const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB';
@@ -77,57 +78,90 @@ async function packEntries(entries, onStatus) {
   return new File([blob], 'folder.zip', { type: 'application/zip' });
 }
 
+// ---------- 14.0: the Hub, redesigned like a code-hosting site ----------
+// Home: a dashboard (your uploads and collections on the left, the feed in the middle, trending topics on the right).
+// Each upload is a "repository": header with Save / Remix / Star, underline tabs (Play, Code, Releases, Reviews,
+// Discussions, Media, Settings), a file browser with its README, and an About sidebar with a languages bar.
+const KIND_COLOR = { game: '#f1e05a', app: '#e34c26', wall: '#a371f7', video: '#3178c6', clip: '#2ea043' };
+const KIND_ICON = { game: 'gamepad', app: 'cube', wall: 'image', video: 'play', clip: 'play' };
+const kindDot = (k) => h('span.hbx-kind', h('i', { style: { background: KIND_COLOR[k] || '#8b949e' } }), t(KIND_LABEL[k] || 'Upload'));
+const rel = (ms) => { try { return fmt.rel(ms); } catch { return fmt.date(ms); } };
+const LANG = [[/\.html?$/i, 'HTML', '#e34c26'], [/\.m?js$/i, 'JavaScript', '#f1e05a'], [/\.css$/i, 'CSS', '#663399'], [/\.(png|jpe?g|gif|webp|svg|avif|ico)$/i, 'Images', '#3fb950'], [/\.(mp3|ogg|wav|m4a|flac)$/i, 'Audio', '#db61a2'], [/\.(json|xml|csv|txt|md)$/i, 'Data', '#8b949e'], [/\.(wasm|data|bin|pck|unityweb)$/i, 'WebAssembly', '#654ff0']];
+function languages(files) {
+  const by = new Map(); let total = 0;
+  for (const f of files) { const m = LANG.find(([re]) => re.test(f.path)) || [null, 'Other', '#6e7681']; const k = m[1]; const cur = by.get(k) || { n: m[1], c: m[2], s: 0 }; cur.s += f.size || 1; by.set(k, cur); total += f.size || 1; }
+  return [...by.values()].sort((a, b) => b.s - a.s).map((x) => Object.assign(x, { p: (x.s / Math.max(1, total)) * 100 }));
+}
+const fileIcon = (p) => (/\/$/.test(p) ? 'layers' : /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(p) ? 'image' : /\.(mp3|ogg|wav)$/i.test(p) ? 'music' : /\.(html?|m?js|css|json)$/i.test(p) ? 'terminal' : 'note');
+
 export default {
   title: () => 'Nebulix Hub',
   async mount(root, ctx) {
-    const inner = h('div.inner.hb'); mount(root, inner);
-    if (ctx.params[0]) { itemPage(ctx.params[0]); return () => {}; }
+    const inner = h('div.inner.hb.hbx'); mount(root, inner);
+    if (ctx.params[0]) { itemPage(ctx.params[0], ctx.params[1]); return () => {}; }
     // mode: a kind (all/game/app/wall/video) or a personal list (mine/saved/history/col:<id>)
-    let mode = ctx.query.get('kind') || ls('hub.kind') || 'all'; let q = ''; let sort = 'new'; let tag = ''; let viewMode = ls('hub.view') || 'grid'; let last = []; let cols = []; let counts = {};
+    let mode = ctx.query.get('kind') || ls('hub.kind') || 'all'; let q = ''; let sort = 'new'; let tag = ctx.query.get('tag') || ''; let viewMode = ls('hub.view14') || 'list'; let last = []; let cols = []; let counts = {};
     const KINDS_TAB = ['all', 'game', 'app', 'wall', 'video'];
-    const list = h('div.hb-grid'); const usageEl = h('div.hb-usage'); const featEl = h('div'); const chips = h('div', { style: 'display:contents' }); const tagsEl = h('div.hb-tags'); const statsEl = h('div');
-    const search = h('input.input', { placeholder: t('Search games, apps, backgrounds, videos, tags or people…'), onInput: (e) => { q = e.target.value; clearTimeout(search.t); search.t = setTimeout(load, 250); } });
-    const sortSel = h('select.select', { onChange: (e) => { sort = e.target.value; load(); } }, [['new', 'Newest'], ['top', 'Most popular'], ['likes', 'Most liked'], ['comments', 'Most commented'], ['rating', 'Best rated'], ['updated', 'Recently updated'], ['random', 'Random']].map(([v, l]) => h('option', { value: v }, t(l))));
-    const CH = [['all', t('All')], ['game', t('Games')], ['app', t('Apps')], ['wall', t('Backgrounds')], ['video', t('Videos')], ['|'], ['saved', t('Saved')], ['history', t('History')], ['mine', t('My uploads')]];
-    const setMode = (m) => { mode = m; if (KINDS_TAB.includes(m)) ls('hub.kind', m); tag = ''; paintChips(); load(); };
-    const paintChips = () => mount(chips, CH.map(([k, l]) => (k === '|' ? h('span.hb-sep') : h('button.hb-tab' + (mode === k ? '.on' : ''), { type: 'button', onClick: () => setMode(k) }, l, counts[k] ? h('small', String(counts[k])) : null))),
-      cols.map((c) => h('button.hb-tab' + (mode === 'col:' + c.id ? '.on' : ''), { type: 'button', title: t('Collection'), onClick: () => setMode('col:' + c.id) }, '▤ ' + c.name, h('small', String(c.n)))),
-      h('button.hb-tab', { type: 'button', title: t('New collection'), onClick: async () => { const name = await promptBox(t('New collection'), { label: t('Name') }); if (!name) return; try { await api.post('/api/hub/collections', { name }); load(); } catch (e) { toastErr(e); } } }, '+'));
-    const viewBtns = h('div.hb-view', [['grid', 'grid'], ['list', 'menu']].map(([v, ic]) => h('button' + (viewMode === v ? '.on' : ''), { type: 'button', title: v === 'grid' ? t('Grid') : t('List'), 'aria-label': v === 'grid' ? t('Grid') : t('List'), onClick: (e) => { viewMode = v; ls('hub.view', v); for (const b of viewBtns.children) b.classList.toggle('on', b === e.currentTarget); paintList(); } }, icon(ic, 15))));
+    const list = h('div.hbx-list'); const usageEl = h('div.hbx-usage'); const featEl = h('div'); const tabsBar = h('nav.hbx-utabs'); const tagsEl = h('div.hbx-topics'); const statsEl = h('div'); const mineEl = h('div.hbx-mine'); const colsEl = h('div');
+    const search = h('input.input.hbx-search', { placeholder: t('Find a game, app, background or video…'), onInput: (e) => { q = e.target.value; clearTimeout(search.t); search.t = setTimeout(load, 250); } });
+    const sortSel = h('select.select.hbx-sel', { onChange: (e) => { sort = e.target.value; load(); } }, [['new', 'Newest'], ['top', 'Most popular'], ['likes', 'Most stars'], ['comments', 'Most discussed'], ['rating', 'Best rated'], ['updated', 'Recently updated'], ['random', 'Random']].map(([v, l]) => h('option', { value: v }, t('Sort') + ': ' + t(l))));
+    const CH = [['all', t('Overview'), 'globe'], ['game', t('Games'), 'gamepad'], ['app', t('Apps'), 'cube'], ['wall', t('Backgrounds'), 'image'], ['video', t('Videos'), 'play'], ['saved', t('Saved'), 'bookmark'], ['history', t('History'), 'clock'], ['mine', t('My uploads'), 'book']];
+    const setMode = (m) => { mode = m; if (KINDS_TAB.includes(m)) ls('hub.kind', m); tag = ''; paintTabs(); load(); };
+    const paintTabs = () => mount(tabsBar, CH.map(([k, l, ic]) => h('button.hbx-utab' + (mode === k ? '.on' : ''), { type: 'button', onClick: () => setMode(k) }, icon(ic, 15), h('span', l), counts[k] ? h('span.hbx-count', fmt.compact(counts[k])) : null)));
+    const viewBtns = h('div.hbx-viewsw', [['list', 'menu', t('List')], ['grid', 'grid', t('Cards')]].map(([v, ic, l]) => h('button' + (viewMode === v ? '.on' : ''), { type: 'button', title: l, 'aria-label': l, onClick: (e) => { viewMode = v; ls('hub.view14', v); for (const b of viewBtns.children) b.classList.toggle('on', b === e.currentTarget); paintList(); } }, icon(ic, 15))));
+    const newBtn = h('button.btn.hbx-green', { onClick: (e) => import('../ui.js').then((ui) => ui.openMenu([{ label: t('Upload a file or .zip'), icon: 'upload', onClick: () => uploadDialog() }, { label: t('Upload a whole folder'), icon: 'layers', onClick: () => uploadDialog('game', true) }, { hr: true }, { label: t('New collection…'), icon: 'plus', onClick: newCollection }], e.currentTarget)) }, icon('plus', 15), t('New'));
+    async function newCollection() { const name = await promptBox(t('New collection'), { label: t('Name') }); if (!name) return; try { await api.post('/api/hub/collections', { name }); load(); } catch (e) { toastErr(e); } }
     mount(inner,
-      h('header.hb-head', h('div.grow', h('h2', 'Nebulix Hub'), h('p', t('Games, web apps, animated backgrounds and videos made by the community. Upload a file, a .zip or a whole folder.'))), usageEl,
-        h('div.row', { style: 'gap:6px' }, h('button.btn', { onClick: () => uploadDialog('game', true) }, icon('layers', 15), t('Upload a folder')), h('button.btn.primary', { onClick: () => uploadDialog() }, icon('upload', 15), t('Upload')))),
-      h('nav.hb-tabs', chips), statsEl, featEl, h('div.hb-bar', search, sortSel, h('div.grow'), viewBtns), tagsEl, list);
-    paintChips();
+      h('header.hbx-hero', h('div.hbx-hero-l', h('div.hbx-logo', icon('book', 22)), h('div', h('h2', 'Nebulix Hub'), h('p', t('Games, web apps, animated backgrounds and videos made by the community. Upload a file, a .zip or a whole folder.')))), h('div.row', { style: 'gap:8px' }, newBtn)),
+      tabsBar,
+      h('div.hbx-dash',
+        h('aside.hbx-left', h('div.hbx-box', h('div.hbx-boxh', h('b', t('Your uploads')), h('button.btn.sm.hbx-green', { onClick: () => uploadDialog() }, icon('book', 13), t('New'))), mineEl), h('div.hbx-box', h('div.hbx-boxh', h('b', t('Collections')), h('button.btn.sm.ghost', { onClick: newCollection, 'aria-label': t('New collection') }, icon('plus', 13))), colsEl), usageEl),
+        h('main.hbx-main', featEl, h('div.hbx-filter', search, sortSel, viewBtns), tagsEl, list),
+        h('aside.hbx-right', statsEl)));
+    paintTabs();
+    // left column: your newest uploads
+    api.get('/api/hub?mine=1&sort=updated', { quiet: true }).then((r) => mount(mineEl, r.items.length ? r.items.slice(0, 8).map((it) => h('a.hbx-mini', { href: '#/hub/' + it.id }, it.owner ? avatarEl(it.owner, { size: 18 }) : null, h('span.ellipsis', (it.owner ? it.owner.username : '?') + ' / ', h('b', it.title)))) : h('p.tiny.muted', t('You have not uploaded anything yet.')))).catch(() => mount(mineEl));
     async function load() {
       mount(list, loading());
       try {
         const qs = new URLSearchParams({ q, sort }); if (KINDS_TAB.includes(mode) && mode !== 'all') qs.set('kind', mode); if (mode === 'mine') qs.set('mine', 1); if (mode === 'saved') qs.set('saved', 1); if (mode === 'history') qs.set('history', 1); if (mode.startsWith('col:')) qs.set('col', mode.slice(4)); if (tag) qs.set('tag', tag);
         const r = await api.get('/api/hub?' + qs);
         const u = r.usage; const pct = Math.min(100, (u.used / Math.max(1, u.quota)) * 100);
-        mount(usageEl, h('span', t('Your storage') + ': ' + mb(u.used) + ' / ' + mb(u.quota)), h('div.hb-ubar', h('i', { style: { width: pct + '%' } })));
-        counts = Object.assign({}, r.counts || {}); counts.all = Object.values(r.counts || {}).reduce((a, b) => a + b, 0); cols = r.cols || []; paintChips();
-        mount(tagsEl, r.tags && r.tags.length && KINDS_TAB.includes(mode) ? r.tags.map((x) => h('button.hb-tag' + (tag === x.t ? '.on' : ''), { type: 'button', onClick: () => { tag = tag === x.t ? '' : x.t; load(); } }, '#' + x.t, h('small', String(x.n)))) : null);
-        const st = r.stats; mount(statsEl, st ? h('div.hb-stats', [[st.items, t('Uploads')], [st.views, t('Views')], [st.likes, t('Likes')], [st.comments, t('Comments')], [st.remixes, t('Remixes')]].map(([v, l]) => h('div', h('b', fmt.num(v)), h('span', l)))) : null);
-        if (mode === 'history' && r.items.length) statsEl.append(h('button.btn.sm.ghost', { style: 'margin:-6px 0 10px', onClick: async () => { try { await api.del('/api/hub/history'); load(); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Clear history')));
-        if (mode.startsWith('col:')) { const c = cols.find((x) => 'col:' + x.id === mode); if (c) statsEl.append(h('button.btn.sm.ghost', { style: 'margin:-6px 0 10px', onClick: async () => { if (!(await confirmBox(t('Delete the collection “{n}”? The uploads stay in the Hub.', { n: c.name })))) return; try { await api.del('/api/hub/collections/' + c.id); setMode('all'); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Delete collection'))); }
-        const f = r.featured; mount(featEl, f && !q && !tag && mode === 'all' ? h('a.hb-feat', { href: '#/hub/' + f.id }, cover(f), h('div.hb-fi', h('span.hb-flabel', t('Most played this week')), h('h3', f.title), f.desc ? h('p', f.desc.slice(0, 180)) : null,
-          h('span.hb-sub', '@' + (f.owner ? f.owner.username : '?') + ' · ' + t('{n} views', { n: fmt.compact(f.views) }) + ' · ' + t('{n} likes', { n: f.likes })))) : null);
+        mount(usageEl, h('div.hbx-box', h('div.tiny.muted', t('Your storage')), h('div.hbx-ubar', h('i', { style: { width: pct + '%' } })), h('div.tiny', mb(u.used) + ' / ' + mb(u.quota))));
+        counts = Object.assign({}, r.counts || {}); counts.all = Object.values(r.counts || {}).reduce((a, b) => a + b, 0); cols = r.cols || []; paintTabs();
+        mount(colsEl, cols.length ? cols.map((c) => h('button.hbx-mini' + (mode === 'col:' + c.id ? '.on' : ''), { type: 'button', onClick: () => setMode('col:' + c.id) }, icon('layers', 14), h('span.grow.ellipsis', c.name), h('span.hbx-count', String(c.n)))) : h('p.tiny.muted', t('Group uploads you like into collections.')));
+        mount(tagsEl, r.tags && r.tags.length && KINDS_TAB.includes(mode) ? r.tags.slice(0, 14).map((x) => h('button.hbx-topic' + (tag === x.t ? '.on' : ''), { type: 'button', onClick: () => { tag = tag === x.t ? '' : x.t; load(); } }, x.t)) : null);
+        const st = r.stats;
+        mount(statsEl, st ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Hub in numbers'))), h('div.hbx-nums', [[st.items, t('Uploads'), 'book'], [st.views, t('Views'), 'eye'], [st.likes, t('Stars'), 'star'], [st.comments, t('Comments'), 'chat'], [st.remixes, t('Remixes'), 'fork']].map(([v, l, ic]) => h('div', icon(ic, 14), h('b', fmt.compact(v)), h('span', l))))) : null,
+          r.tags && r.tags.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Trending topics'))), h('div.hbx-topics', r.tags.slice(0, 12).map((x) => h('button.hbx-topic', { type: 'button', onClick: () => { tag = x.t; if (!KINDS_TAB.includes(mode)) mode = 'all'; paintTabs(); load(); } }, x.t, h('small', ' ' + x.n))))) : null,
+          mode === 'history' && r.items.length ? h('button.btn.sm.ghost', { onClick: async () => { try { await api.del('/api/hub/history'); load(); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Clear history')) : null,
+          mode.startsWith('col:') ? (() => { const c = cols.find((x) => 'col:' + x.id === mode); return c ? h('button.btn.sm.danger', { onClick: async () => { if (!(await confirmBox(t('Delete the collection “{n}”? The uploads stay in the Hub.', { n: c.name })))) return; try { await api.del('/api/hub/collections/' + c.id); setMode('all'); } catch (e) { toastErr(e); } } }, icon('trash', 13), t('Delete collection')) : null; })() : null);
+        const f = r.featured; mount(featEl, f && !q && !tag && mode === 'all' ? h('a.hbx-feat', { href: '#/hub/' + f.id }, cover(f), h('div.hbx-feat-i', h('span.hbx-flag', icon('star', 12), t('Most played this week')), h('h3', (f.owner ? f.owner.username : '?') + ' / ', h('b', f.title)), f.desc ? h('p', f.desc.slice(0, 180)) : null,
+          h('div.hbx-meta', kindDot(f.kind), h('span', icon('star', 13), fmt.compact(f.likes)), h('span', icon('eye', 13), fmt.compact(f.views))))) : null);
         last = r.items; paintList();
       } catch (e) { mount(list, emptyState('alert', t('Could not load this'), e.message)); }
     }
     function paintList() {
       if (!last.length) { mount(list, emptyState('upload', t('Nothing here yet'), t('Be the first to upload something!'), h('button.btn.primary', { onClick: () => uploadDialog() }, t('Upload')))); return; }
-      if (viewMode === 'grid') { list.className = 'hb-grid'; mount(list, last.map(card)); return; }
-      list.className = 'hb-listwrap';
-      mount(list, h('table.hb-table', h('thead', h('tr', h('th', t('Title')), h('th.hide-sm', t('Author')), h('th.hide-sm', t('Type')), h('th.num.hide-sm', t('Files')), h('th.num.hide-sm', t('Size')), h('th.num', t('Views')), h('th.num.hide-sm', t('Updated')))),
-        h('tbody', last.map((it) => h('tr', { onClick: () => ctx.go('hub', it.id) }, h('td', h('div.hb-tt', cover(it), h('b', it.title), it.public ? null : h('span.hb-sub', '· ' + t('private')))), h('td.hide-sm', '@' + (it.owner ? it.owner.username : '?')), h('td.hide-sm', t(KIND_LABEL[it.kind])),
-          h('td.num.hide-sm', it.files || '—'), h('td.num.hide-sm', mb(it.size || 0)), h('td.num', fmt.compact(it.views)), h('td.num.hide-sm', fmt.date(it.updated || it.created)))))));
+      list.className = viewMode === 'grid' ? 'hbx-list hb-grid' : 'hbx-list';
+      mount(list, last.map(viewMode === 'grid' ? card : row));
+    }
+    function starBtn(it) {
+      const b = h('button.hbx-star' + (it.liked ? '.on' : ''), { type: 'button', onClick: (e) => { e.preventDefault(); e.stopPropagation(); busy(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); mount(b, icon('star', 14), r.liked ? t('Starred') : t('Star')); } catch (er) { toastErr(er); } }); } }, icon('star', 14), it.liked ? t('Starred') : t('Star'));
+      return b;
+    }
+    function row(it) {
+      return h('article.hbx-row', { onClick: (e) => { if (!e.target.closest('a,button')) ctx.go('hub', it.id); } },
+        h('div.hbx-row-l', h('h3', h('a', { href: '#/hub/' + it.id }, h('span.hbx-owner', (it.owner ? it.owner.username : '?') + ' / '), h('b', it.title)), h('span.hbx-lbl', it.public ? t('Public') : t('Private'))),
+          it.desc ? h('p.hbx-desc', it.desc.slice(0, 220)) : null,
+          it.tags && it.tags.length ? h('div.hbx-topics', it.tags.slice(0, 6).map((x) => h('span.hbx-topic', x))) : null,
+          h('div.hbx-meta', kindDot(it.kind), h('span', { title: t('Stars') }, icon('star', 13), fmt.compact(it.likes || 0)), h('span', { title: t('Views') }, icon('eye', 13), fmt.compact(it.views || 0)), it.rating ? h('span', starsEl(it.rating.avg, 11), ' ' + it.rating.avg.toFixed(1)) : null, it.version > 1 ? h('span', icon('tag', 13), 'v' + it.version) : null, it.duration ? h('span', icon('clock', 13), dur(it.duration)) : null, h('span', t('Updated {d}', { d: rel(it.updated || it.created) })))),
+        h('div.hbx-row-r', starBtn(it), h('a.hbx-rthumb', { href: '#/hub/' + it.id, tabindex: -1 }, cover(it))));
     }
     function card(it) {
       return h('a.hb-card', { href: '#/hub/' + it.id }, cover(it),
         h('div.row', { style: 'gap:8px;align-items:flex-start' }, it.owner ? avatarEl(it.owner, { size: 30 }) : null, h('div.grow', { style: 'min-width:0' }, h('b.tube-title', it.title),
-          h('div.hb-sub', '@' + (it.owner ? it.owner.username : '?') + ' · ' + t('{n} views', { n: fmt.compact(it.views) }) + (it.likes ? ' · ' + t('{n} likes', { n: it.likes }) : '') + (it.public ? '' : ' · ' + t('private'))), it.rating ? h('div.hb-cardr', starsEl(it.rating.avg, 12), h('span.tiny.muted', it.rating.avg.toFixed(1) + ' (' + it.rating.n + ')')) : null)));
+          h('div.hb-sub', '@' + (it.owner ? it.owner.username : '?') + ' · ' + t('{n} views', { n: fmt.compact(it.views) }) + (it.likes ? ' · ★ ' + it.likes : '') + (it.public ? '' : ' · ' + t('private'))), it.rating ? h('div.hb-cardr', starsEl(it.rating.avg, 12), h('span.tiny.muted', it.rating.avg.toFixed(1) + ' (' + it.rating.n + ')')) : null)));
     }
     async function uploadDialog(k0, folder) {
       let k = k0 || (['game', 'app', 'wall', 'video'].includes(mode) ? mode : 'game'); let entries = []; let coverFile = null; let allowDl = false; let allowRx = false; let runMode = 'sandbox';
@@ -167,7 +201,8 @@ export default {
     }
     load();
 
-    async function itemPage(id) {
+    // ---------- one upload, shown like a repository ----------
+    async function itemPage(id, tab0) {
       mount(inner, loading());
       let d; try { d = await api.get('/api/hub/' + encodeURIComponent(id)); } catch (e) { mount(inner, emptyState('alert', t('Not found'), e.message, h('button.btn', { onClick: () => ctx.go('hub') }, t('Back')))); return; }
       const it = d.item; ctx.setTitle && ctx.setTitle(it.title); const code = !(it.kind === 'video' || it.kind === 'clip') && it.wtype !== 'video' && it.wtype !== 'image';
@@ -193,50 +228,111 @@ export default {
         addEventListener('message', onMsg);
         player = h('div.hb-player.game', fr);
       }
+      let theater = false;
       const tools = code && fr ? h('div.hb-tools', h('button.btn.sm', { onClick: () => { try { fr.requestFullscreen(); } catch {} } }, icon('fullscreen', 14), t('Fullscreen')), h('button.btn.sm', { onClick: () => { const s = fr.src; try { fr.contentWindow.location.replace(s); } catch { fr.src = s; } } }, icon('refresh', 14), t('Restart')),
+        h('button.btn.sm', { onClick: () => { theater = !theater; inner.classList.toggle('hbx-theater', theater); } }, icon('fullscreen', 14), t('Theater mode')),
         h('a.btn.sm', { href: it.src, target: '_blank', rel: 'noopener' }, icon('external', 14), t('Open in a new tab')),
         it.runMode === 'native' ? h('button.btn.sm', { onClick: () => { const w = Math.min(1600, screen.availWidth - 40), hh = Math.min(1000, screen.availHeight - 60); if (!window.open(it.src, 'nbx-game-' + it.id, `popup=yes,width=${w},height=${hh},left=${Math.round((screen.availWidth - w) / 2)},top=${Math.round((screen.availHeight - hh) / 2)}`)) window.open(it.src, '_blank'); } }, icon('window', 14), t('Own window')) : null, it.mine && it.sale ? h('button.btn.sm', { onClick: () => ctx.go('vault', 'sell') }, '🔷 ', it.sale.price ? t('Vault: {c} coins', { c: fmt.coins(it.sale.eff) }) : t('Sell in Nebula Vault')) : (it.sale && it.sale.price ? h('span.pill', '🔷 ' + t('Owned')) : null), h('span.grow'), h('span.tiny.muted', it.runMode === 'native' ? t('Runs natively, like a Chrome tab · cannot see your account') : it.runMode === 'domain' ? t('Runs like in Chrome on the games domain · cannot see your account') : t('Runs sandboxed · can load files from the internet'))) : null;
-      const like = h('button.btn' + (it.liked ? '.primary' : ''), { onClick: (e) => busy(e.currentTarget, async () => { const r = await api.post(`/api/hub/${it.id}/like`); like.classList.toggle('primary', r.liked); like.lastChild.textContent = ' ' + r.likes; }) }, icon('heart', 15), ' ' + it.likes);
-      let theater = false;
-      const saveBtn = h('button.btn' + (it.saved ? '.primary' : ''), { onClick: (e) => busy(e.currentTarget, async () => { try { const r = await api.post(`/api/hub/${it.id}/save`); saveBtn.classList.toggle('primary', r.saved); saveBtn.lastChild.textContent = r.saved ? t('Saved') : t('Save'); } catch (er) { toastErr(er); } }) }, icon('bookmark', 15), it.saved ? t('Saved') : t('Save'));
+
+      // header buttons: Save · Remix · Star (each with its counter, like a code site)
+      const pairBtn = (ic, label, n, on, onClick) => { const b = h('button.hbx-pair' + (on ? '.on' : ''), { type: 'button', onClick: (e) => onClick(e, b) }, h('span.hbx-pair-l', icon(ic, 14), h('span', label)), n != null ? h('span.hbx-pair-n', fmt.compact(n)) : null); return b; };
+      const saveB = pairBtn('bookmark', it.saved ? t('Saved') : t('Save'), null, it.saved, (e, b) => busy(b, async () => { try { const r = await api.post(`/api/hub/${it.id}/save`); it.saved = r.saved; b.classList.toggle('on', r.saved); b.querySelector('.hbx-pair-l span').textContent = r.saved ? t('Saved') : t('Save'); } catch (er) { toastErr(er); } }));
+      const remixB = (it.allowRemix || it.mine) && it.files ? pairBtn('fork', t('Remix'), it.remixes || 0, false, async () => { try { const r = await api.post(`/api/hub/${it.id}/remix`); toast(t('Remix created as a private draft'), 'good'); ctx.go('hub', r.item.id); } catch (er) { toastErr(er); } }) : null;
+      const starB = pairBtn('star', it.liked ? t('Starred') : t('Star'), it.likes, it.liked, (e, b) => busy(b, async () => { const r = await api.post(`/api/hub/${it.id}/like`); it.liked = r.liked; it.likes = r.likes; b.classList.toggle('on', r.liked); b.querySelector('.hbx-pair-l span').textContent = r.liked ? t('Starred') : t('Star'); b.querySelector('.hbx-pair-n').textContent = fmt.compact(r.likes); if (r.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } }));
       async function colMenu(anchor) {
         let r; try { r = await api.get('/api/hub/collections/of/' + it.id); } catch (e) { toastErr(e); return; }
         const ui = await import('../ui.js');
         ui.openMenu([...r.cols.map((c) => ({ label: c.name, icon: c.has ? 'check' : 'plus', onClick: async () => { try { const x = await api.post(`/api/hub/collections/${c.id}/toggle`, { item: it.id }); toast(x.on ? t('Added to “{n}”', { n: c.name }) : t('Removed from “{n}”', { n: c.name }), 'good'); } catch (e) { toastErr(e); } } })),
           { hr: true }, { label: t('New collection…'), icon: 'plus', onClick: async () => { const name = await promptBox(t('New collection'), { label: t('Name') }); if (!name) return; try { const c = await api.post('/api/hub/collections', { name }); await api.post(`/api/hub/collections/${c.col.id}/toggle`, { item: it.id }); toast(t('Added to “{n}”', { n: name }), 'good'); } catch (e) { toastErr(e); } } }], anchor);
       }
-      // comments
-      const cBox = h('div.hb-comments');
-      async function loadComments() {
-        let r; try { r = await api.get('/api/comments/' + it.id); } catch { mount(cBox); return; }
-        const inp = h('textarea.input', { rows: 2, maxlength: 600, placeholder: t('Write a comment…') });
-        const one = (c, isReply) => h('div.hb-cm' + (isReply ? '.reply' : ''), c.owner ? avatarEl(c.owner, { size: isReply ? 24 : 30 }) : null, h('div.grow', h('div.tiny', h('b', c.owner ? c.owner.displayName : '?'), h('span.muted', ' · ' + fmt.rel(c.created))), h('div.small', { style: 'white-space:pre-wrap' }, c.text)));
-        mount(cBox, h('h3', { style: 'margin:14px 0 8px;font-size:1rem' }, t('Comments') + ' (' + r.total + ')'),
-          h('div.row', { style: 'gap:8px;align-items:flex-start' }, inp, h('button.btn.primary', { onClick: (e) => busy(e.currentTarget, async () => { const text = inp.value.trim(); if (!text) return; try { await api.post('/api/comments/' + it.id, { text }); inp.value = ''; loadComments(); } catch (er) { toastErr(er); } }) }, t('Post'))),
-          r.items.length ? r.items.map((c) => h('div', one(c), (c.replies || []).map((x) => one(x, true)))) : h('p.small.muted', t('No comments yet. Be the first!')));
-      }
-      // tabs under the player: info · files · versions
-      let tab = 'info'; const tabBody = h('div');
-      const tabs = code ? tabsEl([['info', t('Info'), 'info'], ['files', t('Files') + ' (' + it.files + ')', 'layers'], ['versions', t('Versions') + ' (v' + it.version + ')', 'clock']], tab, (v) => { tab = v; paintTab(); }) : null;
-      async function paintTab() {
-        if (tab === 'info') { mount(tabBody, h('div.card.tight.hb-desc', h('div.small.muted', t('{n} views', { n: fmt.num(it.views) }) + ' · ' + fmt.date(it.created) + (it.updated && it.updated !== it.created ? ' · ' + t('updated {d}', { d: fmt.date(it.updated) }) : '') + (it.tags.length ? ' · ' + it.tags.map((x) => '#' + x).join(' ') : '')), it.desc ? h('p.small', { style: 'white-space:pre-wrap' }, it.desc) : h('p.small.muted', t('No description.')))); return; }
-        if (tab === 'files') {
-          mount(tabBody, loading()); let f; try { f = await api.get(`/api/hub/${it.id}/files`); } catch (e) { mount(tabBody, h('p.small.muted', e.message)); return; }
-          const viewer = h('pre.hb-src.hide');
-          const base = (it.src || '').slice(0, (it.src || '').length - f.entry.split('/').map(encodeURIComponent).join('/').length);
-          mount(tabBody, h('div.hb-files', h('div.hb-flist', f.files.map((x) => h('button.hb-frow' + (x.path === f.entry ? '.entry' : ''), { type: 'button', disabled: !TEXTY.test(x.path), title: TEXTY.test(x.path) ? t('View the code') : '', onClick: async () => {
-            try { const res = await fetch(base + x.path.split('/').map(encodeURIComponent).join('/')); const txt = await res.text(); viewer.textContent = txt.length > 200000 ? txt.slice(0, 200000) + '\n…' : txt; viewer.classList.remove('hide'); viewer.scrollTop = 0; } catch (e) { toastErr(e); } } },
-            h('span.tiny.muted', x.path === f.entry ? '▶' : TEXTY.test(x.path) ? '·' : '◦'), h('span.grow.ellipsis', x.path), h('span.tiny.muted', mb(x.size))))), viewer)); return;
+      const download = () => { const a = document.createElement('a'); a.href = `/x/hub/dl/${it.id}`; a.download = ''; document.body.append(a); a.click(); a.remove(); };
+      const codeMenu = (anchor) => import('../ui.js').then((ui) => ui.openMenu([
+        { label: t('Copy link'), icon: 'link', onClick: async () => { try { await navigator.clipboard.writeText(location.origin + '/#/hub/' + it.id); toast(t('Link copied'), 'good'); } catch {} } },
+        code ? { label: t('Copy embed code'), icon: 'copy', onClick: async () => { try { await navigator.clipboard.writeText(`<iframe src="${/^https?:/.test(it.src) ? it.src : location.origin + it.src}" width="960" height="540" style="border:0" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe>`); toast(t('Embed code copied'), 'good'); } catch {} } } : null,
+        it.allowDownload || it.mine ? { label: t('Download ZIP'), icon: 'download', onClick: download } : null,
+        code && it.src ? { label: t('Open in a new tab'), icon: 'external', onClick: () => window.open(it.src, '_blank', 'noopener') } : null,
+        { label: t('Add to a collection'), icon: 'layers', onClick: () => colMenu(anchor) },
+        code && it.files ? { label: t('Delete my saved game'), icon: 'trash', onClick: async () => { if (!(await confirmBox(t('Delete your saved progress in “{t}”?', { t: it.title }), { danger: true }))) return; try { await api.del(`/api/hub/${it.id}/gamesave`); toast(t('Saved game deleted'), 'good'); } catch (er) { toastErr(er); } } } : null,
+        !it.mine ? { hr: true } : null,
+        !it.mine ? { label: t('Report'), icon: 'flag', danger: true, onClick: async () => { const reason = await promptBox(t('Report “{t}”', { t: it.title }), { label: t('What is wrong?'), multiline: true }); if (!reason || reason.trim().length < 3) return; try { await api.post('/api/reports', { type: 'hub', target: it.id, reason }); toast(t('Thanks — the moderators will review it.'), 'good'); } catch (er) { toastErr(er); } } } : null,
+      ].filter(Boolean), anchor));
+      const modRemove = !it.mine && ['owner', 'admin', 'mod'].includes(S.me.role) ? h('button.btn.sm.danger', { onClick: async () => { const reason = await promptBox(t('Remove “{t}”', { t: it.title }), { label: t('Reason (the author will see it)') }); if (reason === null) return; try { await api.del(`/api/admin/content/hub/${it.id}?reason=${encodeURIComponent(reason)}`); toast(t('Removed'), 'good'); ctx.go('hub'); } catch (e) { toastErr(e); } } }, icon('shield', 14), t('Remove')) : null;
+
+      const head = h('header.hbx-rhead',
+        h('div.hbx-rtitle', icon(KIND_ICON[it.kind] || 'book', 18), it.owner ? h('a.hbx-rown', { href: '#/profile/' + it.owner.username }, it.owner.username) : h('span', '?'), h('span.hbx-slash', '/'), h('a.hbx-rname', { href: '#/hub/' + it.id }, it.title), h('span.hbx-lbl', it.public ? t('Public') : t('Private')), it.remixOf ? h('span.hbx-lbl', icon('fork', 11), ' ', h('a', { href: '#/hub/' + it.remixOf }, t('remix'))) : null),
+        h('div.hbx-ractions', modRemove, saveB, remixB, starB, it.kind === 'wall' ? h('button.btn.sm.primary', { onClick: async (e) => busy(e.currentTarget, async () => { try { const { setLiveBg } = await import('../livebg.js'); await setLiveBg({ id: it.id }); toast(t('Background applied. Adjust it in Appearance.'), 'good'); } catch (er) { toastErr(er); } }) }, icon('image', 14), t('Use as background')) : null));
+
+      // tabs
+      const TABS = [['play', code ? t('Play') : t('Watch'), 'play'], code && it.files ? ['code', t('Code'), 'terminal'] : null, code ? ['releases', t('Releases'), 'tag', it.version] : null, ['reviews', t('Reviews'), 'star', it.rating ? it.rating.n : 0], ['discuss', t('Discussions'), 'chat', it.comments], ['media', t('Media'), 'image', (it.shots || []).length], it.mine ? ['settings', t('Settings'), 'gear'] : null].filter(Boolean);
+      let tab = TABS.some((x) => x[0] === tab0) ? tab0 : 'play';
+      const tabsNav = h('nav.hbx-utabs.hbx-rtabs'); const body = h('div.hbx-rbody');
+      const paintTabs2 = () => mount(tabsNav, TABS.map(([k, l, ic, n]) => h('button.hbx-utab' + (tab === k ? '.on' : ''), { type: 'button', onClick: () => { tab = k; history.replaceState(null, '', '#/hub/' + it.id + (k === 'play' ? '' : '/' + k)); paintTabs2(); paintBody(); } }, icon(ic, 15), h('span', l), n ? h('span.hbx-count', fmt.compact(n)) : null)));
+
+      // About sidebar (always visible next to the tab)
+      let filesCache = null; const getFiles = async () => { if (filesCache) return filesCache; if (!code || !it.files) return (filesCache = { files: [], entry: '' }); try { filesCache = await api.get(`/api/hub/${it.id}/files`); } catch { filesCache = { files: [], entry: '' }; } return filesCache; };
+      const langEl = h('div');
+      const about = h('aside.hbx-about',
+        h('div.hbx-box', h('div.hbx-boxh', h('b', t('About'))), it.desc ? h('p.small', { style: 'white-space:pre-wrap;margin:0 0 10px' }, it.desc.slice(0, 600)) : h('p.small.muted', t('No description.')),
+          it.tags && it.tags.length ? h('div.hbx-topics', it.tags.map((x) => h('a.hbx-topic', { href: '#/hub?tag=' + encodeURIComponent(x) }, x))) : null,
+          h('ul.hbx-facts', h('li', icon('star', 14), h('b', fmt.compact(it.likes)), ' ' + t('stars')), h('li', icon('eye', 14), h('b', fmt.compact(it.views)), ' ' + t('views')), h('li', icon('fork', 14), h('b', fmt.compact(it.remixes || 0)), ' ' + t('remixes')), h('li', icon('chat', 14), h('b', fmt.compact(it.comments || 0)), ' ' + t('comments')),
+            h('li', icon('clock', 14), t('Created {d}', { d: fmt.date(it.created) })), it.size ? h('li', icon('download', 14), mb(it.size)) : null, code ? h('li', icon('shield', 14), it.runMode === 'native' ? t('Runs natively') : it.runMode === 'domain' ? t('Runs on the games domain') : t('Runs sandboxed')) : null)),
+        code ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Releases')), h('span.hbx-count', String(it.version || 1))), h('div.hbx-rel-mini', icon('tag', 15), h('div', h('b', 'v' + (it.version || 1)), ' ', h('span.hbx-latest', t('Latest')), h('div.tiny.muted', rel(it.updated || it.created))))) : null,
+        code && it.files ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Languages'))), langEl) : null,
+        d.more && d.more.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('More like this'))), d.more.slice(0, 6).map((m) => h('a.hbx-mini', { href: '#/hub/' + m.id }, h('i.hbx-kdot', { style: { background: KIND_COLOR[m.kind] || '#8b949e' } }), h('span.ellipsis', (m.owner ? m.owner.username : '?') + ' / ', h('b', m.title))))) : null);
+      if (code && it.files) getFiles().then((f) => { const L = languages(f.files); mount(langEl, h('div.hbx-langbar', L.map((x) => h('i', { style: { width: x.p + '%', background: x.c }, title: x.n }))), h('ul.hbx-langs', L.map((x) => h('li', h('i', { style: { background: x.c } }), h('b', x.n), ' ', h('span.muted', x.p.toFixed(1) + '%'))))); });
+
+      async function paintBody() {
+        if (tab === 'play') { mount(body, player, tools, h('div.hbx-under', h('h2.tube-h', it.title), h('div.row', { style: 'gap:6px;flex-wrap:wrap' }, h('button.btn.sm', { onClick: (e) => codeMenu(e.currentTarget) }, icon('more', 14), t('More'))))); return; }
+        if (tab === 'code') {
+          mount(body, loading()); const f = await getFiles(); if (tab !== 'code') return;
+          const base = (it.src || '').slice(0, (it.src || '').length - String(f.entry || '').split('/').map(encodeURIComponent).join('/').length);
+          const urlOf = (p) => base + p.split('/').map(encodeURIComponent).join('/');
+          // folders → browse like a code site; dir = current folder path ('' = root)
+          let dir = ''; const viewer = h('div.hbx-viewer.hide'); const tableHost = h('div'); const readmeHost = h('div');
+          const readme = f.files.find((x) => /^readme(\.md|\.txt)?$/i.test(x.path)) || f.files.find((x) => /(^|\/)readme\.md$/i.test(x.path));
+          const paintDir = () => {
+            const here = new Map(); for (const x of f.files) { if (!x.path.startsWith(dir)) continue; const rest = x.path.slice(dir.length); const slash = rest.indexOf('/'); if (slash >= 0) { const name = rest.slice(0, slash + 1); const e = here.get(name) || { path: dir + name, dir: true, size: 0, n: 0 }; e.size += x.size; e.n++; here.set(name, e); } else here.set(rest, x); }
+            const rows = [...here.entries()].sort((a, b) => (b[1].dir ? 1 : 0) - (a[1].dir ? 1 : 0) || a[0].localeCompare(b[0]));
+            mount(tableHost, h('div.hbx-ftable',
+              h('div.hbx-fhead', it.owner ? avatarEl(it.owner, { size: 20 }) : null, h('b', it.owner ? it.owner.username : '?'), h('span.grow.ellipsis.muted', (it.versions && it.versions.length ? it.versions[it.versions.length - 1].note : '') || t('Version {v}', { v: it.version || 1 })), h('span.tiny.muted', icon('clock', 12), ' ', rel(it.updated || it.created)), h('span.tiny', h('b', String(f.files.length)), ' ' + t('files'))),
+              dir ? h('button.hbx-frow', { type: 'button', onClick: () => { dir = dir.replace(/[^/]+\/$/, ''); paintDir(); } }, icon('back', 14), h('span.grow', '..')) : null,
+              rows.map(([name, x]) => h('button.hbx-frow' + (x.path === f.entry ? '.entry' : ''), { type: 'button', disabled: !x.dir && !TEXTY.test(x.path) && !/\.(png|jpe?g|gif|webp|svg)$/i.test(x.path), onClick: async () => {
+                if (x.dir) { dir = x.path; paintDir(); return; }
+                try { if (/\.(png|jpe?g|gif|webp|svg)$/i.test(x.path)) { mount(viewer, h('div.hbx-vhead', icon('image', 14), h('b.grow', x.path), h('span.tiny.muted', mb(x.size))), h('div.hbx-vimg', h('img', { src: urlOf(x.path), alt: x.path }))); }
+                  else { const txt = (await api.get(`/api/hub/${it.id}/raw?path=${encodeURIComponent(x.path)}`)).text; const lines = (txt.length > 200000 ? txt.slice(0, 200000) + '\n…' : txt).split('\n');
+                    mount(viewer, h('div.hbx-vhead', icon('terminal', 14), h('b.grow', x.path), h('span.tiny.muted', t('{n} lines', { n: lines.length }) + ' · ' + mb(x.size)), h('button.btn.sm.ghost', { onClick: () => { navigator.clipboard.writeText(txt).then(() => toast(t('Copied!'), 'good')).catch(() => {}); } }, icon('copy', 13))), h('pre.hbx-code', lines.map((l, i) => h('div', h('span.hbx-ln', String(i + 1)), h('code', l || ' '))))); }
+                  viewer.classList.remove('hide'); viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { toastErr(e); } } },
+                icon(x.dir ? 'layers' : fileIcon(x.path), 15), h('span.grow.ellipsis', name.replace(/\/$/, '')), x.path === f.entry ? h('span.hbx-lbl', '▶ ' + t('start')) : null, h('span.tiny.muted', x.dir ? t('{n} files', { n: x.n }) : mb(x.size)))))); };
+          paintDir();
+          if (readme) { api.get(`/api/hub/${it.id}/raw?path=${encodeURIComponent(readme.path)}`, { quiet: true }).then((r) => r.text).then((txt) => mount(readmeHost, h('div.hbx-readme', h('div.hbx-vhead', icon('book', 14), h('b', 'README')), h('div.hbx-md.md', renderMarkdown(txt.slice(0, 60000)))))).catch(() => {}); }
+          else mount(readmeHost, h('div.hbx-readme', h('div.hbx-vhead', icon('book', 14), h('b', 'README')), h('div.hbx-md', it.desc ? h('p', { style: 'white-space:pre-wrap' }, it.desc) : h('p.muted', it.mine ? t('Add a README.md file to your upload to explain it here.') : t('No description.')))));
+          mount(body, h('div.hbx-codebar', h('span.hbx-branch', icon('branch', 14), 'main'), h('span.tiny.muted', icon('tag', 13), ' v' + (it.version || 1)), h('span.grow'), h('button.btn.sm.hbx-green', { onClick: (e) => codeMenu(e.currentTarget) }, icon('terminal', 14), t('Code'), ' ▾')), tableHost, viewer, readmeHost); return;
         }
-        mount(tabBody, h('div.card.tight', (it.versions || []).length ? it.versions.map((v) => h('div.hb-ver', h('b', 'v' + v.v), h('span.grow', v.note || t('No notes')), h('span.tiny.muted', fmt.date(v.at) + ' · ' + mb(v.size || 0)))) : h('p.small.muted', t('First version.')),
-          it.mine ? h('button.btn.primary.sm', { style: 'margin-top:10px', onClick: () => newVersion() }, icon('upload', 14), t('Upload a new version')) : null));
+        if (tab === 'releases') {
+          const vs = (it.versions || []).slice().reverse();
+          mount(body, h('div.hbx-rels', it.mine ? h('div.row', { style: 'justify-content:flex-end;margin-bottom:10px' }, h('button.btn.sm.hbx-green', { onClick: () => newVersion() }, icon('upload', 14), t('Draft a new release'))) : null,
+            (vs.length ? vs : [{ v: it.version || 1, note: '', at: it.created, size: it.size }]).map((v, i) => h('article.hbx-rel', h('div.hbx-rel-side', h('span.hbx-tagpill', icon('tag', 12), ' v' + v.v), h('div.tiny.muted', rel(v.at))),
+              h('div.hbx-rel-main', h('h3', 'v' + v.v, i === 0 ? h('span.hbx-latest', t('Latest')) : null), h('p.small', { style: 'white-space:pre-wrap' }, v.note || (i === vs.length - 1 || !vs.length ? t('First version.') : t('No notes'))), h('div.hbx-asset', icon('download', 14), h('span.grow', t('Source code (zip)')), h('span.tiny.muted', mb(v.size || 0)), i === 0 && (it.allowDownload || it.mine) ? h('button.btn.sm', { onClick: download }, t('Download')) : null)))))); return;
+        }
+        if (tab === 'reviews') { mount(body, X.reviewsPanel(it)); return; }
+        if (tab === 'discuss') { mount(body, X.hubComments(it)); return; }
+        if (tab === 'media') { const host = h('div'); const paintM = () => mount(host, X.shotsPanel(it, paintM), X.clipsPanel(it, { frame: fr })); paintM(); mount(body, host); return; }
+        if (tab === 'settings') {
+          mount(body, h('div.hbx-settings',
+            h('section.hbx-box', h('h3', t('General')), h('p.small.muted', t('Title, description, topics, visibility and how it runs.')), h('button.btn', { onClick: editInfo }, icon('edit', 14), t('Edit details'))),
+            code ? h('section.hbx-box', h('h3', t('Cover image')), h('p.small.muted', t('The picture shown in lists and cards.')), h('button.btn', { onClick: changeCover }, icon('image', 14), t('Change cover'))) : null,
+            code ? h('section.hbx-box', h('h3', t('Releases')), h('p.small.muted', t('Upload a new version: players get it straight away and the old notes stay in Releases.')), h('button.btn', { onClick: () => newVersion() }, icon('upload', 14), t('New version'))) : null,
+            code && (it.kind === 'game' || it.kind === 'app') ? h('section.hbx-box', h('h3', 'Nebula Vault'), h('p.small.muted', t('Sell it for coins in Nebula Vault.')), h('button.btn', { onClick: () => ctx.go('vault', 'sell') }, '🔷 ', t('Sell in Nebula Vault'))) : null,
+            h('section.hbx-box.hbx-danger', h('h3', t('Danger zone')), h('div.row', { style: 'align-items:center;gap:10px;flex-wrap:wrap' }, h('div.grow', h('b', t('Delete this upload')), h('div.small.muted', t('Once you delete it, there is no going back.'))),
+              h('button.btn.danger', { onClick: async () => { if (!(await confirmBox(t('Delete “{t}”?', { t: it.title }), { danger: true }))) return; try { await api.del('/api/hub/' + it.id); ctx.go('hub'); } catch (e) { toastErr(e); } } }, icon('trash', 14), t('Delete'))))));
+        }
       }
       async function newVersion() {
         let entries = []; const pk = picker((e) => { entries = e; }, '.html,.htm,.js,.mjs,.zip'); const note = h('input.input', { maxlength: 200, placeholder: t('What changed? (optional)') }); const status = h('div.tiny.muted');
         await modal({ title: t('New version of “{t}”', { t: it.title }), cls: 'wide', body: h('div.col.gap', pk.el, field(t('Notes'), note), status), actions: [{ label: t('Cancel'), value: false }, { label: t('Publish'), kind: 'primary', onClick: async (ev, m) => {
           if (!entries.length) { toast(t('Choose a file or a folder first'), 'err'); return false; } ev.currentTarget.disabled = true;
           try { const file = await packEntries(entries, (s) => { status.textContent = s; }); const up = await putFile(`/api/hub/upload?kind=${it.kind}&name=${encodeURIComponent(file.name)}`, file, (p) => { status.textContent = t('Uploading… {p}%', { p: Math.round(p * 100) }); });
-            await api.post(`/api/hub/${it.id}/version`, { upload: up.upload, note: note.value }); toast(t('New version published'), 'good'); m.close(true); itemPage(it.id); } catch (e) { toastErr(e); ev.currentTarget.disabled = false; }
+            await api.post(`/api/hub/${it.id}/version`, { upload: up.upload, note: note.value }); toast(t('New version published'), 'good'); m.close(true); itemPage(it.id, 'releases'); } catch (e) { toastErr(e); ev.currentTarget.disabled = false; }
           return false; } }] });
       }
       async function changeCover() {
@@ -246,32 +342,10 @@ export default {
       async function editInfo() {
         const ti = h('input.input', { maxlength: 90, value: it.title }); const de = h('textarea.input', { rows: 4, maxlength: 2000 }); de.value = it.desc || ''; const tg = h('input.input', { value: (it.tags || []).join(', ') }); let pub = it.public; const sw = switchEl(it.public, (v) => { pub = v; }); let rd = it.runMode || 'sandbox'; const swr = modePicker(rd, (v) => { rd = v; });
         const ok = await modal({ title: t('Edit'), body: h('div.col.gap', field(t('Title'), ti), field(t('Description'), de), field(t('Tags'), tg), h('div.row', h('span.grow', t('Public')), sw), code && it.gamesDomain ? field(t('How it runs'), swr) : null), actions: [{ label: t('Cancel'), value: false }, { label: t('Save'), kind: 'primary', value: true }] });
-        if (!ok) return; try { await api.patch('/api/hub/' + it.id, { title: ti.value, desc: de.value, tags: tg.value.split(',').map((x) => x.trim()).filter(Boolean), public: pub, runMode: rd }); toast(t('Saved'), 'good'); itemPage(it.id); } catch (e) { toastErr(e); }
+        if (!ok) return; try { await api.patch('/api/hub/' + it.id, { title: ti.value, desc: de.value, tags: tg.value.split(',').map((x) => x.trim()).filter(Boolean), public: pub, runMode: rd }); toast(t('Saved'), 'good'); itemPage(it.id, 'settings'); } catch (e) { toastErr(e); }
       }
-      mount(inner, h('div.hb-watch', h('div.hb-main', h('button.btn.ghost.sm', { style: 'align-self:flex-start', onClick: () => ctx.go('hub') }, icon('back', 14), 'Nebulix Hub'), player, tools,
-        h('h2.tube-h', it.title, it.version > 1 ? h('span.pill', { style: 'margin-left:8px;font-size:.7rem' }, 'v' + it.version) : null),
-        h('div.row.wrap', { style: 'gap:10px;align-items:center' }, it.owner ? h('a.row', { href: '#/profile/' + it.owner.username, style: 'gap:8px;align-items:center;text-decoration:none;color:inherit' }, avatarEl(it.owner, { size: 34 }), h('b', '@' + it.owner.username)) : null, h('span.grow'), like,
-          it.kind === 'wall' ? h('button.btn.primary', { onClick: async (e) => busy(e.currentTarget, async () => { try { const { setLiveBg } = await import('../livebg.js'); await setLiveBg({ id: it.id }); toast(t('Background applied. Adjust it in Appearance.'), 'good'); } catch (er) { toastErr(er); } }) }, icon('image', 15), t('Use as background')) : null,
-          saveBtn, h('button.btn', { title: t('Add to a collection'), onClick: (e) => colMenu(e.currentTarget) }, icon('layers', 15), t('Collection')),
-          h('button.btn', { onClick: (e) => import('../ui.js').then((ui) => ui.openMenu([
-            { label: t('Copy link'), icon: 'link', onClick: async () => { try { await navigator.clipboard.writeText(location.origin + '/#/hub/' + it.id); toast(t('Link copied'), 'good'); } catch {} } },
-            code ? { label: t('Copy embed code'), icon: 'copy', onClick: async () => { try { await navigator.clipboard.writeText(`<iframe src="${/^https?:/.test(it.src) ? it.src : location.origin + it.src}" width="960" height="540" style="border:0" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe>`); toast(t('Embed code copied'), 'good'); } catch {} } } : null,
-            it.allowDownload || it.mine ? { label: t('Download'), icon: 'download', onClick: () => { const a = document.createElement('a'); a.href = `/x/hub/dl/${it.id}`; a.download = ''; document.body.append(a); a.click(); a.remove(); } } : null,
-            (it.allowRemix || it.mine) && it.files ? { label: t('Remix (copy it to your uploads)'), icon: 'refresh', onClick: async () => { try { const r = await api.post(`/api/hub/${it.id}/remix`); toast(t('Remix created as a private draft'), 'good'); ctx.go('hub', r.item.id); } catch (er) { toastErr(er); } } } : null,
-            code && it.files ? { label: t('Delete my saved game'), icon: 'trash', onClick: async () => { if (!(await confirmBox(t('Delete your saved progress in “{t}”?', { t: it.title }), { danger: true }))) return; try { await api.del(`/api/hub/${it.id}/gamesave`); toast(t('Saved game deleted'), 'good'); itemPage(it.id); } catch (er) { toastErr(er); } } } : null,
-            code ? { label: theater ? t('Normal view') : t('Theater mode'), icon: 'fullscreen', onClick: () => { theater = !theater; inner.querySelector('.hb-watch').classList.toggle('theater', theater); } } : null,
-            !it.mine ? { hr: true } : null,
-            !it.mine ? { label: t('Report'), icon: 'flag', danger: true, onClick: async () => { const reason = await promptBox(t('Report “{t}”', { t: it.title }), { label: t('What is wrong?'), multiline: true }); if (!reason || reason.trim().length < 3) return; try { await api.post('/api/reports', { type: 'hub', target: it.id, reason }); toast(t('Thanks — the moderators will review it.'), 'good'); } catch (er) { toastErr(er); } } } : null,
-          ].filter(Boolean), e.currentTarget)) }, icon('more', 15), t('More')),
-          it.mine ? h('button.btn', { onClick: editInfo }, icon('edit', 15), t('Edit')) : null,
-          it.mine && code ? h('button.btn', { onClick: changeCover }, icon('image', 15), t('Cover')) : null,
-          !it.mine && ['owner', 'admin', 'mod'].includes(S.me.role) ? h('button.btn.danger', { onClick: async () => { const reason = await promptBox(t('Remove “{t}”', { t: it.title }), { label: t('Reason (the author will see it)') }); if (reason === null) return; try { await api.del(`/api/admin/content/hub/${it.id}?reason=${encodeURIComponent(reason)}`); toast(t('Removed'), 'good'); ctx.go('hub'); } catch (e) { toastErr(e); } } }, icon('shield', 15), t('Remove')) : null,
-          it.mine && code ? h('button.btn', { onClick: () => newVersion() }, icon('upload', 15), t('New version')) : null,
-          it.mine ? h('button.btn.ghost', { 'aria-label': t('Delete'), onClick: async () => { if (!(await confirmBox(t('Delete “{t}”?', { t: it.title }), { danger: true }))) return; try { await api.del('/api/hub/' + it.id); ctx.go('hub'); } catch (e) { toastErr(e); } } }, icon('trash', 15)) : null),
-        tabs, tabBody, it.remixOf ? h('p.tiny.muted', t('Remix of'), ' ', h('a', { href: '#/hub/' + it.remixOf }, t('the original'))) : null, cBox),
-        h('div.hb-side', h('div.hb-flabel', t('More like this')), d.more.map((m) => h('a.hb-mini', { href: '#/hub/' + m.id }, cover(m), h('div', h('b.tube-title', m.title), h('div.tiny.muted', '@' + (m.owner ? m.owner.username : '?') + ' · ' + t('{n} views', { n: fmt.compact(m.views) }))))))));
-      paintTab(); void loadComments;
-      const extra = h('div.hb-extra'); const paintExtra = () => mount(extra, X.shotsPanel(it, paintExtra), X.clipsPanel(it, { frame: fr }), X.reviewsPanel(it), X.hubComments(it)); paintExtra(); cBox.replaceWith(extra);
+      mount(inner, h('div.hbx-repo', h('a.hbx-back', { href: '#/hub' }, icon('back', 14), 'Nebulix Hub'), head, tabsNav, h('div.hbx-rgrid', h('div.hbx-rmain', body), about)));
+      paintTabs2(); paintBody();
     }
     return () => {};
   },

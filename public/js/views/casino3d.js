@@ -8,6 +8,7 @@ import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState } from '../ui.js';
 import { load3d, buildAvatar, animateAvatar } from '../avatar3d.js';
 import { rtxPipeline, softShadows } from '../rtx.js';
+import { makeFx3d, motes, damp } from '../fx3d.js';
 import { sfx } from '../sfx.js';
 
 const STATIONS = [
@@ -44,6 +45,7 @@ export default {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#07060f'); scene.fog = new THREE.Fog('#0b0818', 34, 80);
+    const fx3 = makeFx3d(THREE, scene); const dust3 = motes(THREE, scene, { count: 320, area: 56, height: 9, color: '#ffe7b0', size: 0.06 }); const camS = { x: 0, y: 3, z: 8, ready: false };
     const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 140);
     const canvasHost = h('div.c3d-canvas'); canvasHost.appendChild(renderer.domElement);
     const hud = h('div.c3d-hud'); const prompt = h('div.c3d-prompt'); prompt.style.display = 'none';
@@ -257,7 +259,7 @@ export default {
     function winFx(id, net, g) {
       const obj = id === meId ? meObj : players.get(id) && players.get(id).obj; if (!obj) return;
       const s = label((net > 0 ? '+' : '') + fmt.compact(net), net > 0 ? '#3ddc84' : '#f87171', 'rgba(0,0,0,.6)', net > 0 ? 1.2 : 0.8); s.position.y = 3.1; obj.add(s); floats.push({ s, parent: obj, t0: performance.now(), life: 2200, rise: 0.9 });
-      if (net > 0) burst(obj.position, net >= 1000 ? 60 : 24);
+      if (net > 0) { burst(obj.position, net >= 1000 ? 60 : 24); fx3.ring(obj.position, net >= 1000 ? '#facc15' : '#3ddc84', { r: net >= 1000 ? 5 : 2.6 }); if (net >= 1000) { fx3.burst({ x: obj.position.x, y: 2.4, z: obj.position.z }, '#facc15', { n: 60, speed: 7 }); if (id === meId) fx3.kick(0.35); } }
       void g;
     }
     const bursts = [];
@@ -396,7 +398,9 @@ export default {
       meObj.position.set(pos.x, 0, pos.z); meObj.rotation.y = pos.ry; animateAvatar(meObj, t_, walking ? 1 : 0);
       try { show(t_, dt); } catch {}
       // camera follows behind
-      const dist = 7; cam.position.set(pos.x + Math.sin(camYaw) * dist * Math.cos(camPitch), 1.6 + Math.sin(camPitch) * dist, pos.z + Math.cos(camYaw) * dist * Math.cos(camPitch)); cam.lookAt(pos.x, 1.4, pos.z);
+      const dist = 7; const tx = pos.x + Math.sin(camYaw) * dist * Math.cos(camPitch), ty = 1.6 + Math.sin(camPitch) * dist + (walking ? Math.sin(t_ * 9) * 0.04 : 0), tz = pos.z + Math.cos(camYaw) * dist * Math.cos(camPitch);
+      if (!camS.ready) { camS.x = tx; camS.y = ty; camS.z = tz; camS.ready = true; } camS.x = damp(camS.x, tx, 10, dt); camS.y = damp(camS.y, ty, 10, dt); camS.z = damp(camS.z, tz, 10, dt);
+      cam.position.set(camS.x, camS.y, camS.z); cam.lookAt(pos.x, 1.4, pos.z); dust3.update(t_); fx3.update(dt); fx3.shake(cam);
       // network: send at most ~8/s, only when changed
       if (now - sent > 120) { const k = pos.x.toFixed(2) + pos.z.toFixed(2) + pos.ry.toFixed(2) + walking; if (k !== lastSent) { ws.send({ t: 'c3d_move', x: pos.x, z: pos.z, ry: pos.ry, w: walking }); lastSent = k; } sent = now; }
       // others: interpolate
@@ -415,7 +419,7 @@ export default {
     ws.send({ t: 'act', kind: 'casino', label: t('In the 3D casino') });
 
     return () => { if (post) { post.dispose(); post = null; }
-      alive = false; cancelAnimationFrame(raf); clearInterval(boothTimer); ro.disconnect(); offs.forEach((f) => f && f());
+      alive = false; try { fx3.dispose(); dust3.dispose(); } catch {} cancelAnimationFrame(raf); clearInterval(boothTimer); ro.disconnect(); offs.forEach((f) => f && f());
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey);
       if (typeof gameCleanup === 'function') try { gameCleanup(); } catch {}
       ws.send({ t: 'c3d_leave' });

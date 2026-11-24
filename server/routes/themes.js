@@ -8,6 +8,8 @@ const { HttpError, rid, now, dayKey, V } = require('../util');
 const color = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(v) ? v : d);
 const num = (v, min, max, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d; };
 const oneOf = (v, arr, d) => (arr.includes(v) ? v : d);
+const FONT_KEYS = ['system', 'rounded', 'mono', 'serif', 'pixel', 'geometric', 'humanist', 'condensed', 'slab', 'hand', 'display', 'elegant', 'wide'];
+const BG_KEYS = ['stars', 'nebula', 'aurora', 'grid', 'particles', 'waves', 'matrix', 'bokeh', 'bubbles', 'blobs', 'mesh', 'lava', 'gradient', 'solid', 'image', 'space3d', 'tunnel3d', 'crystals3d', 'city3d', 'snow', 'fireflies', 'hexgrid', 'confetti', 'rain', 'orbits'];
 
 function cleanCss(s) {
   if (typeof s !== 'string') return '';
@@ -34,7 +36,7 @@ function sanitizeTheme(t) {
     mode: oneOf(t.mode, ['dark', 'light'], 'dark'),
     colors: {},
     bg: {
-      type: oneOf(b.type, ['stars', 'nebula', 'aurora', 'grid', 'particles', 'waves', 'matrix', 'bokeh', 'bubbles', 'blobs', 'mesh', 'lava', 'gradient', 'solid', 'image', 'space3d', 'tunnel3d', 'crystals3d', 'city3d'], 'stars'),
+      type: oneOf(b.type, BG_KEYS, 'stars'),
       c1: color(b.c1, d.bg.c1), c2: color(b.c2, d.bg.c2), c3: color(b.c3, d.bg.c3),
       angle: Math.round(num(b.angle, 0, 360, 160)), dim: num(b.dim, 0, 0.9, 0),
       image: typeof b.image === 'string' && uploads.URL_RE.test(b.image) ? b.image : '',
@@ -42,9 +44,14 @@ function sanitizeTheme(t) {
     },
     ui: {
       radius: Math.round(num(u.radius, 0, 28, 14)), blur: Math.round(num(u.blur, 0, 40, 14)), glow: num(u.glow, 0, 1, 0.5), shadow: num(u.shadow, 0, 1, 0.5),
-      density: num(u.density, 0.85, 1.15, 1), font: oneOf(u.font, ['system', 'rounded', 'mono', 'serif', 'pixel'], 'system'),
+      density: num(u.density, 0.85, 1.15, 1), font: oneOf(u.font, FONT_KEYS, 'system'),
       fontScale: num(u.fontScale, 0.9, 1.2, 1), anim: num(u.anim, 0, 2, 1), border: Math.round(num(u.border, 0, 3, 1)),
       surface: oneOf(u.surface, ['flat', 'glass', 'aero', 'mica', 'neo'], 'flat'),
+      // 14.0
+      headFont: oneOf(u.headFont, ['same', ...FONT_KEYS], 'same'), btn: oneOf(u.btn, ['gradient', 'solid', 'outline', 'soft', 'pill', '3d', 'glow'], 'gradient'),
+      card: oneOf(u.card, ['default', 'outline', 'elevated', 'accent', 'gborder', 'neon', 'paper'], 'default'), pattern: oneOf(u.pattern, ['none', 'dots', 'grid', 'lines', 'diagonal', 'cross', 'hex', 'noise', 'waves'], 'none'),
+      patternAlpha: num(u.patternAlpha, 0, 1, 0.5), hover: oneOf(u.hover, ['lift', 'glow', 'scale', 'tilt', 'none'], 'lift'), enter: oneOf(u.enter, ['fade', 'slide', 'zoom', 'blur', 'flip', 'none'], 'fade'),
+      scroll: oneOf(u.scroll, ['thin', 'accent', 'hidden'], 'thin'), headGrad: u.headGrad === true, headWeight: Math.round(num(u.headWeight, 400, 900, 700) / 100) * 100,
     },
     chat: { bubble: oneOf((t.chat || {}).bubble, ['flat', 'rounded', 'glass'], 'rounded') },
     customCss: cleanCss(t.customCss),

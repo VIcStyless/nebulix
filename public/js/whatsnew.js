@@ -7,6 +7,13 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['spark', 'Nebulix 14: a brand-new look', 'Floating glass, a living aurora, glowing markers and springy motion. The old look is one click away in Appearance.', 'look'],
+  ['palette', 'Total makeovers', '13 one-click looks that change the design, menu, colours and screen effect at once.', 'look'],
+  ['star', '7 new designs', 'Dev, Cyberpunk, Kawaii, Retro desktop, Bento, Holographic and Sketchbook.', 'look'],
+  ['sliders', 'A much bigger theme studio', 'Heading fonts, button and card styles, textures, hover effects, page transitions and a palette generator (even from a picture).', 'themes/studio'],
+  ['image', 'Screen and cursor effects', 'Snow, sakura, leaves, shooting stars, hearts… plus sparks when you click and a glowing cursor trail.', 'look'],
+  ['book', 'Nebulix Hub, redesigned', 'Every upload is now a repository: Play, Code with a file browser and README, Releases, Discussions and more.', 'hub'],
+  ['target', 'Better 3D games', 'Damage numbers, shockwaves, camera shake, a smooth casino camera and a brand-new Market Rush.', 'arena'],
   ['book', 'Nebulix Study', 'Notes from students, flashcards with spaced repetition, an AI tutor, live class quizzes, grades and exams.', 'study'],
   ['users', 'Live class quizzes', 'Host a quiz from any deck: everyone joins with a 6-digit PIN and answers against the clock.', 'study/live'],
   ['bell', 'Push notifications', 'Messages, 1v1 challenges and gifts reach you even with Nebulix closed. Turn them on in Settings.', 'settings/privacy'],
