@@ -53,6 +53,9 @@ Funciona en cualquier navegador moderno (también en **Chromebooks** y **móvile
 ### 🌐 Navegador privado
 Proxy web con bloqueo de anuncios y rastreadores, pestañas, perfiles y **Nebulix VPN** (identidad genérica y protección contra fugas WebRTC dentro de Nebulix).
 
+### 📚 Nebulix Estudio
+Apuntes compartidos por estudiantes, tarjetas con **repetición espaciada**, **tutor de IA**, tests y resúmenes con IA, **quizzes en directo para clase** con PIN, control de notas y planificador de exámenes con avisos.
+
 ### 🎮 Juegos
 **Nebulix Arena**: battle royale con construcción y edición, 5 contra 5, duelos y peleas de construcción 1 contra 1 (**Realistas** y **Pelea en caja**), con bots, clasificatoria y menú de ajustes completo. También **Nebula Worlds** (mundos 3D), casino 3D con monedas virtuales (ruleta, blackjack, bacará, video póker, Hi-Lo, crash, mines, plinko y más), torneos, ligas, World Boss y arcade.
 
@@ -65,6 +68,9 @@ Un PC x86 emulado en el navegador: Linux con terminal real, Damn Small Linux, Fr
 </td>
 <td width="50%" valign="top">
 
+### 🧪 Juegos propios
+**Nebula Fusion** (combina elementos; la IA inventa los resultados) y **Nebula Dash** (runner rítmico con 4 vehículos, 5 niveles y editor de niveles).
+
 ### 💬 Comunidad
 Servidores con canales, roles, bots y moderación; mensajes privados **cifrados de extremo a extremo**; voz con cámara y pantalla compartida; Echo, Clips, TV, Lens y foros.
 
@@ -73,6 +79,9 @@ Asistente de chat con búsqueda web, imágenes, modo código y **Nova Agente** (
 
 ### 🛠️ Crear
 **Nebulix Code** (repositorios, commits, issues y pull requests), Studio con copiloto, Hub para publicar juegos y vídeos, **Nebula Vault** (tienda de juegos), Drive, Docs, Sheets y Slides.
+
+### 👑 Nebulix Premium
+Tres planes opcionales —**Premium**, **Premium Pro** y **Premium Ultimate**— con más IA, archivos más grandes y más ventajas. Nunca venden monedas.
 
 ### 💰 Economía
 Monedas, Tienda diaria con exclusivos, Taquilla 3D, mercado entre jugadores y un sistema que ajusta los precios según la economía real.
