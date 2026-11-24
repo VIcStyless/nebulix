@@ -5807,4 +5807,9 @@ export default {
   "Neon Yard": "Neon Yard",
   "Stone Temple": "Templo de Piedra",
   "Harbor": "Puerto",
+  "Gem shop": "Tienda de gemas",
+  "{n} gems": "{n} gemas",
+  "Earn gems with the daily reward, levels, achievements and Premium. They are never sold for money.": "Gana gemas con la recompensa diaria, los niveles, los logros y Premium. Nunca se venden con dinero.",
+  "Unequip": "Quitar",
+  "Try combining {a} + {b}": "Prueba a combinar {a} + {b}",
 };

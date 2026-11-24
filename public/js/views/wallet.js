@@ -38,11 +38,22 @@ export default {
     const shortcuts = h('div.wl-quick',
       [['gift', t('Daily reward'), () => ctx.go('home', { daily: 1 })], ['trophy', t('Missions & achievements'), () => ctx.go('progress')], ['bag', t('Shop'), () => ctx.go('market')], ['clip', t('Work'), () => ctx.go('work')], ['chart', t('Invest'), () => ctx.go('invest')], ['dice', t('Casino'), () => ctx.go('casino')]]
         .map(([ic, l, fn]) => h('button.wl-q', { type: 'button', onClick: fn }, icon(ic, 18), h('span', l))));
-    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['bank', t('Bank'), 'chart'], ['race', t('Weekly race'), 'trophy'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
+    const tabs = tabsEl([['overview', t('Overview'), 'coins'], ['bank', t('Bank'), 'chart'], ['race', t('Weekly race'), 'trophy'], ['gems', t('Gem shop'), 'gem'], ['send', t('Transfer'), 'send'], ['pets', t('Pets'), 'heart'], ['chests', t('Chests'), 'gift'], ['inv', t('Inventory'), 'bag']], tab, (v) => { tab = v; ls('wallet.tab', v); paint(); });
     mount(inner, h('div.page-title', h('div', h('h2', t('Wallet')), h('p', t('Your coins, transfers, pets, chests and items in one place.'))), balEl), shortcuts, tabs, body);
     paintBal();
 
-    function paint() { paintBal(); ({ overview, bank, race, send, pets, chests, inv }[tab] || overview)(); }
+    function paint() { paintBal(); ({ overview, bank, race, gems, send, pets, chests, inv }[tab] || overview)(); }
+    // 13.8 gem shop: boosts, streak shields, Arena weapon finishes and Fusion hints
+    async function gems() {
+      mount(body, loading()); let g; try { g = await api.get('/api/gems/shop'); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); return; }
+      const draw = () => mount(body, h('div', { style: 'margin-top:14px' },
+        h('div.card.wl-gemhead', icon('gem', 22), h('div.grow', h('b', t('{n} gems', { n: fmt.num(g.gems) })), h('div.small.muted', t('Earn gems with the daily reward, levels, achievements and Premium. They are never sold for money.')))),
+        h('div.wl-gemgrid', g.items.map((it) => { const owned = it.kind === 'skin' && g.skins.includes(it.skin); const on = owned && g.equipped === it.skin;
+          return h('div.card.wl-gem' + (on ? '.on' : ''), h('div.row', { style: 'gap:8px;align-items:center' }, icon(it.ic, 18), h('b.grow', L(it.n))), h('p.small.muted', L(it.d)),
+            owned ? h('button.btn.sm' + (on ? '' : '.primary'), { onClick: (e) => busy(e.currentTarget, async () => { try { g = await api.post('/api/gems/equip', { skin: on ? null : it.skin }); draw(); } catch (err) { toastErr(err); } }) }, on ? t('Unequip') : t('Equip'))
+              : h('button.btn.sm.primary', { disabled: g.gems < it.gems, onClick: (e) => busy(e.currentTarget, async () => { try { g = await api.post('/api/gems/buy', { id: it.id }); if (g.hint) { toast(t('Try combining {a} + {b}', { a: g.hint.a, b: g.hint.b }), 'good', 8000); } else toast(t('Done!'), 'good'); patchMe({ gems: g.gems }); draw(); } catch (err) { toastErr(err); } }) }, icon('gem', 13), ' ' + it.gems)); }))));
+      draw();
+    }
     // 13.8: weekly coin race — earned coins only (playing, studying, missions); prizes for the top 10 every Monday
     async function race() {
       mount(body, loading()); let r; try { r = await api.get('/api/race'); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); return; }

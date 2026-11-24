@@ -43,7 +43,7 @@ function ent(room, { uid = null, conn = null, name, team = null, bot = false }) 
   if (e.ai) e.ai.skill = Math.min(0.95, e.ai.skill);
   room.ents.set(id, e); return e;
 }
-const meta = (e) => ({ id: e.id, name: e.name, av3: e.av3, team: e.team, bot: e.bot, lk: e.lk || null, user: e.uid && S.users[e.uid] ? publicUser(S.users[e.uid]) : null });
+const meta = (e) => ({ id: e.id, name: e.name, av3: e.av3, team: e.team, bot: e.bot, lk: e.lk || null, skin: e.uid && S.users[e.uid] ? S.users[e.uid].arenaSkin || null : null, user: e.uid && S.users[e.uid] ? publicUser(S.users[e.uid]) : null });
 const snap = (e) => [e.id, Math.round(e.x * 100) / 100, Math.round(e.y * 100) / 100, Math.round(e.z * 100) / 100, Math.round(e.yaw * 100) / 100, Math.round(e.pitch * 100) / 100, Math.round(e.hp), e.alive ? 1 : 0, e.w, e.a || 0, Math.round(e.armor)];
 function send(room, msg, except) { for (const e of room.ents.values()) if (e.conn && e !== except) e.conn.send(msg); }
 const humans = (room) => [...room.ents.values()].filter((e) => !e.bot);

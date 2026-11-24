@@ -26,6 +26,16 @@ const LEVELS = [
     S(10, 0, 3); B(16, 0, 2); S(18, 0, 2); B(22, 0, 1, 2); S(25, 0, 3); O(31, 2); S(30, 0, 3); P(36); S(37, 0, 5); B(44, 0, 1, 3); S(47, 0, 4);
     M(54, 'rocket'); for (let k = 0, x = 60; x < 110; x += 5, k++) { const g = 1 + ((k * 3) % 4); B(x, 0, 1, g); B(x, g + 4, 1, CEIL - g - 4); } M(112, 'ball'); for (let x = 118; x < 160; x += 16) { S(x, 0, 3); C(x + 8, 0, 3); } M(164, 'dart'); for (let k = 0, x = 170; x < 214; x += 8, k++) { const g = 2 + (k % 3); B(x, 0, 1, g); B(x + 4, g + 3, 1, CEIL - g - 3); }
     M(218, 'cube'); S(224, 0, 3); B(230, 0, 2); S(232, 0, 3); P(238); S(240, 0, 6); B(248, 0, 1, 2); B(250, 0, 1, 3); S(254, 0, 4); return 262; }) },
+  { id: 'pulse', n: ['Pulse City', 'Ciudad Pulso'], diff: 2, bpm: 128, col: ['#0c4a6e', '#065f46'], data: build(({ B, S, P, O, M }) => {
+    for (let k = 0, x = 12; x < 90; x += 9, k++) { if (k % 3 === 0) { S(x, 0, 2); } else if (k % 3 === 1) { B(x, 0, 2); S(x + 2, 0, 1); } else { P(x); S(x + 1, 0, 3); } }
+    M(94, 'rocket'); for (let k = 0, x = 100; x < 140; x += 5, k++) { const g = 2 + (k % 3); B(x, 0, 1, g); B(x, g + 4, 1, CEIL - g - 4); }
+    M(144, 'cube'); for (let x = 150; x < 196; x += 8) { O(x + 2, 2); S(x + 1, 0, 3); } B(198, 0, 3); S(202, 0, 2); return 210; }) },
+  { id: 'core', n: ['Nebula Core', 'Núcleo Nébula'], diff: 3, bpm: 150, col: ['#3b0764', '#020617'], data: build(({ B, S, P, O, M, C }) => {
+    S(10, 0, 3); B(16, 0, 1, 2); S(18, 0, 3); P(24); S(25, 0, 5); O(33, 2); S(32, 0, 3);
+    M(40, 'dart'); for (let k = 0, x = 46; x < 96; x += 7, k++) { const g = 2 + (k % 3); B(x, 0, 1, g); B(x + 3, g + 3, 1, CEIL - g - 3); }
+    M(100, 'ball'); for (let x = 106; x < 150; x += 15) { S(x, 0, 3); C(x + 7, 0, 3); }
+    M(154, 'rocket'); for (let k = 0, x = 158; x < 200; x += 4, k++) { const g = 1 + ((k * 2) % 4); B(x, 0, 1, g); B(x, g + 4, 1, CEIL - g - 4); }
+    M(204, 'cube'); S(210, 0, 3); P(216); S(217, 0, 6); B(226, 0, 1, 2); S(229, 0, 3); return 236; }) },
 ];
 
 export default {
@@ -53,8 +63,8 @@ export default {
       const resize = () => { const r = cv.getBoundingClientRect(); W = cv.width = Math.round(r.width * devicePixelRatio); H = cv.height = Math.round(r.height * devicePixelRatio); };
       const ro = new ResizeObserver(resize); ro.observe(cv);
       const end = (lv.data.find((o) => o.t === 'E') || { x: 200 }).x; const objs = lv.data.filter((o) => o.t !== 'E').sort((a, b) => a.x - b.x);
-      let p, attempts = 0, dead = false, won = false, hold = false, pressed = false, checkpoints = [], parts = [], last = performance.now(), raf = 0, deathAt = 0;
-      function restart() { const cp = practice && checkpoints.length ? checkpoints[checkpoints.length - 1] : null; p = cp ? Object.assign({}, cp) : { x: 0, y: 0, vy: 0, mode: 'cube', grav: 1, rot: 0, onGround: true, usedOrbs: new Set() }; p.usedOrbs = new Set(); dead = false; won = false; attempts++; mount(ov); paintHud(); music.start(lv.bpm, p.x / SPEED); }
+      let trail = [], p, attempts = 0, dead = false, won = false, hold = false, pressed = false, checkpoints = [], parts = [], last = performance.now(), raf = 0, deathAt = 0;
+      function restart() { trail = []; const cp = practice && checkpoints.length ? checkpoints[checkpoints.length - 1] : null; p = cp ? Object.assign({}, cp) : { x: 0, y: 0, vy: 0, mode: 'cube', grav: 1, rot: 0, onGround: true, usedOrbs: new Set() }; p.usedOrbs = new Set(); dead = false; won = false; attempts++; mount(ov); paintHud(); music.start(lv.bpm, p.x / SPEED); }
       const paintHud = () => mount(hud, h('span', t('Attempt {n}', { n: attempts })), h('div.dsh-prog', h('i', { style: { width: Math.min(100, (p.x / end) * 100) + '%' } })), h('span', Math.floor(Math.min(100, (p.x / end) * 100)) + '%'), practice ? h('span.pill', t('Practice')) : null, h('span.pill', { style: { background: MODES[p.mode][2], color: '#111' } }, L(MODES[p.mode])));
       const near = (x0, x1) => { const out = []; for (const o of objs) { if (o.x > x1) break; if (o.x + 1 >= x0) out.push(o); } return out; };
       function die() { if (dead || won) return; dead = true; deathAt = performance.now(); music.stop(); for (let i = 0; i < 26; i++) parts.push({ x: p.x + 0.5, y: p.y + 0.5, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.3) * 14, life: 0.8, c: MODES[p.mode][2] }); const pct = Math.floor(Math.min(100, (p.x / end) * 100)); if (!practice && !lv.custom) { const b = best(); if (pct > (b[lv.id] || 0)) { b[lv.id] = pct; ls('dash.best', b); } } setTimeout(() => { if (!won && box.isConnected) restart(); }, 700); }
@@ -98,6 +108,8 @@ export default {
         const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, lv.col[0]); gr.addColorStop(1, lv.col[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
         // parallax stars and beat pulse
         const beat = music.pulse(); g.fillStyle = `rgba(255,255,255,${0.35 + beat * 0.4})`; for (let i = 0; i < 60; i++) { const sx = ((i * 137.5 - camX * s * 0.2) % W + W) % W; const sy = (i * 71.3) % (gy - 20); g.fillRect(sx, sy, 2, 2); }
+        // parallax shapes (two layers) for depth
+        for (let layer = 0; layer < 2; layer++) { const sp = layer ? 0.45 : 0.2; g.fillStyle = layer ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.035)'; for (let i = 0; i < 14; i++) { const sz = (layer ? 60 : 110) * devicePixelRatio; const sx = ((i * 260 * devicePixelRatio - camX * s * sp) % (W + sz * 2) + W + sz * 2) % (W + sz * 2) - sz; const sy = (i * 97 % 5) / 5 * (gy - sz); g.save(); g.translate(sx, sy); g.rotate((i * 0.7 + camX * 0.01 * (layer ? 1 : -1))); g.fillRect(-sz / 2, -sz / 2, sz, sz); g.restore(); } }
         g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, gy, W, H - gy); g.strokeStyle = `rgba(255,255,255,${0.5 + beat * 0.5})`; g.lineWidth = 3; g.beginPath(); g.moveTo(0, gy); g.lineTo(W, gy); g.stroke();
         const x0 = camX - 2, x1 = camX + W / s + 2;
         for (const o of near(x0, x1)) {
@@ -110,6 +122,8 @@ export default {
         }
         // end line
         g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(X(end), 0, s * 0.4, gy);
+        // trail
+        trail.push({ x: p.x + 0.5, y: p.y + 0.5 }); if (trail.length > 18) trail.shift(); if (!dead) for (let i = 0; i < trail.length; i++) { const q = trail[i]; g.globalAlpha = i / trail.length * 0.5; g.fillStyle = MODES[p.mode][2]; const r3 = s * 0.18 * (i / trail.length); g.fillRect(X(q.x) - r3, Y(q.y) - r3, r3 * 2, r3 * 2); } g.globalAlpha = 1;
         // player
         if (!dead) { const c = MODES[p.mode][2]; g.save(); g.translate(X(p.x + 0.5), Y(p.y + 0.5)); g.rotate(-p.rot); g.shadowColor = c; g.shadowBlur = 16;
           if (p.mode === 'cube') { g.fillStyle = c; g.fillRect(-s * 0.42, -s * 0.42, s * 0.84, s * 0.84); g.fillStyle = '#111'; g.fillRect(-s * 0.2, -s * 0.2, s * 0.4, s * 0.4); }

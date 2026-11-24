@@ -3,7 +3,7 @@
 const fu = require('../fusion');
 const { HttpError, dayKey } = require('../util');
 const { S } = require('../state');
-const DASH = { stardust: 60, neon: 120, overdrive: 250 }; // first completion; then 15 a day per level
+const DASH = { stardust: 60, neon: 120, overdrive: 250, pulse: 120, core: 300 }; // first completion; then 15 a day per level
 module.exports = function register(r) {
   r.get('/api/fusion', { auth: true }, async (c) => fu.state(c.user));
   r.get('/api/fusion/board', { auth: true }, async (c) => ({ board: fu.board(c.user) }));

@@ -9,7 +9,7 @@ export const GAMES = [
   ['Ss', 'Shell Shockers', 'https://shellshock.io/'], ['Sl', 'Slither.io', 'https://slither.io/'], ['Pa', 'Paper.io', 'https://paper-io.com/'],
   ['Ag', 'Agar.io', 'https://agar.io/'], ['Di', 'Diep.io', 'https://diep.io/'], ['Sk', 'Skribbl', 'https://skribbl.io/'], ['Ga', 'Gartic.io', 'https://gartic.io/'],
   ['Li', 'Lichess', 'https://lichess.org/'], ['Ch', 'Chess.com', 'https://www.chess.com/'], ['Tt', 'TETR.IO', 'https://tetr.io/'], ['Ge', 'GeoGuessr', 'https://www.geoguessr.com/'],
-  ['Tw', 'Twitch', 'https://www.twitch.tv/'], ['YT', 'YouTube', 'https://www.youtube.com/'], ['Rd', 'Reddit', 'https://www.reddit.com/'], ['Sp', 'Spotify', 'https://open.spotify.com/'],
+  ['Tw', 'Twitch', 'https://www.twitch.tv/'], ['YT', 'YouTube', 'https://www.youtube.com/'], ['Rd', 'Reddit', 'https://www.reddit.com/'], ['Sp', 'Spotify', 'https://open.spotify.com/'], ['ES', 'ESPN', 'https://www.espn.com/'],
 ];
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
