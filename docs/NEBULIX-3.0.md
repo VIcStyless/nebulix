@@ -77,12 +77,23 @@ infrastructure each pending item needs). Status words mean:
 5. **Fix:** the Hub buttons Star/Save/Install used `busy()`, which detaches the button's children while it runs, so the
    label update failed (Star and Save showed an error in production since 14.0). They now use a lock that keeps the content.
 
+## 3c. What phase 3 added (v14.4.0)
+
+1. **Solitaire** (Klondike, draw 1/3, undo, auto-complete) and **Checkers** vs CPU (`views/arcade-cards.js`); checkers rules
+   unit-tested (7 opening moves per side, compulsory capture, double jump, crowning); server plausibility rules added.
+2. **Game API achievements:** `Nebulix.unlock(id, title, desc)` / `Nebulix.achievements()`; endpoints
+   `GET/POST/DELETE /api/hub/:id/ach` (max 50 per game, defined on first unlock, unlocked once per player, share of players
+   shown on the game page). Tested end to end with a sandboxed test game.
+3. **Calendar ↔ Study:** `GET /api/calendar` also returns the user's Study exams; shown read-only in month, week and agenda.
+4. **Installed apps in the OS:** update badge and notice when the Hub version is newer than the last one opened
+   (`os.appver` on the device); desktop icon menu with Open / Open in Nebulix Hub / Uninstall.
+
 ## 4. Next phases (in order)
 
-1. App manifests and permissions for installed apps; update notifications in the OS when an installed app gets a new version.
-2. Link Study exams to the calendar; shared calendars and invitations.
-3. Game API: achievements and multiplayer rooms over the existing WebSocket.
-4. More arcade games: online chess through duels, Checkers, Solitaire, Bubble Shooter, Tower Defense, Word Search.
+1. App manifests and permissions for installed apps (camera, microphone, notifications) shown before install.
+2. Shared calendars and event invitations to friends.
+3. Game API: multiplayer rooms over the existing WebSocket.
+4. More arcade games: online chess and checkers through duels, Bubble Shooter, Tower Defense, Word Search.
 5. Office: DOCX export, comments, co-editing over WebSocket.
 6. Cloud Android / server VMs: separate compute nodes with KVM, a session manager service, WebRTC streaming;
    the Fly.io app only brokers sessions. Requires hardware/hosting decisions and budget from the owner.

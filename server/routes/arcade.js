@@ -29,6 +29,8 @@ const GAMES = {
   gems: { max: 100000, check: (s, ms) => ms >= 55000 && ms <= 120000 },
   reflex: { max: 1000, check: (s, ms) => ms >= 5000 },
   chess: { max: 1000, check: (s, ms) => ms >= 20000 },
+  solitaire: { max: 3500, check: (s, ms) => ms >= 45000 },
+  checkers: { max: 900, check: (s, ms) => ms >= 20000 },
 };
 const scoreLim = new Limiter(1, 4000);
 const DAILY_COIN_CAP = 60;

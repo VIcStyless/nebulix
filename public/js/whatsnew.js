@@ -7,6 +7,10 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['calendar', 'Calendar & Tasks', 'Events that repeat, reminders as notifications, tasks with projects and subtasks — and your Study exams.', 'calendar'],
+  ['grid', 'Chess, Checkers, Solitaire and more', 'New in the Arcade: Chess, Checkers, Solitaire, Minesweeper, Sudoku, Space Rocks, Gem Match and Reflex.', 'arcade'],
+  ['download', 'Install apps', 'Install Hub games and apps into Nebulix OS; you are told when they get a new version.', 'hub'],
+  ['terminal', 'Developer Toolbox', 'JSON, regex, encoders, UUIDs, timestamps, cron, colours, diff and more.', 'devtools'],
   ['desktop', 'Nebulix OS, reinvented', 'Glass windows, wobbly drag, magic lamp, 4 desktops with a 3D cube, widgets and a quick settings panel.', ''],
   ['agents', 'Desktop-only apps', 'Files, Text editor, Nova Agents, Command Center, Camera and Widgets — only in Nebulix OS.', ''],
   ['book', 'Official apps in the Hub', 'Pixel Forge, Beat Lab, Flow Board, Sketch Board, Markdown Writer and Palette Lab, plus a new Hub home.', 'hub'],

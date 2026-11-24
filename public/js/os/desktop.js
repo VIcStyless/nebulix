@@ -8,7 +8,7 @@ import { S, bus, isStaff } from '../state.js';
 import { icon, logoMark } from '../icons.js';
 import { metaOf, APP_META } from '../apps-meta.js';
 import { avatarEl, badgeGlyph } from '../cosmetics.js';
-import { openMenu, modal, segEl, switchEl, settingRow, toastErr } from '../ui.js';
+import { openMenu, modal, segEl, switchEl, settingRow, toastErr, toast, confirmBox } from '../ui.js';
 import { setWallpaper } from '../starfield.js';
 import { miniPlayer } from '../pulse/mini.js';
 import * as P from '../pulse/engine.js';
@@ -189,7 +189,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   function paintIcons() {
     const o = os(); iconsEl.classList.toggle('hide', !o.icons);
     const DESK = [...new Set([...APPS.filter((a) => a[0].startsWith('x-')).map((a) => a[0]), 'files', 'home', 'games', 'worlds', 'browse', 'chat', 'dm', 'agents', 'command', 'camera', 'music', 'wallet', 'notes', 'calc', 'settings', ...pinsOf()])];
-    mount(iconsEl, visibleApps().filter(([n]) => DESK.includes(n)).sort((a, b) => DESK.indexOf(a[0]) - DESK.indexOf(b[0])).slice(0, 18).map(([n, label]) => h('button.os-icon', { dataset: { app: n }, onDblclick: () => go(n), onClick: (ev) => { iconsEl.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); ev.currentTarget.classList.add('sel'); if (matchMedia('(pointer: coarse)').matches) go(n); }, onKeydown: (ev) => { if (ev.key === 'Enter') go(n); } },
+    mount(iconsEl, visibleApps().filter(([n]) => DESK.includes(n)).sort((a, b) => DESK.indexOf(a[0]) - DESK.indexOf(b[0])).slice(0, 18).map(([n, label]) => h('button.os-icon' + (updated.has(n) ? '.upd' : ''), { dataset: { app: n }, onContextmenu: n.startsWith('x-') ? (ev) => { ev.preventDefault(); ev.stopPropagation(); appMenu(n, ev); } : null, onDblclick: () => go(n), onClick: (ev) => { iconsEl.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); ev.currentTarget.classList.add('sel'); if (matchMedia('(pointer: coarse)').matches) go(n); }, onKeydown: (ev) => { if (ev.key === 'Enter') go(n); } },
       tile(n, 26), h('span.os-il', t(label)))));
   }
 
@@ -250,7 +250,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   }
   async function open(name, r) {
     const ctx = { params: r.params || [], query: r.query || new URLSearchParams(), go, setTitle: (s) => setTitle(name, s) };
-    let win = wins.get(name);
+    let win = wins.get(name); markSeen(name);
     win && (win.hash = '#/' + name + (r.params && r.params.length ? '/' + r.params.map(encodeURIComponent).join('/') : '') + (r.query && String(r.query) ? '?' + r.query : ''));
     if (win) {
       focus(win);
@@ -507,13 +507,20 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   addEventListener('resize', onResize);
   // Nebulix 3.0 App Store: games/apps installed from the Hub become desktop apps (their own window, start menu, desktop)
   const installedCat = ['Installed', []]; cats.push(installedCat);
+  const updated = new Set(); // installed apps with a new version since they were last opened
+  function appMenu(n, ev) { const id = n.slice(2); const label = (APPS.find((a) => a[0] === n) || [n, n])[1];
+    openMenu([{ label: t('Open'), icon: 'external', onClick: () => go(n) }, { label: t('Open in Nebulix Hub'), icon: 'book', onClick: () => go('hub', id) }, { hr: true },
+      { label: t('Uninstall'), icon: 'trash', danger: true, onClick: async () => { if (!(await confirmBox(t('Uninstall “{n}”? Your saved progress stays on your account.', { n: label }), { danger: true }))) return; try { await api.post('/api/hub/' + id + '/install'); const w = wins.get(n); if (w) close(w); toast(t('Uninstalled'), 'good'); loadInstalled(); } catch (e) { toastErr(e); } } }], ev); }
   async function loadInstalled() {
     let list = []; try { list = (await api.get('/api/apps/installed', { quiet: true })).apps; } catch { return; }
     for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i][0].startsWith('x-')) APPS.splice(i, 1);
     installedCat[1].length = 0;
-    for (const it of list) { const k = 'x-' + it.id; APPS.push([k, it.title, it.kind === 'game' ? 'gamepad' : 'cube', ['#8b7bff', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'][it.title.length % 6]]); loaders[k] = () => Promise.resolve({ default: hubAppView(it.id) }); installedCat[1].push(k); }
-    paintIcons(); paintTask();
+    const seen = ls('os.appver') || {}; let changed = false;
+    for (const it of list) { const k = 'x-' + it.id; const v = it.version || 1; if (seen[it.id] === undefined) { seen[it.id] = v; changed = true; } else if (v > seen[it.id] && !updated.has(k)) { updated.add(k); toast(t('{n} was updated to version {v}', { n: it.title, v }), 'info', 6000); } APPS.push([k, it.title, it.kind === 'game' ? 'gamepad' : 'cube', ['#8b7bff', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'][it.title.length % 6]]); loaders[k] = () => Promise.resolve({ default: hubAppView(it.id) }); installedCat[1].push(k); }
+    if (changed) ls('os.appver', seen); paintIcons(); paintTask();
   }
+  // opening an updated app clears its badge
+  const markSeen = (n) => { if (!n || !n.startsWith('x-') || !updated.has(n)) return; updated.delete(n); const seen = ls('os.appver') || {}; api.get('/api/hub/' + n.slice(2), { quiet: true }).then((r) => { seen[n.slice(2)] = r.item.version || 1; ls('os.appver', seen); paintIcons(); }).catch(() => {}); };
   const onApps = () => loadInstalled(); addEventListener('nbx:apps', onApps); loadInstalled();
   applyWall(); paintIcons(); paintWidgets(); paintTask(); tickClock(); loadProg(); loadLive(); boot();
   const liveT = setInterval(() => { if (os().widgets) loadLive(); }, 60000);

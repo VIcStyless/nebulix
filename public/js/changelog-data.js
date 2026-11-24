@@ -2,6 +2,36 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.4",
+    "date": "2026-11-24",
+    "title": {
+      "en": "Nebulix 3.0, phase 3: Solitaire, Checkers, achievements for Hub games and exams in the calendar",
+      "es": "Nebulix 3.0, fase 3: Solitario, Damas, logros para juegos del Hub y exámenes en el calendario"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Arcade: Solitaire (Klondike, draw 1 or 3, undo, auto-complete) and Checkers against the computer at three levels (compulsory captures, multi-jumps, kings).",
+        "es": "Arcade: Solitario (Klondike, robar 1 o 3, deshacer, autocompletar) y Damas contra el ordenador en tres niveles (comer obligatorio, saltos múltiples, damas)."
+      },
+      {
+        "type": "new",
+        "en": "Game API: Hub games can unlock achievements with Nebulix.unlock(id, title, description). Each game page lists its achievements with the share of players who have them.",
+        "es": "API de juegos: los juegos del Hub pueden desbloquear logros con Nebulix.unlock(id, título, descripción). La página de cada juego muestra sus logros con el porcentaje de jugadores que los tiene."
+      },
+      {
+        "type": "new",
+        "en": "Your Study exams appear in the calendar (month, week and agenda).",
+        "es": "Tus exámenes de Estudio aparecen en el calendario (mes, semana y agenda)."
+      },
+      {
+        "type": "improved",
+        "en": "Nebulix OS: installed apps show a badge and a notice when they get a new version, and their desktop icon has Open, Open in Nebulix Hub and Uninstall.",
+        "es": "Nebulix OS: las apps instaladas muestran una marca y un aviso cuando tienen versión nueva, y su icono del escritorio tiene Abrir, Abrir en Nebulix Hub y Desinstalar."
+      }
+    ]
+  },
+  {
     "v": "14.3",
     "date": "2026-11-24",
     "title": {

@@ -294,10 +294,13 @@ export default {
 
       // About sidebar (always visible next to the tab)
       let filesCache = null; const getFiles = async () => { if (filesCache) return filesCache; if (!code || !it.files) return (filesCache = { files: [], entry: '' }); try { filesCache = await api.get(`/api/hub/${it.id}/files`); } catch { filesCache = { files: [], entry: '' }; } return filesCache; };
-      const langEl = h('div'); const boardEl = h('div'); loadBoardRef = () => loadBoard();
+      const langEl = h('div'); const boardEl = h('div'); loadBoardRef = () => { loadBoard(); loadAch(); };
       const loadBoard = () => api.get(`/api/hub/${it.id}/board`, { quiet: true }).then((r) => mount(boardEl, r.board.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', '🏆 ' + t('Leaderboard')), it.mine || ['owner', 'admin', 'mod'].includes(S.me.role) ? h('button.btn.sm.ghost', { title: t('Reset the leaderboard'), onClick: async () => { if (await confirmBox(t('Reset the leaderboard of “{t}”?', { t: it.title }), { danger: true })) { await api.del(`/api/hub/${it.id}/board`).catch(toastErr); loadBoard(); } } }, icon('refresh', 13)) : null),
         h('ol.hbx-board', r.board.slice(0, 10).map((x) => h('li' + (x.me ? '.me' : ''), h('span.hbx-rank', String(x.rank)), x.user ? avatarEl(x.user, { size: 20 }) : null, h('span.grow.ellipsis', x.user ? x.user.displayName || x.user.username : '?'), h('b', Number(x.score).toLocaleString())))), r.mine && r.mine.rank > 10 ? h('div.tiny.muted', t('Your rank: #{r}', { r: r.mine.rank })) : null, h('div.tiny.muted', t('Scores are sent by the game itself.'))) : null)).catch(() => {});
-      if (code && it.files) loadBoard();
+      const achEl = h('div');
+      const loadAch = () => api.get(`/api/hub/${it.id}/ach`, { quiet: true }).then((a) => mount(achEl, a.total ? h('div.hbx-box', h('div.hbx-boxh', h('b', '🏅 ' + t('Achievements')), h('span.hbx-count', a.unlocked + '/' + a.total)), h('div.hbx-achbar', h('i', { style: { width: (a.unlocked / a.total * 100) + '%' } })),
+        h('ul.hbx-achs', a.list.map((x) => h('li' + (x.mine ? '.on' : ''), h('span.hbx-achic', x.mine ? '🏅' : '🔒'), h('div.grow', h('b', x.title), x.desc ? h('div.tiny.muted', x.desc) : null), h('span.tiny.muted', t('{p}% of players', { p: x.pct })))))) : null)).catch(() => {});
+      if (code && it.files) { loadBoard(); loadAch(); }
       const about = h('aside.hbx-about',
         h('div.hbx-box', h('div.hbx-boxh', h('b', t('About'))), it.desc ? h('p.small', { style: 'white-space:pre-wrap;margin:0 0 10px' }, it.desc.slice(0, 600)) : h('p.small.muted', t('No description.')),
           it.tags && it.tags.length ? h('div.hbx-topics', it.tags.map((x) => h('a.hbx-topic', { href: '#/hub?tag=' + encodeURIComponent(x) }, x))) : null,
@@ -305,6 +308,7 @@ export default {
             h('li', icon('clock', 14), t('Created {d}', { d: fmt.date(it.created) })), it.size ? h('li', icon('download', 14), mb(it.size)) : null, code ? h('li', icon('shield', 14), it.runMode === 'native' ? t('Runs natively') : it.runMode === 'domain' ? t('Runs on the games domain') : t('Runs sandboxed')) : null)),
         code ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Releases')), h('span.hbx-count', String(it.version || 1))), h('div.hbx-rel-mini', icon('tag', 15), h('div', h('b', 'v' + (it.version || 1)), ' ', h('span.hbx-latest', t('Latest')), h('div.tiny.muted', rel(it.updated || it.created))))) : null,
         code && it.files ? boardEl : null,
+        code && it.files ? achEl : null,
         code && it.files ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('Languages'))), langEl) : null,
         d.more && d.more.length ? h('div.hbx-box', h('div.hbx-boxh', h('b', t('More like this'))), d.more.slice(0, 6).map((m) => h('a.hbx-mini', { href: '#/hub/' + m.id }, h('i.hbx-kdot', { style: { background: KIND_COLOR[m.kind] || '#8b949e' } }), h('span.ellipsis', (m.owner ? m.owner.username : '?') + ' / ', h('b', m.title))))) : null);
       if (code && it.files) getFiles().then((f) => { const L = languages(f.files); mount(langEl, h('div.hbx-langbar', L.map((x) => h('i', { style: { width: x.p + '%', background: x.c }, title: x.n }))), h('ul.hbx-langs', L.map((x) => h('li', h('i', { style: { background: x.c } }), h('b', x.n), ' ', h('span.muted', x.p.toFixed(1) + '%'))))); });

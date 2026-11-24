@@ -188,6 +188,21 @@ module.exports = function register(r) {
     const rank = b.findIndex((x) => x.uid === c.user.id) + 1; return { best: b[rank - 1] ? b[rank - 1].s : s, rank, pb };
   });
   r.delete('/api/hub/:id/board', { auth: true }, async (c) => { const it = items()[c.params.id]; if (!it) throw new HttpError(404, 'no_item', 'Not found'); if (it.owner !== c.user.id && !['owner', 'admin', 'mod'].includes(c.user.role)) throw new HttpError(403, 'forbidden', 'Not allowed'); it.board = []; touch(); return { ok: true }; });
+  // Game API achievements: the game defines them the first time one is unlocked (max 50 per game). Each player's
+  // unlocked list lives on the account; the page shows what share of players has each one. No coins (unverifiable).
+  const achClean = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n);
+  const achView = (it, u) => { const defs = it.achs || {}; const players = Math.max(1, Object.keys(it.achPlayers || {}).length); const mineL = (u.hubAch && u.hubAch[it.id]) || [];
+    return { list: Object.entries(defs).map(([id, d]) => ({ id, title: d.title, desc: d.desc, pct: Math.round((d.n || 0) / players * 100), mine: mineL.includes(id) })), total: Object.keys(defs).length, unlocked: mineL.length }; };
+  r.get('/api/hub/:id/ach', { auth: true, limit: [120, 60000, 'user'] }, async (c) => { const it = items()[c.params.id]; if (!it || !it.files) throw new HttpError(404, 'no_item', 'Not found'); return achView(it, c.user); });
+  r.post('/api/hub/:id/ach', { auth: true, verified: true, limit: [30, 60000, 'user'] }, async (c) => {
+    const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Not found');
+    const id = achClean(c.body.id, 40).replace(/[^\w.-]/g, ''); if (!id) throw new HttpError(400, 'bad_id', 'Achievement id missing');
+    const defs = (it.achs = it.achs || {}); if (!defs[id]) { if (Object.keys(defs).length >= 50) throw new HttpError(400, 'too_many', 'This game already has 50 achievements'); defs[id] = { title: achClean(c.body.title, 60) || id, desc: achClean(c.body.desc, 140), n: 0, at: now() }; }
+    const u = c.user; u.hubAch = u.hubAch || {}; const mineL = (u.hubAch[it.id] = u.hubAch[it.id] || []); if (mineL.includes(id)) return { unlocked: false, achievement: { id, title: defs[id].title } };
+    if (mineL.length >= 50) throw new HttpError(400, 'too_many', 'Too many achievements'); mineL.push(id); defs[id].n = (defs[id].n || 0) + 1; (it.achPlayers = it.achPlayers || {})[u.id] = 1;
+    touch(); S.store.touch('users'); return { unlocked: true, achievement: { id, title: defs[id].title, desc: defs[id].desc } };
+  });
+  r.delete('/api/hub/:id/ach', { auth: true }, async (c) => { const it = items()[c.params.id]; if (!it) throw new HttpError(404, 'no_item', 'Not found'); if (it.owner !== c.user.id && !['owner', 'admin', 'mod'].includes(c.user.role)) throw new HttpError(403, 'forbidden', 'Not allowed'); it.achs = {}; it.achPlayers = {}; touch(); return { ok: true }; });
   // Nebulix 3.0 App Store: install games and apps into Nebulix OS (start menu, dock, their own windows)
   r.post('/api/hub/:id/install', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {
     const it = items()[c.params.id]; if (!it || !it.files || (it.public === false && it.owner !== c.user.id)) throw new HttpError(404, 'no_item', 'Only games and apps can be installed');

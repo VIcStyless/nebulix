@@ -58,6 +58,9 @@ export default {
       setTimeout(() => title.focus(), 50);
     }
     const chip = (o) => h('button.cal-ev', { style: { '--c': o.e.color }, title: o.e.title, onClick: (ev) => { ev.stopPropagation(); eventEditor(o.e); } }, o.e.allDay ? '' : h('b', fmtT(o.start)), ' ', o.e.title, o.e.repeat !== 'none' ? ' ↻' : '');
+    // Study exams (read-only here; edited in Study → Exams)
+    const examChip = (x) => h('a.cal-ex' + (x.done ? '.done' : ''), { href: '#/study/exams', title: x.subject + ' · ' + x.title, onClick: (ev) => ev.stopPropagation() }, '📚 ', x.subject ? h('b', x.subject + ' ') : null, x.title);
+    const examsIn = (d0, d1) => (data.exams || []).filter((x) => x.date >= d0 && x.date < d1);
     const taskChip = (k) => h('button.cal-tk' + (k.done ? '.done' : ''), { onClick: (ev) => { ev.stopPropagation(); taskEditor(k); } }, k.done ? '☑ ' : '☐ ', k.title);
 
     function paintHead() {
@@ -72,12 +75,12 @@ export default {
       const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1); const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); const from = +start, to = from + 42 * DAY; const occ = occIn(from, to); const today = +sod(Date.now());
       const dows = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(lang(), { weekday: 'short' }));
       mount(body, h('div.cal-month', dows.map((d) => h('div.cal-dow', d)), Array.from({ length: 42 }, (_, i) => { const d0 = from + i * DAY; const d1 = d0 + DAY; const inM = new Date(d0).getMonth() === cursor.getMonth(); const evs = occ.filter((o) => o.start < d1 && o.end >= d0); const tks = data.tasks.filter((k) => k.due && k.due >= d0 && k.due < d1);
-        return h('div.cal-day' + (inM ? '' : '.out') + (d0 === today ? '.today' : ''), { onDblclick: () => eventEditor(null, d0 + 9 * 3600000) }, h('div.cal-dn', h('span', String(new Date(d0).getDate())), h('button.cal-add', { title: t('New event'), onClick: () => eventEditor(null, d0 + 9 * 3600000) }, '+')), evs.slice(0, 3).map(chip), tks.slice(0, 2).map(taskChip), evs.length + tks.length > 5 ? h('span.tiny.muted', '+' + (evs.length + tks.length - 5)) : null); })));
+        return h('div.cal-day' + (inM ? '' : '.out') + (d0 === today ? '.today' : ''), { onDblclick: () => eventEditor(null, d0 + 9 * 3600000) }, h('div.cal-dn', h('span', String(new Date(d0).getDate())), h('button.cal-add', { title: t('New event'), onClick: () => eventEditor(null, d0 + 9 * 3600000) }, '+')), examsIn(d0, d1).map(examChip), evs.slice(0, 3).map(chip), tks.slice(0, 2).map(taskChip), evs.length + tks.length > 5 ? h('span.tiny.muted', '+' + (evs.length + tks.length - 5)) : null); })));
     }
     function paintWeek() {
       const ws = +weekStart(); const occ = occIn(ws, ws + 7 * DAY); const H0 = 6, H1 = 24, PX = 44; const nowMs = Date.now();
       const cols = Array.from({ length: 7 }, (_, i) => { const d0 = ws + i * DAY; const evs = occ.filter((o) => !o.e.allDay && o.start < d0 + DAY && o.end > d0); const all = occ.filter((o) => o.e.allDay && o.start < d0 + DAY && o.end > d0);
-        return h('div.cal-wcol' + (d0 === +sod(nowMs) ? '.today' : ''), h('div.cal-wh', fmtD(d0)), h('div.cal-wall', all.map(chip), data.tasks.filter((k) => k.due && k.due >= d0 && k.due < d0 + DAY).map(taskChip)),
+        return h('div.cal-wcol' + (d0 === +sod(nowMs) ? '.today' : ''), h('div.cal-wh', fmtD(d0)), h('div.cal-wall', examsIn(d0, d0 + DAY).map(examChip), all.map(chip), data.tasks.filter((k) => k.due && k.due >= d0 && k.due < d0 + DAY).map(taskChip)),
           h('div.cal-wgrid', { style: { height: (H1 - H0) * PX + 'px' }, onDblclick: (ev) => { const y = ev.offsetY; eventEditor(null, d0 + (H0 + Math.floor(y / PX)) * 3600000); } },
             Array.from({ length: H1 - H0 }, (_, k) => h('i.cal-hl', { style: { top: k * PX + 'px' } })), d0 === +sod(nowMs) ? h('i.cal-now', { style: { top: ((nowMs - d0) / 3600000 - H0) * PX + 'px' } }) : null,
             evs.map((o) => { const s = Math.max(o.start, d0 + H0 * 3600000), e = Math.min(o.end, d0 + H1 * 3600000); return h('button.cal-wev', { style: { '--c': o.e.color, top: ((s - d0) / 3600000 - H0) * PX + 'px', height: Math.max(20, (e - s) / 3600000 * PX - 2) + 'px' }, onClick: () => eventEditor(o.e) }, h('b', o.e.title), h('span', fmtT(o.start) + ' – ' + fmtT(o.end))); }))); });
@@ -86,8 +89,9 @@ export default {
     function paintAgenda() {
       const from = +sod(Date.now()); const occ = occIn(from, from + 60 * DAY); const byDay = new Map(); for (const o of occ) { const k = +sod(o.start); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(o); }
       for (const k of data.tasks) if (k.due && !k.done && k.due >= from && k.due < from + 60 * DAY) { const d = +sod(k.due); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ task: k, start: k.due }); }
+      for (const x of data.exams || []) if (!x.done && x.date >= from && x.date < from + 60 * DAY) { const d = +sod(x.date); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ exam: x, start: x.date }); }
       const days = [...byDay.keys()].sort((a, b) => a - b);
-      mount(body, days.length ? h('div.cal-agenda', days.map((d) => h('section', h('h4', fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), d === from ? h('span.pill', t('Today')) : null), byDay.get(d).sort((a, b) => a.start - b.start).map((o) => (o.task ? h('div.cal-ag.task', h('span.cal-agt', fmtT(o.start)), taskChip(o.task)) : h('div.cal-ag', { style: { '--c': o.e.color } }, h('span.cal-agt', o.e.allDay ? t('All day') : fmtT(o.start) + ' – ' + fmtT(o.end)), h('button.cal-agb', { onClick: () => eventEditor(o.e) }, h('b', o.e.title), o.e.place ? h('span.muted', ' · ' + o.e.place) : null, o.e.remind >= 0 ? ' 🔔' : '', o.e.repeat !== 'none' ? ' ↻' : ''))))))) : h('div.empty', h('div.empty-art', icon('calendar', 26)), h('h3', t('Nothing in the next 60 days')), h('button.btn.primary', { onClick: () => eventEditor(null) }, t('New event'))));
+      mount(body, days.length ? h('div.cal-agenda', days.map((d) => h('section', h('h4', fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), d === from ? h('span.pill', t('Today')) : null), byDay.get(d).sort((a, b) => a.start - b.start).map((o) => (o.exam ? h('div.cal-ag', { style: { '--c': '#a855f7' } }, h('span.cal-agt', t('Exam')), examChip(o.exam)) : o.task ? h('div.cal-ag.task', h('span.cal-agt', fmtT(o.start)), taskChip(o.task)) : h('div.cal-ag', { style: { '--c': o.e.color } }, h('span.cal-agt', o.e.allDay ? t('All day') : fmtT(o.start) + ' – ' + fmtT(o.end)), h('button.cal-agb', { onClick: () => eventEditor(o.e) }, h('b', o.e.title), o.e.place ? h('span.muted', ' · ' + o.e.place) : null, o.e.remind >= 0 ? ' 🔔' : '', o.e.repeat !== 'none' ? ' ↻' : ''))))))) : h('div.empty', h('div.empty-art', icon('calendar', 26)), h('h3', t('Nothing in the next 60 days')), h('button.btn.primary', { onClick: () => eventEditor(null) }, t('New event'))));
     }
     function taskEditor(k0) {
       const k = k0 || { title: '', notes: '', project: proj !== 'all' ? proj : 'Inbox', prio: 0, due: null, remind: false, subs: [], done: false };

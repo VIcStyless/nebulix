@@ -14,6 +14,8 @@ export function gameApi(frame, itemId, { onBoard } = {}) {
     try {
       if (d.op === 'score') { const r = await api.post(`/api/hub/${itemId}/board`, { score: d.score, label: d.label }, { quiet: true }); if (r.pb) toast(t('New best in this game: {s} (rank #{r})', { s: r.best, r: r.rank }), 'good', 2500); reply(d.req, r); if (onBoard) onBoard(); }
       else if (d.op === 'board') reply(d.req, await api.get(`/api/hub/${itemId}/board`, { quiet: true }));
+      else if (d.op === 'unlock') { const r = await api.post(`/api/hub/${itemId}/ach`, { id: d.id, title: d.title, desc: d.desc }, { quiet: true }); if (r.unlocked) { toast('🏅 ' + t('Achievement unlocked: {a}', { a: r.achievement.title }), 'good', 3500); try { (await import('./sfx.js')).sfx.big(); } catch {} } reply(d.req, r); if (onBoard) onBoard(); }
+      else if (d.op === 'achs') reply(d.req, await api.get(`/api/hub/${itemId}/ach`, { quiet: true }));
       else if (d.op === 'me') reply(d.req, S.me ? { username: S.me.username, displayName: S.me.displayName || S.me.username, lang: document.documentElement.lang || 'es' } : null);
       else reply(d.req, null);
     } catch { reply(d.req, null); }

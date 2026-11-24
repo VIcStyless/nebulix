@@ -61,7 +61,8 @@ function tick() {
 
 module.exports = function register(r) {
   if (!timer) { timer = setInterval(() => { try { tick(); } catch (e) { console.error('[calendar]', e); } }, 60000); timer.unref && timer.unref(); }
-  r.get('/api/calendar', { auth: true }, async (c) => { const m = mine(c.user); return { events: m.events, tasks: m.tasks, colors: COLORS, repeats: REPEAT }; });
+  r.get('/api/calendar', { auth: true }, async (c) => { const m = mine(c.user); let exams = []; try { exams = (require('../study').mine(c.user).exams || []).filter((e) => e.date).map((e) => ({ id: e.id, subject: e.subject, title: e.title, date: e.date, done: !!e.done })); } catch {}
+    return { events: m.events, tasks: m.tasks, exams, colors: COLORS, repeats: REPEAT }; });
   r.post('/api/calendar/events', { auth: true, limit: [120, 60000, 'user'] }, async (c) => {
     const m = mine(c.user); const id = c.body.id && String(c.body.id); const i = id ? m.events.findIndex((e) => e.id === id) : -1;
     if (id && i < 0) throw new HttpError(404, 'no_event', 'Event not found'); if (i < 0 && m.events.length >= 2000) throw new HttpError(400, 'too_many', 'Too many events');
