@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['tag', 'Discover free games and deals', 'Free-to-play games and the best current deals from official stores, in one place.', 'discover'],
   ['monitor', 'Cloud PC is live', "Create Linux machines that run on Nebulix's own compute server and use them from your browser.", 'cloudpc'],
   ['terminal', 'Python in the Toolbox', 'Write and run real Python 3 in your browser, with input(), tracebacks and a Stop button.', 'devtools'],
   ['users', 'Sheets and Slides: edit together in real time', 'Edit spreadsheets and presentations with others at the same time; see who is where.', 'sheets'],

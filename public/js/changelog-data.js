@@ -2,6 +2,14 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.7",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 15: discover free games and deals", "es": "Nebulix 3.0, fase 15: descubre juegos gratis y ofertas" },
+    "changes": [
+      { "type": "new", "en": "Discover games: hundreds of free-to-play PC and browser games (with genres, platforms and search) and the best current deals from official stores like Steam, GOG and Epic — with discounts, prices and reviews. Nebulix links to the official sites; it does not host these games.", "es": "Descubrir juegos: cientos de juegos gratuitos para PC y navegador (con géneros, plataformas y búsqueda) y las mejores ofertas actuales de tiendas oficiales como Steam, GOG y Epic, con descuentos, precios y valoraciones. Nebulix enlaza a las webs oficiales; no aloja estos juegos." }
+    ]
+  },
+  {
     "v": "15.6.1",
     "date": "2026-11-25",
     "title": { "en": "Fixes from a full quality sweep", "es": "Correcciones tras una revisión completa" },

@@ -35,7 +35,7 @@ infrastructure each pending item needs). Status words mean:
 | Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
 | Game library (Hub games + Vault store + reviews, collections, saves) | Implemented | `views/hub.js`, `vault.js`, `library.js` |
 | Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
-| External game APIs (Steam, Epic, IGDB, Discord) | Pending — need API keys from the user; must use official APIs only. |
+| External game APIs | **Implemented (phase 15)** with keyless official public APIs: FreeToGame (free-to-play catalogue) and CheapShark (deals across official stores) in `#/discover`. Pending: IGDB / Steam Web API / Discord (need keys from the owner). |
 | **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
 | **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Same-spot edits are merged (phase 13). | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
 | Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
@@ -299,6 +299,20 @@ an endless loop, Stop, run again after Stop, no console errors.
   Premium tiers, 7 boosts before the gem shop) or to pre-existing state in the test data (existing AAPL shares,
   interns, shields, an open Hi-Lo round, missing answer argument) — no product bugs.
 * `public/js/package.json` declares the browser modules as ES modules for Node (server/arena.js imports one).
+
+## 3q. What phase 15 added (v15.7.0)
+
+**Discover games** (`#/discover`, `server/routes/discover.js`): FreeToGame (free-to-play PC/browser games; attribution
+shown) and CheapShark (current deals in 35 official stores; links go through its redirect as its terms ask). The server
+calls them with a descriptive User-Agent (site URL, no personal data), caches (6 h / 30 min, stale copy on errors),
+validates filters against allow-lists and passes on only known fields and https links on the expected hosts. Images:
+`img-src` allows freetogame.com, *.steamstatic.com and cheapshark.com. Nebulix never hosts these games.
+Bug found by the browser test and fixed: an empty “any price” filter became `upperPrice=0` (Number('') is 0).
+Tested: 10 API checks and 5 browser checks (cards and thumbnails, search keeps focus, deals with store links, no console
+errors or CSP violations, no mobile overflow).
+
+**Free compute?** Checked: Fly machines have no KVM; Oracle's Always Free tier is ARM (now 2 OCPU / 12 GB) — no x86 KVM,
+so no Android emulator, and Cloud PC there would be as slow as on Fly. There is no free host that runs Nebulix Android.
 
 ## 4. Next phases (in order)
 
