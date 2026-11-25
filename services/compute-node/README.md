@@ -1,6 +1,7 @@
 # Nebulix compute node
 
-Runs **real Android devices** for Nebulix Android on a server that is *not* the Nebulix web server.
+Runs **real Android devices** (Nebulix Android) and **Linux virtual machines** (Nebulix Cloud PC) on a server that is
+*not* the Nebulix web server.
 
 ```
 Browser ──(create / start / stop, tickets)──▶ Nebulix server (Fly.io) ──(HMAC-signed control API)──▶ compute node
@@ -17,6 +18,19 @@ Browser ◀──────────────(WebSocket: H.264 video + t
   drop), installed apps (open, force stop, uninstall), file transfer with the device's Download folder, screenshots,
   screen recording (up to 3 min), clipboard both ways, GPS location, rotation, resolution/density, `adb shell`
   commands, logcat, several devices at once, automatic stop of idle devices.
+
+## Cloud PC (virtual machines)
+
+* Needs `qemu-system-x86_64` (QEMU 7.1+). `qemu-img` is used when installed; otherwise disks are created through QEMU
+  itself.
+* Put system images in `NX_VM_IMAGES` (default `./vm-images`): `*.qcow2` ready-made disks (each machine gets a
+  copy-on-write disk on top) and `*.iso` installers / live systems (the machine gets an empty disk). Optional display
+  names in `images.json`, e.g. `{ "debian-12.qcow2": { "name": "Debian 12" } }`.
+  Example: `curl -L -o vm-images/debian-12.qcow2 https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-amd64.qcow2`
+  (log in as `root` with no password — change it right away).
+* The screen is QEMU's VNC server bound to 127.0.0.1, relayed to the browser over the agent's WebSocket (`/v1/vnc`)
+  with a ticket; the browser draws it with noVNC. Power, keys, screenshots and snapshots go through QMP.
+* Windows guests are possible only with your own valid licence and installation media.
 
 ## Requirements
 
@@ -48,6 +62,7 @@ Then in Nebulix: **Admin → Compute → Connect a compute node** with the node'
 | `NX_MAX_DEVICES` | `50` | Devices stored on this node |
 | `NX_IDLE_MINUTES` | `30` | Stop a running device nobody has watched for this long |
 | `NX_SDK`, `NX_DATA`, `NX_SCRCPY` | `./sdk`, `./data`, `./scrcpy-server.jar` | Paths |
+| `NX_VM_IMAGES`, `NX_QEMU`, `NX_QEMU_IMG` | `./vm-images`, `qemu-system-x86_64`, `qemu-img` | Cloud PC images and binaries |
 | `NX_GPU` | `swiftshader_indirect` | Emulator GPU mode (`host` on servers with a GPU) |
 
 ## Security

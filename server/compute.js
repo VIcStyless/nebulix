@@ -40,5 +40,5 @@ function cspOrigins() { // nodes the browser may talk to (stream / uploads)
   const out = []; for (const n of enabled()) { try { const u = new URL(n.url); out.push(u.origin, u.origin.replace(/^http/, 'ws')); } catch {} }
   return out.join(' ');
 }
-const publicNode = (n, h) => ({ id: n.id, name: n.name, online: !!(h && h.ok), images: h && h.ok ? h.data.images : [], running: h && h.ok ? h.data.running : 0, maxRunning: h && h.ok ? h.data.maxRunning : 0, kvm: h && h.ok ? h.data.kvm : null });
+const publicNode = (n, h) => ({ id: n.id, name: n.name, online: !!(h && h.ok), images: h && h.ok ? h.data.images : [], vmImages: h && h.ok ? (h.data.vmImages || []).map((i) => ({ id: i.id, name: i.name, kind: i.kind })) : [], running: h && h.ok ? h.data.running : 0, maxRunning: h && h.ok ? h.data.maxRunning : 0, kvm: h && h.ok ? h.data.kvm : null });
 module.exports = { nodes, enabled, call, check, ticket, cspOrigins, publicNode, health };

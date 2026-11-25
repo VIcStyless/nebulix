@@ -617,3 +617,18 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 @media (max-width: 980px) { .an-main { grid-template-columns: 1fr; } .an-stage { position: static; } .an-screen { width: min(100%, 420px); } }
 @media (max-width: 560px) { .an-hw { grid-template-columns: 1fr; } .an-hero { padding: 20px; } .an-bar { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { .an-card, .an-prog i { transition: none; } }
+
+/* Nebulix 3.0 — Cloud PC */
+.cpc-hero { background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, #6366f1 22%, transparent), transparent 55%), radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, #06b6d4 16%, transparent), transparent 60%), color-mix(in srgb, var(--text) 4%, var(--bg)); }
+.an-card-art.cpc { background: linear-gradient(160deg, #6366f1, #0e7490); }
+.cpc-main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+.cpc-stage { position: relative; border-radius: 14px; overflow: hidden; background: #020617; aspect-ratio: 4/3; box-shadow: 0 24px 50px -20px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.06); }
+.cpc-stage:fullscreen { aspect-ratio: auto; border-radius: 0; }
+.cpc-screen { position: absolute; inset: 0; }
+.cpc-screen > div { background: transparent !important; }
+.cpc-stage .an-overlay { inset: 0; border-radius: 0; }
+.cpc-meter { display: grid; grid-template-columns: 40px 1fr; gap: 2px 8px; align-items: center; font-size: .8rem; margin-bottom: 6px; }
+.cpc-meter i { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.cpc-meter em { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #6366f1); transition: width .4s; }
+.cpc-meter b { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 980px) { .cpc-main { grid-template-columns: 1fr; } }

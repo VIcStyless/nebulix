@@ -32,6 +32,7 @@ const CFG = {
   origins: (env.NX_ALLOWED_ORIGINS || 'https://nebulix.fly.dev').split(',').map((s) => s.trim()).filter(Boolean),
   idleMin: Number(env.NX_IDLE_MINUTES || 30),
   gpu: env.NX_GPU || 'swiftshader_indirect',
+  vmImages: path.resolve(env.NX_VM_IMAGES || path.join(ROOT, 'vm-images')), qemu: env.NX_QEMU || 'qemu-system-x86_64', qemuImg: env.NX_QEMU_IMG || 'qemu-img',
 };
 const VERSION = '1.0.0';
 if (CFG.secret.length < 32) { console.error('NX_NODE_SECRET must be set (at least 32 characters, shared with the Nebulix admin panel).'); process.exit(1); }
@@ -103,7 +104,7 @@ function writeAvd(d) {
     `image.sysdir.1=system-images/android-${d.api}/default/x86_64/`, 'tag.id=default', 'PlayStore.enabled=false', 'fastboot.forceColdBoot=no', '',
   ].join('\n'));
 }
-const view = (d) => { const l = live.get(d.id); return { id: d.id, owner: d.owner, name: d.name, api: d.api, android: ANDROID_NAMES[d.api] || String(d.api), profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
+const view = (d) => { const l = live.get(d.id); return { id: d.id, kind: d.kind || 'android', image: d.image || null, iso: d.iso || null, owner: d.owner, name: d.name, api: d.api, android: d.kind === 'vm' ? null : ANDROID_NAMES[d.api] || String(d.api), profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
   state: l ? l.state : 'stopped', since: l ? l.since : null, viewers: l ? l.viewers.size : 0, snapshots: d.snapshots || [], recording: !!(l && l.rec) }; };
 
 async function start(d) {
@@ -210,6 +211,90 @@ function control(l, m) { // browser input → scrcpy control messages (binary la
   if (b) st.ctrl.write(b);
 }
 
+
+// ---------- Cloud PC: Linux virtual machines (QEMU/KVM, screen over VNC) ----------
+// Images live in NX_VM_IMAGES: *.qcow2 are ready-made disks (each VM gets a copy-on-write disk on top of it) and
+// *.iso are installers / live systems (the VM gets an empty disk and boots the ISO until something is installed).
+// Optional labels in NX_VM_IMAGES/images.json: { "debian-12.qcow2": { "name": "Debian 12", "os": "linux" } }.
+const VM_DIR = path.join(CFG.data, 'vm'); fs.mkdirSync(VM_DIR, { recursive: true });
+function vmImages() {
+  let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(CFG.vmImages, 'images.json'), 'utf8')); } catch {}
+  const pretty = (f) => f.replace(/\.(qcow2|iso)$/i, '').replace(/[-_]+/g, ' ').replace(/\b(\w)/g, (m) => m.toUpperCase());
+  return (fs.existsSync(CFG.vmImages) ? fs.readdirSync(CFG.vmImages) : []).filter((f) => /\.(qcow2|iso)$/i.test(f)).sort()
+    .map((f) => ({ id: f, name: (meta[f] && meta[f].name) || pretty(f), kind: /\.iso$/i.test(f) ? 'iso' : 'disk', size: fs.statSync(path.join(CFG.vmImages, f)).size }));
+}
+class Qmp { // tiny QMP client over the VM's unix socket
+  constructor(sock) { this.sock = sock; this.seq = 0; this.wait = new Map(); this.events = []; }
+  open(ms = 8000) {
+    return new Promise((res, rej) => {
+      const t0 = Date.now(); const tryIt = () => {
+        const c = net.connect(this.sock); let buf = ''; let greeted = false;
+        c.on('error', () => { c.destroy(); if (Date.now() - t0 > ms) rej(new Error('QMP not available')); else setTimeout(tryIt, 200); });
+        c.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); let m; try { m = JSON.parse(line); } catch { continue; }
+          if (m.QMP && !greeted) { greeted = true; this.c = c; this.cmd('qmp_capabilities').then(() => res(this), rej); continue; }
+          if (m.id !== undefined && this.wait.has(m.id)) { const w = this.wait.get(m.id); this.wait.delete(m.id); m.error ? w.rej(new Error(m.error.desc)) : w.res(m.return); }
+          else if (m.event) this.events.push(m); } });
+        c.on('close', () => { for (const w of this.wait.values()) w.rej(new Error('QMP closed')); this.wait.clear(); });
+      }; tryIt();
+    });
+  }
+  cmd(execute, args, ms = 60000) { return new Promise((res, rej) => { const id = ++this.seq; this.wait.set(id, { res, rej }); this.c.write(JSON.stringify({ execute, arguments: args, id }) + '\n'); setTimeout(() => { if (this.wait.delete(id)) rej(new Error('QMP timeout: ' + execute)); }, ms); }); }
+  hmp(line, ms) { return this.cmd('human-monitor-command', { 'command-line': line }, ms); }
+  close() { try { this.c && this.c.destroy(); } catch {} }
+}
+// A qcow2 disk, optionally on top of a base image. Uses qemu-img when installed, otherwise QEMU itself (QMP blockdev-create).
+async function createDisk(file, sizeG, backing) {
+  const hasImg = await run(CFG.qemuImg, ['--version'], { timeout: 5000 }).then((r) => r.code === 0).catch(() => false);
+  if (hasImg) { const r = await run(CFG.qemuImg, ['create', '-f', 'qcow2', ...(backing ? ['-b', backing, '-F', 'qcow2'] : []), file, sizeG + 'G'], { timeout: 60000 }); if (r.code) throw new Error('qemu-img: ' + r.err); return; }
+  fs.writeFileSync(file, ''); const sock = file + '.qmp'; fs.rmSync(sock, { force: true });
+  const q = spawn(CFG.qemu, ['-nodefaults', '-machine', 'none', '-display', 'none', '-qmp', 'unix:' + sock + ',server=on,wait=off'], { stdio: 'ignore' });
+  try {
+    const m = await new Qmp(sock).open();
+    await m.cmd('blockdev-add', { driver: 'file', filename: file, 'node-name': 'f' });
+    const o = { driver: 'qcow2', file: 'f', size: sizeG * 1073741824 }; if (backing) Object.assign(o, { 'backing-file': backing, 'backing-fmt': 'qcow2' });
+    await m.cmd('blockdev-create', { 'job-id': 'mk', options: o });
+    const t0 = Date.now(); while (!m.events.some((e) => e.event === 'JOB_STATUS_CHANGE' && e.data.status === 'concluded') && Date.now() - t0 < 60000) await sleep(100);
+    const jobs = await m.cmd('query-jobs'); const j = jobs.find((x) => x.id === 'mk'); if (j && j.error) throw new Error(j.error);
+    await m.cmd('job-dismiss', { id: 'mk' }).catch(() => {}); await m.cmd('quit').catch(() => {}); m.close();
+  } finally { setTimeout(() => { try { q.kill(); } catch {} fs.rmSync(sock, { force: true }); }, 500); }
+}
+const vmDir = (d) => path.join(VM_DIR, d.id);
+function freeVnc() { const used = new Set([...live.values()].filter((l) => l.vnc != null).map((l) => l.vnc)); for (let n = 10; n < 110; n++) if (!used.has(n)) return n; return null; }
+async function vmStart(d) {
+  if (live.has(d.id)) return view(d);
+  const running = [...live.values()].filter((l) => l.state !== 'stopped').length; if (running >= CFG.maxRunning) throw Object.assign(new Error('This node is running as many machines as it can. Try again later.'), { status: 503, code: 'node_full' });
+  const n = freeVnc(); const dir = vmDir(d); const sock = path.join(dir, 'qmp.sock'); fs.rmSync(sock, { force: true });
+  const img = d.iso ? path.join(CFG.vmImages, d.iso) : null;
+  const args = ['-name', 'nx-' + d.id, '-enable-kvm', '-cpu', 'host', '-machine', 'q35', '-smp', String(d.cpu), '-m', String(d.ram),
+    '-drive', 'file=' + path.join(dir, 'disk.qcow2') + ',if=virtio,format=qcow2,cache=writeback',
+    ...(img && fs.existsSync(img) ? ['-drive', 'file=' + img + ',media=cdrom,readonly=on', '-boot', 'order=cd'] : []),
+    '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0', '-device', 'virtio-balloon', '-vga', 'std', '-usb', '-device', 'usb-tablet',
+    '-display', 'none', '-vnc', '127.0.0.1:' + n, '-qmp', 'unix:' + sock + ',server=on,wait=off'];
+  const logf = fs.openSync(path.join(dir, 'qemu.log'), 'w');
+  const proc = spawn(CFG.qemu, args, { stdio: ['ignore', logf, logf] });
+  const l = { proc, vnc: n, state: 'starting', since: Date.now(), viewers: new Set(), lastSeen: Date.now(), vm: true, cpu0: null };
+  live.set(d.id, l); d.pid = proc.pid; save();
+  proc.on('exit', (code) => { fs.closeSync(logf); if (live.get(d.id) === l) { try { l.qmp && l.qmp.close(); } catch {} live.delete(d.id); d.pid = null; save(); log('vm', d.id, 'exited', code); for (const v of l.viewers) v.close(1000); } });
+  try { l.qmp = await new Qmp(sock).open(10000); l.state = 'running'; l.since = Date.now(); log('vm', d.id, 'running on vnc', 5900 + n); }
+  catch (e) { try { proc.kill('SIGKILL'); } catch {} let why = ''; try { why = fs.readFileSync(path.join(dir, 'qemu.log'), 'utf8').trim().split('\n').pop(); } catch {} throw Object.assign(new Error('The machine could not start: ' + (why || e.message)), { status: 500, code: 'vm_failed' }); }
+  return view(d);
+}
+async function vmStop(d, force) {
+  const l = live.get(d.id); if (!l) return view(d); l.state = 'stopping';
+  if (!force && l.qmp) { await l.qmp.cmd('system_powerdown').catch(() => {}); const t0 = Date.now(); while (live.get(d.id) === l && Date.now() - t0 < 60000) await sleep(500); }
+  if (live.get(d.id) === l) { await l.qmp.cmd('quit').catch(() => {}); await sleep(800); if (live.get(d.id) === l) try { l.proc.kill('SIGKILL'); } catch {} }
+  const t0 = Date.now(); while (live.get(d.id) === l && Date.now() - t0 < 5000) await sleep(100);
+  return view(d);
+}
+function vmStats(l) { // CPU % since the last call and resident memory of the QEMU process
+  try {
+    const st = fs.readFileSync('/proc/' + l.proc.pid + '/stat', 'utf8').split(') ')[1].split(' '); const ticks = Number(st[11]) + Number(st[12]); const now = Date.now();
+    const rss = Number((/VmRSS:\s+(\d+)/.exec(fs.readFileSync('/proc/' + l.proc.pid + '/status', 'utf8')) || [])[1] || 0) * 1024;
+    let cpu = null; if (l.cpu0) cpu = Math.max(0, ((ticks - l.cpu0.t) / 100) / ((now - l.cpu0.at) / 1000) * 100); l.cpu0 = { t: ticks, at: now };
+    return { cpu: cpu == null ? null : Math.round(cpu), rss, uptime: Math.round((now - l.since) / 1000) };
+  } catch { return null; }
+}
+
 // ---------- HTTP ----------
 const J = (res, code, o, extra = {}) => { const s = JSON.stringify(o); res.writeHead(code, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(s), ...extra }); res.end(s); };
 const cors = (req) => { const o = req.headers.origin; return o && CFG.origins.includes(o) ? { 'access-control-allow-origin': o, 'access-control-allow-methods': 'GET,PUT,POST', 'access-control-allow-headers': 'content-type', 'access-control-max-age': '600', vary: 'origin' } : {}; };
@@ -217,13 +302,42 @@ const readBody = (req, max) => new Promise((res, rej) => { const parts = []; let
 const clean = (s, n) => String(s || '').replace(/[^\p{L}\p{N} ._()-]/gu, '').trim().slice(0, n);
 const safeFile = (s) => clean(path.basename(String(s || '')), 120).replace(/^\.+/, '') || 'file';
 
+async function vmApi(req, res, d, op, sub, b) {
+  if (!op && req.method === 'GET') return J(res, 200, { device: view(d) });
+  if (!op && req.method === 'DELETE') { await vmStop(d, true); delete devices[d.id]; save(); fs.rmSync(vmDir(d), { recursive: true, force: true }); return J(res, 200, { ok: true }); }
+  if (op === 'start') return J(res, 200, { device: await vmStart(d) });
+  if (op === 'stop') return J(res, 200, { device: await vmStop(d, !!b.force) });
+  if (op === 'restart') { const l = live.get(d.id); if (l && l.qmp) { await l.qmp.cmd('system_reset'); return J(res, 200, { device: view(d) }); } return J(res, 200, { device: await vmStart(d) }); }
+  if (op === 'config' && req.method === 'POST') { if (live.has(d.id)) return J(res, 409, { error: 'running', message: 'Turn the machine off to change its hardware' }); if (b.name) d.name = clean(b.name, 40) || d.name; if (b.cpu) d.cpu = Math.max(1, Math.min(8, b.cpu | 0)); if (b.ram) d.ram = Math.max(512, Math.min(16384, b.ram | 0)); if (b.eject) d.iso = null; save(); return J(res, 200, { device: view(d) }); }
+  const l = live.get(d.id); if (!l || l.state !== 'running' || !l.qmp) return J(res, 409, { error: 'not_running', message: 'The machine is not running' });
+  l.lastSeen = Date.now();
+  if (op === 'info') return J(res, 200, { stats: vmStats(l), status: await l.qmp.cmd('query-status').catch(() => null) });
+  if (op === 'keys') { const combos = { cad: ['ctrl', 'alt', 'delete'], cab: ['ctrl', 'alt', 'backspace'], cf1: ['ctrl', 'alt', 'f1'], cf2: ['ctrl', 'alt', 'f2'], cf7: ['ctrl', 'alt', 'f7'] }; const k = combos[b.combo]; if (!k) return J(res, 400, { error: 'bad_combo' }); await l.qmp.cmd('send-key', { keys: k.map((x) => ({ type: 'qcode', data: x })) }); return J(res, 200, { ok: true }); }
+  if (op === 'snapshots') {
+    const name = clean(b.name, 32).replace(/\s+/g, '_');
+    if (sub === 'save') { const n = name || 'snap_' + Date.now(); const out = await l.qmp.hmp('savevm ' + n, 300000); if (/error/i.test(out)) return J(res, 500, { error: 'snapshot_failed', message: out.trim().slice(0, 200) }); d.snapshots = [...(d.snapshots || []).filter((x) => x.name !== n), { name: n, at: Date.now() }].slice(-10); save(); return J(res, 200, { snapshots: d.snapshots }); }
+    if (sub === 'load') { if (!(d.snapshots || []).some((x) => x.name === b.name)) return J(res, 404, { error: 'no_snapshot' }); const out = await l.qmp.hmp('loadvm ' + clean(b.name, 32), 300000); return J(res, /error/i.test(out) ? 500 : 200, { ok: !/error/i.test(out), message: out.trim().slice(0, 200) }); }
+    if (sub === 'delete') { await l.qmp.hmp('delvm ' + clean(b.name, 32), 120000).catch(() => {}); d.snapshots = (d.snapshots || []).filter((x) => x.name !== b.name); save(); return J(res, 200, { snapshots: d.snapshots }); }
+    return J(res, 200, { snapshots: d.snapshots || [] });
+  }
+  return J(res, 404, { error: 'not_found' });
+}
+
 async function controlApi(req, res, url, body) {
   const p = url.pathname; let m;
-  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, kvm: fs.existsSync('/dev/kvm'), images: images(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
+  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, kvm: fs.existsSync('/dev/kvm'), images: images(), vmImages: vmImages(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
   const b = body.length ? JSON.parse(body.toString()) : {};
   if (p === '/v1/devices' && req.method === 'GET') return J(res, 200, { devices: Object.values(devices).filter((d) => !url.searchParams.get('owner') || d.owner === url.searchParams.get('owner')).map(view) });
   if (p === '/v1/devices' && req.method === 'POST') {
     if (!ID.test(b.id || '') || devices[b.id]) return J(res, 400, { error: 'bad_id' }); if (Object.keys(devices).length >= CFG.maxDevices) return J(res, 503, { error: 'node_full', message: 'This node has no room for more devices' });
+    if (b.kind === 'vm') {
+      const img = vmImages().find((i) => i.id === b.image); if (!img) return J(res, 400, { error: 'no_image', message: 'That system image is not on this node' });
+      const d = { id: b.id, kind: 'vm', owner: String(b.owner || ''), name: clean(b.name, 40) || img.name, image: img.id, iso: img.kind === 'iso' ? img.id : null,
+        cpu: Math.max(1, Math.min(8, b.cpu | 0 || 2)), ram: Math.max(512, Math.min(16384, b.ram | 0 || 2048)), storage: Math.max(4, Math.min(200, b.storage | 0 || 20)), created: Date.now(), snapshots: [] };
+      fs.mkdirSync(vmDir(d), { recursive: true });
+      try { await createDisk(path.join(vmDir(d), 'disk.qcow2'), d.storage, img.kind === 'disk' ? path.join(CFG.vmImages, img.id) : null); } catch (e) { fs.rmSync(vmDir(d), { recursive: true, force: true }); return J(res, 500, { error: 'disk_failed', message: e.message }); }
+      devices[d.id] = d; save(); return J(res, 200, { device: view(d) });
+    }
     const img = images().find((i) => i.api === Number(b.api)); if (!img) return J(res, 400, { error: 'no_image', message: 'That Android version is not installed on this node' });
     const d = { id: b.id, owner: String(b.owner || ''), name: clean(b.name, 40) || 'Android ' + img.android, api: img.api, profile: PROFILES[b.profile] ? b.profile : 'phone',
       cpu: Math.max(1, Math.min(4, b.cpu | 0 || 2)), ram: Math.max(1536, Math.min(6144, b.ram | 0 || 2048)), storage: Math.max(2, Math.min(16, b.storage | 0 || 4)), created: Date.now(), snapshots: [] };
@@ -232,6 +346,7 @@ async function controlApi(req, res, url, body) {
   if (!(m = /^\/v1\/devices\/([a-z0-9]+)(?:\/([a-z-]+))?(?:\/([a-z-]+))?$/.exec(p))) return J(res, 404, { error: 'not_found' });
   const d = devices[m[1]]; if (!d) return J(res, 404, { error: 'no_device' }); const op = m[2] || ''; const sub = m[3] || '';
   if (!op && req.method === 'GET') return J(res, 200, { device: view(d) });
+  if (d.kind === 'vm') return vmApi(req, res, d, op, sub, b);
   if (!op && req.method === 'DELETE') { await stop(d, true); delete devices[d.id]; save(); fs.rmSync(path.join(AVD_HOME, d.id + '.avd'), { recursive: true, force: true }); fs.rmSync(path.join(AVD_HOME, d.id + '.ini'), { force: true }); fs.rmSync(path.join(CFG.data, d.id + '.log'), { force: true }); return J(res, 200, { ok: true }); }
   if (op === 'start') return J(res, 200, { device: await start(d) });
   if (op === 'stop') return J(res, 200, { device: await stop(d, !!b.force) });
@@ -283,6 +398,7 @@ async function ticketApi(req, res, url) {
   }
   if (p === '/v1/screenshot' && req.method === 'GET') {
     const t = ticket(url.searchParams.get('t'), 'shot'); if (!t) return J(res, 403, { error: 'bad_ticket' }, h);
+    if (devices[t.d].kind === 'vm') { const l = live.get(t.d); if (!l || !l.qmp) return J(res, 409, { error: 'not_running' }, h); const f = path.join(vmDir(devices[t.d]), 'shot.png'); try { await l.qmp.cmd('screendump', { filename: f, format: 'png' }); const png = fs.readFileSync(f); fs.rmSync(f, { force: true }); res.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length, 'content-disposition': 'attachment; filename="cloudpc-' + Date.now() + '.png"', ...h }); return res.end(png); } catch (e) { return J(res, 500, { error: 'screenshot_failed', message: e.message }, h); } }
     let l; try { l = ready(devices[t.d]); } catch (e) { return J(res, 409, { error: e.code }, h); }
     const r = await adb(l.serial, ['exec-out', 'screencap', '-p'], { timeout: 15000, max: 32 << 20 }); if (r.code || r.out.length < 8) return J(res, 500, { error: 'screenshot_failed' }, h);
     res.writeHead(200, { 'content-type': 'image/png', 'content-length': r.out.length, 'content-disposition': 'attachment; filename="android-' + Date.now() + '.png"', ...h }); return res.end(r.out);
@@ -318,6 +434,18 @@ const server = http.createServer(async (req, res) => {
 });
 server.on('upgrade', (req, socket) => {
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/v1/vnc') { // raw RFB bytes between noVNC in the browser and QEMU's VNC server on localhost
+    if (req.headers.origin && !CFG.origins.includes(req.headers.origin)) return reject(socket, 403, 'Forbidden');
+    const t = ticket(url.searchParams.get('t'), 'ctl'); const l = t && live.get(t.d); if (!t || !l || !l.vm || l.state !== 'running') return reject(socket, t ? 409 : 403, t ? 'Conflict' : 'Forbidden');
+    const conn = upgrade(req, socket, { maxPayload: 1 << 20 }); if (!conn) return;
+    const tcp = net.connect(5900 + l.vnc, '127.0.0.1'); l.viewers.add(conn); l.lastSeen = Date.now();
+    tcp.on('data', (d) => { conn.sendBinary(d); if (conn.socket.writableLength > 512 * 1024) tcp.pause(); });
+    conn.socket.on('drain', () => tcp.resume());
+    conn.on('binary', (d) => { l.lastSeen = Date.now(); tcp.write(d); }); conn.on('message', (s2) => tcp.write(Buffer.from(s2)));
+    const end = () => { l.viewers.delete(conn); try { tcp.destroy(); } catch {} try { conn.close(); } catch {} };
+    tcp.on('close', end); tcp.on('error', end); conn.on('close', end);
+    return;
+  }
   if (url.pathname !== '/v1/stream') return reject(socket, 404, 'Not Found');
   if (req.headers.origin && !CFG.origins.includes(req.headers.origin)) return reject(socket, 403, 'Forbidden');
   const t = ticket(url.searchParams.get('t'), 'view'); if (!t) return reject(socket, 403, 'Forbidden');
@@ -337,8 +465,8 @@ server.on('upgrade', (req, socket) => {
   conn.on('close', () => { const cur = live.get(d.id); if (cur) { cur.viewers.delete(conn); cur.lastSeen = Date.now(); if (!cur.viewers.size) setTimeout(() => { if (live.get(d.id) === cur && !cur.viewers.size) stopStream(cur); }, 30000); } });
 });
 // Devices nobody has looked at for NX_IDLE_MINUTES are stopped (their state is kept in the quick-boot snapshot).
-setInterval(() => { for (const [id, l] of live) if (!l.viewers.size && l.state === 'running' && Date.now() - l.lastSeen > CFG.idleMin * 60000) { log('device', id, 'idle → stopping'); stop(devices[id]).catch(() => {}); } }, 60000).unref();
-run(ADB, ['start-server']).then(() => server.listen(CFG.port, CFG.host, () => log(`Nebulix compute node ${VERSION} on ${CFG.host}:${CFG.port} · ${images().length} Android image(s) · max ${CFG.maxRunning} running · KVM ${fs.existsSync('/dev/kvm') ? 'yes' : 'NO'}`)));
+setInterval(() => { for (const [id, l] of live) if (!l.viewers.size && l.state === 'running' && Date.now() - l.lastSeen > CFG.idleMin * 60000) { log('device', id, 'idle → stopping'); (l.vm ? vmStop : stop)(devices[id]).catch(() => {}); } }, 60000).unref();
+run(ADB, ['start-server']).then(() => server.listen(CFG.port, CFG.host, () => log(`Nebulix compute node ${VERSION} on ${CFG.host}:${CFG.port} · ${images().length} Android image(s) · ${vmImages().length} VM image(s) · max ${CFG.maxRunning} running · KVM ${fs.existsSync('/dev/kvm') ? 'yes' : 'NO'}`)));
 let quitting = false;
-const bye = async () => { if (quitting) return; quitting = true; log('shutting down'); server.close(); for (const id of [...live.keys()]) await stop(devices[id]).catch(() => {}); process.exit(0); };
+const bye = async () => { if (quitting) return; quitting = true; log('shutting down'); server.close(); for (const id of [...live.keys()]) await (live.get(id) && live.get(id).vm ? vmStop : stop)(devices[id]).catch(() => {}); process.exit(0); };
 process.on('SIGINT', bye); process.on('SIGTERM', bye);

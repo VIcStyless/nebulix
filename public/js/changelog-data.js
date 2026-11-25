@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.1",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 10: Nebulix Cloud PC", "es": "Nebulix 3.0, fase 10: Nebulix Cloud PC" },
+    "changes": [
+      { "type": "new", "en": "Nebulix Cloud PC: full Linux virtual machines (QEMU with hardware virtualisation) on Nebulix compute servers. Start from a ready-made system such as Debian 12 or boot an installer / live ISO, and use the screen, keyboard and mouse from the browser.", "es": "Nebulix Cloud PC: máquinas virtuales Linux completas (QEMU con virtualización por hardware) en los servidores de cómputo de Nebulix. Empieza con un sistema listo para usar, como Debian 12, o arranca un instalador o una ISO live, y usa la pantalla, el teclado y el ratón desde el navegador." },
+      { "type": "new", "en": "Shut down cleanly or force off, restart, Ctrl+Alt+Del and other key combinations, screenshots, full screen, snapshots of disk and memory, live CPU and memory usage, and adjustable processor and memory.", "es": "Apaga correctamente o fuerza el apagado, reinicia, envía Ctrl+Alt+Supr y otras combinaciones, haz capturas, pantalla completa, instantáneas de disco y memoria, uso de CPU y memoria en directo y procesador y memoria ajustables." }
+    ]
+  },
+  {
     "v": "15.0",
     "date": "2026-11-25",
     "title": {

@@ -1,0 +1,1 @@
+noVNC 1.7.0 (MPL-2.0) — https://github.com/novnc/noVNC — vendored unmodified (core/ and vendor/pako)

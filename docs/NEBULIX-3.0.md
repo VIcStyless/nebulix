@@ -30,7 +30,7 @@ infrastructure each pending item needs). Status words mean:
 | OS system apps: Files (local VFS), Text editor, Task Manager, Clipboard history, Screenshot (screen capture API), Camera, Calculator, Focus timer, System monitor, Command Center, Widgets, Nova Agents | Implemented | `public/js/os/apps.js`, `apps2.js` |
 | OS: PDF viewer, archive manager, download manager, startup apps, app permissions | Pending | needs file-type handlers in Files |
 | **Nebulix Android** | **Implemented on compute nodes** (phase 9): real devices with the official Android Emulator + AOSP x86_64 images (API 21–36) under KVM, managed by `services/compute-node/agent.js`; H.264 stream (scrcpy server) decoded with WebCodecs; APKs, apps, files, screenshots, recording, clipboard, GPS, rotation, resolution, snapshots, shell, logcat, hardware settings, quotas. **Connected** in production only once the owner adds a node (Admin → Compute). No Google Play. The in-browser Android-x86 4.4 (v86) stays as an offline fallback. | `views/android.js`, `server/routes/android.js`, `server/compute.js`, `services/compute-node/` |
-| **Virtual machines** | Implemented (in-browser, v86): templates, ISO/IMG, disks, snapshots, clone, export, real Linux terminal. Pending: server-side VMs (Proxmox/QEMU/Kasm on separate nodes). | `views/vm.js` |
+| **Virtual machines** | In-browser (v86): templates, ISO/IMG, disks, snapshots, clone, export, Linux terminal. **Cloud PC (phase 10): server-side QEMU/KVM VMs on compute nodes** — ready-made qcow2 systems or ISOs, noVNC screen, ACPI shutdown / force off / reset, key combos, PNG screenshots, disk+memory snapshots, live CPU/RAM, hardware settings, quotas. Connected in production once a node is added. | `views/vm.js`, `views/cloudpc.js`, `services/compute-node/` |
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
 | Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
 | Game library (Hub games + Vault store + reviews, collections, saves) | Implemented | `views/hub.js`, `vault.js`, `library.js` |
@@ -188,12 +188,33 @@ Browser ◀────────────────(WebSocket: H.264 + i
 * **Production needs a node**: Fly.io machines cannot run KVM. Run the agent on a KVM server behind HTTPS and add it in
   Admin → Compute. Until then `#/android` says so and offers the in-browser Android-x86.
 
+## 3j. What phase 10 added (v15.1.0)
+
+**Nebulix Cloud PC** (`#/cloudpc`, OS app “Cloud PC”) on the same compute nodes as Nebulix Android.
+
+* Agent: VM images in `NX_VM_IMAGES` (`*.qcow2` ready-made disks → per-VM copy-on-write disk; `*.iso` → empty disk +
+  CD-ROM, `-boot order=cd`; labels in `images.json`). Disks are created with `qemu-img` when installed, otherwise with
+  QEMU itself through QMP `blockdev-create` (no extra dependency). Each VM: `qemu-system-x86_64 -enable-kvm -cpu host`,
+  virtio disk/net, usb-tablet, VNC on 127.0.0.1 only, QMP socket for power (system_powerdown / quit / system_reset),
+  `send-key`, `screendump` (PNG), `savevm`/`loadvm`/`delvm`; CPU %/RSS from `/proc`. Browser ↔ node: `/v1/vnc?t=`
+  relays raw RFB bytes over the WebSocket (ticket scope `ctl`).
+* Server: `routes/android.js` is now one factory for `/api/android` and `/api/cloudpc` (separate quotas and caps: free
+  1 VM ≤ 2 CPU / 4 GB / 30 GB; PRO up to 8 CPU / 16 GB / 200 GB).
+* Client: `public/js/views/cloudpc.js` with noVNC 1.7.0 (MPL-2.0, vendored unmodified in `public/js/vendor/novnc`).
+* Tested on the dev KVM host: 22 API checks (images, caps, quotas, kind isolation from the Android API, start, VNC
+  handshake through the relay, forged ticket, PNG screenshot of the Debian login, live stats, Ctrl+Alt+F2, snapshot
+  save/restore/delete, hardware lock while running, ACPI shutdown in ~2 s, ISO machine booting Alpine) and a browser
+  test: noVNC connected in 2 s, logged in as root and ran `uname -sr` with real key presses, no console errors, no
+  mobile overflow.
+* Known flake: one full Android run (right after restarting the agent) had 2 failing checks that did not reproduce in
+  the next three runs (40/40 each); the log showed stream reconnects around a snapshot restore. Watch for it.
+
 ## 4. Next phases (in order)
 
 1. Office: the same live sessions for Sheets (cell operations) and Slides (element operations); character-level
    merging inside one paragraph in Docs.
-2. Server-side Linux VMs (Cloud PC) on the same compute nodes: QEMU/KVM + VNC over WebSocket, reusing the node
-   registry, tickets and quotas from Nebulix Android.
+2. OS file handlers (PDF viewer, archive manager, download manager, startup apps) and developer tools (QR codes,
+   HTTP request tester with SSRF protection, SQL playground).
 
 ## 5. How to verify
 

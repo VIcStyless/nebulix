@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['monitor', 'Nebulix Cloud PC: Linux in the cloud', 'Full Linux virtual machines on Nebulix compute servers, with snapshots and live CPU and memory usage.', 'cloudpc'],
   ['phone', 'Nebulix Android: real Android devices', 'Create phones and tablets with real Android, install APKs, use them from your browser with touch and keyboard, and save snapshots.', 'android'],
   ['users', 'Docs: write together in real time', 'Edit a document with friends at the same time: you see their changes as they type, where their cursor is, and who is in the document.', 'docs'],
   ['chat', 'Docs: Word export and comments', 'Download your documents as Word (.docx) and comment on any sentence; replies and new comments arrive live.', 'docs'],
