@@ -1,0 +1,1 @@
+Pyodide 314.0.7 (MPL-2.0) — CPython compiled to WebAssembly — https://github.com/pyodide/pyodide — core runtime and standard library only, unmodified

@@ -43,7 +43,7 @@ infrastructure each pending item needs). Status words mean:
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
 | **Social** — community chat, servers/channels, DMs, voice rooms (WebRTC), profiles, plaza, feed, clans, reports/moderation | Implemented (existing). |
 | **Nova AI** — chat with history, per-conversation model choice, streaming, Markdown/code, web search, images, voice, Nova Agent (PRO), Nova Agents team (OS), tutor (Study) | Implemented / Connected (provider keys in Admin → AI; free models otherwise). |
-| **Developer** — Nebulix Code (repos), Studio, Terminal, **Developer Toolbox** (JSON, regex, encoders + SHA-256, UUID/passwords, timestamps, cron, colours/gradients, diff, Markdown, text tools — new in 3.0), Nerd Lab, Security Lab | Implemented. QR codes, HTTP request tester (server-side, SSRF-protected) and SQL playground (sql.js) added in phase 11. Pending: isolated Python (needs sandboxed execution on compute nodes). |
+| **Developer** — Nebulix Code (repos), Studio, Terminal, **Developer Toolbox** (JSON, regex, encoders + SHA-256, UUID/passwords, timestamps, cron, colours/gradients, diff, Markdown, text tools — new in 3.0), Nerd Lab, Security Lab | Implemented. QR codes, HTTP request tester (server-side, SSRF-protected) and SQL playground (sql.js) added in phase 11. Python playground in the browser (Pyodide/WebAssembly, phase 14). Pending: other runtimes, server-side execution. |
 | **Education** — Nebulix Study (notes, flashcards SRS, AI tutor, quizzes, live class quizzes, grades, exams, tools) | Implemented (existing). |
 | **Browser** — proxy browser, links, VPN mode | Implemented (existing). |
 | **Economy** — coins, gems, bank, invest, market, shop, daily rewards, achievements, quests; server-side validation | Implemented (existing; unchanged in 3.0 except new arcade game entries with plausibility checks). |
@@ -258,9 +258,18 @@ first), real overlapping replacements return null; `mergeJson` merges objects ke
   one paragraph, server copy, two edits to one cell, bold + new value on one cell, a move + a text edit on one slide
   element, no console errors), stable over 3 runs; all earlier co-editing suites still pass.
 
+## 3n. What phase 14 added (v15.5.0)
+
+**Python playground** (`#/devtools/python`): Pyodide 314.0.7 (CPython 3.14, MPL-2.0; core runtime + stdlib vendored
+unmodified in `public/js/vendor/pyodide`, ~13 MB, loaded only when the tool is used) inside a module Web Worker
+(`public/js/pyworker.js`). Nothing executes on the server; the worker has no DOM; Stop terminates the worker. stdin
+lines feed `input()`. Extra packages (numpy, …) are not available because they would come from a third-party CDN.
+Tested in the browser: demo with statistics/math/f-strings/input() (first load ~4 s), traceback, page responsive during
+an endless loop, Stop, run again after Stop, no console errors.
+
 ## 4. Next phases (in order)
 
-1. Python and other runtimes: in the browser (WebAssembly, no server execution) first; compute-node runtimes later.
+1. Production compute node (owner: a KVM server with HTTPS, then Admin → Compute) so Nebulix Android and Cloud PC work on the live site.
 2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
 3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
 

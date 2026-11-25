@@ -8,7 +8,7 @@ import { toast } from '../ui.js';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 
-const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['text', 'Text tools', 'edit'], ['qr', 'QR codes', 'grid'], ['http', 'HTTP requests', 'globe'], ['sql', 'SQL playground', 'layers']];
+const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['text', 'Text tools', 'edit'], ['qr', 'QR codes', 'grid'], ['http', 'HTTP requests', 'globe'], ['sql', 'SQL playground', 'layers'], ['python', 'Python', 'terminal']];
 const area = (val, rows = 10, attrs = {}) => { const ta = h('textarea.input.dt-area', Object.assign({ rows, spellcheck: 'false' }, attrs)); ta.value = val || ''; return ta; };
 const copyBtn = (get) => h('button.btn.sm', { onClick: () => navigator.clipboard.writeText(get()).then(() => toast(t('Copied!'), 'good', 1200)).catch(() => {}) }, icon('copy', 13), t('Copy'));
 const out = () => h('pre.dt-out');
@@ -159,6 +159,26 @@ const tools = {
     ed.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
     return [ed, h('div.dt-row', h('button.btn.sm.primary', { onClick: run }, icon('play', 13), t('Run') + ' (Ctrl+Enter)'), h('button.btn.sm', { onClick: reset }, t('New database')), h('button.btn.sm', { onClick: importDb }, icon('upload', 13), t('Open .sqlite')), h('button.btn.sm', { onClick: exportDb }, icon('download', 13), t('Download .sqlite'))),
       h('p.tiny.muted', t('A real SQLite database running in this tab (WebAssembly). It is not saved unless you download it.')), st, res];
+  },
+
+  python() { // CPython (Pyodide 314, MPL-2.0) in a Web Worker: runs only in this tab, Stop always works
+    const DEMO = "import math, statistics, json\n\nnotas = [7.5, 9, 6.25, 8, 10]\nprint('Media:', statistics.mean(notas))\nprint('Raíz de 2 ≈', round(math.sqrt(2), 6))\n\nnombre = input('¿Cómo te llamas? ')\nprint(f'¡Hola, {nombre}!')\n\n[n * n for n in range(1, 6)]";
+    const ed = area(saved('py', DEMO), 12, { class: 'input dt-area dt-mono' }); const stdin = area(saved('pyin', 'Nebulix'), 2, { class: 'input dt-area dt-mono', placeholder: t('Input for input(), one line per call') });
+    const out = h('pre.dt-out.dt-py'); const st = h('div.dt-status'); let w = null; let busy = false; let runId = 0;
+    const write = (txt, cls) => { const sp = h('span' + (cls ? '.' + cls : ''), txt + '\n'); out.append(sp); out.scrollTop = out.scrollHeight; };
+    const worker = () => { if (w) return w; w = new Worker('/js/pyworker.js', { type: 'module' }); w.onmessage = (e) => { const m = e.data;
+      if (m.type === 'out') write(m.text); else if (m.type === 'err') write(m.text, 'dt-bad');
+      else if (m.type === 'ready') { st.textContent = t('Python {v} ready ({ms} ms)', { v: m.version, ms: m.ms }); }
+      else if (m.type === 'done' && m.id === runId) { if (m.result !== null) write('→ ' + m.result, 'dt-res'); st.className = 'dt-status ok'; st.textContent = t('Finished in {ms} ms', { ms: m.ms }); busy = false; runBtn.disabled = false; }
+      else if (m.type === 'error' && m.id === runId) { write(m.message, 'dt-bad'); st.className = 'dt-status bad'; st.textContent = t('The program stopped with an error'); busy = false; runBtn.disabled = false; } };
+      w.onerror = (e) => { write(String(e.message || e), 'dt-bad'); st.className = 'dt-status bad'; st.textContent = t('Could not start Python'); busy = false; runBtn.disabled = false; w = null; };
+      return w; };
+    const run = () => { if (busy) return; ls('dt.py', ed.value); ls('dt.pyin', stdin.value); busy = true; runBtn.disabled = true; out.replaceChildren(); st.className = 'dt-status'; st.textContent = w ? t('Running…') : t('Loading Python (about 13 MB the first time)…'); worker().postMessage({ id: ++runId, code: ed.value, stdin: stdin.value }); };
+    const stop = () => { if (w) { w.terminate(); w = null; } if (busy) { write(t('Stopped.'), 'dt-bad'); st.className = 'dt-status bad'; st.textContent = t('Stopped — variables were reset'); } busy = false; runBtn.disabled = false; };
+    ed.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
+    const runBtn = h('button.btn.sm.primary', { onClick: run }, icon('play', 13), t('Run') + ' (Ctrl+Enter)');
+    return [ed, h('div.dt-row', runBtn, h('button.btn.sm', { onClick: stop }, icon('stop', 13), t('Stop')), h('button.btn.sm', { onClick: () => out.replaceChildren() }, t('Clear'))),
+      h('div.eyebrow', t('Input')), stdin, h('p.tiny.muted', t('Real CPython running in this tab (WebAssembly) — nothing runs on the server. Standard library only; variables persist between runs until you press Stop.')), st, out];
   },
 };
 

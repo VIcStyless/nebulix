@@ -2,6 +2,14 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.5",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 14: Python in the browser", "es": "Nebulix 3.0, fase 14: Python en el navegador" },
+    "changes": [
+      { "type": "new", "en": "Developer Toolbox → Python: real CPython 3 (WebAssembly) running only in your tab. Standard library, input(), tracebacks, and a Stop button that always works because programs run in a separate worker.", "es": "Caja de herramientas → Python: CPython 3 real (WebAssembly) que funciona solo en tu pestaña. Biblioteca estándar, input(), trazas de error y un botón Detener que siempre funciona porque los programas se ejecutan en un proceso aparte." }
+    ]
+  },
+  {
     "v": "15.4",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 13: no more lost edits when you write in the same place", "es": "Nebulix 3.0, fase 13: ya no se pierden cambios al escribir en el mismo sitio" },
