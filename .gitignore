@@ -26,3 +26,9 @@ public/vm/*.img
 Thumbs.db
 .idea/
 .vscode/
+
+# compute node downloads and state (services/compute-node/setup.sh)
+services/compute-node/sdk/
+services/compute-node/dl/
+services/compute-node/data/
+services/compute-node/scrcpy-server.jar

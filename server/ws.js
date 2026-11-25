@@ -91,6 +91,8 @@ class WSConn extends EventEmitter {
     this._frame(0x1, Buffer.from(typeof msg === 'string' ? msg : JSON.stringify(msg)));
   }
 
+  sendBinary(buf) { if (!this.closed) this._frame(0x2, buf); }
+
   close(code = 1000) {
     if (this.closed) return;
     const p = Buffer.alloc(2); p.writeUInt16BE(code);

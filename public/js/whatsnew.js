@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['phone', 'Nebulix Android: real Android devices', 'Create phones and tablets with real Android, install APKs, use them from your browser with touch and keyboard, and save snapshots.', 'android'],
   ['users', 'Docs: write together in real time', 'Edit a document with friends at the same time: you see their changes as they type, where their cursor is, and who is in the document.', 'docs'],
   ['chat', 'Docs: Word export and comments', 'Download your documents as Word (.docx) and comment on any sentence; replies and new comments arrive live.', 'docs'],
   ['calendar', 'Calendar & Tasks', 'Events that repeat, reminders as notifications, tasks with projects and subtasks — and your Study exams.', 'calendar'],

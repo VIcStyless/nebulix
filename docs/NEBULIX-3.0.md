@@ -29,7 +29,7 @@ infrastructure each pending item needs). Status words mean:
 | **Nebulix OS** (desktop, windows, snapping, taskbar, start menu, search, widgets, 4 virtual desktops, quick settings, glass/Linux effects, Alt+\` switcher, Ctrl+K palette) | Implemented | `public/js/os/desktop.js`, `os14.css` |
 | OS system apps: Files (local VFS), Text editor, Task Manager, Clipboard history, Screenshot (screen capture API), Camera, Calculator, Focus timer, System monitor, Command Center, Widgets, Nova Agents | Implemented | `public/js/os/apps.js`, `apps2.js` |
 | OS: PDF viewer, archive manager, download manager, startup apps, app permissions | Pending | needs file-type handlers in Files |
-| **Nebulix Android** | Implemented (in-browser): real Android-x86 emulated with v86/WebAssembly at `#/vm/android`, phone-style player, snapshots in IndexedDB. **Pending (cloud):** ARM devices, APK install over ADB, WebRTC streaming, GPS/orientation — needs external KVM nodes (Fly.io machines cannot nest-virtualise). Suggested: Browser → Nebulix API → session manager → worker (Android Emulator / Genymotion SaaS) → WebRTC. No Google Play. | `views/vm.js` |
+| **Nebulix Android** | **Implemented on compute nodes** (phase 9): real devices with the official Android Emulator + AOSP x86_64 images (API 21–36) under KVM, managed by `services/compute-node/agent.js`; H.264 stream (scrcpy server) decoded with WebCodecs; APKs, apps, files, screenshots, recording, clipboard, GPS, rotation, resolution, snapshots, shell, logcat, hardware settings, quotas. **Connected** in production only once the owner adds a node (Admin → Compute). No Google Play. The in-browser Android-x86 4.4 (v86) stays as an offline fallback. | `views/android.js`, `server/routes/android.js`, `server/compute.js`, `services/compute-node/` |
 | **Virtual machines** | Implemented (in-browser, v86): templates, ISO/IMG, disks, snapshots, clone, export, real Linux terminal. Pending: server-side VMs (Proxmox/QEMU/Kasm on separate nodes). | `views/vm.js` |
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
 | Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
@@ -157,12 +157,43 @@ infrastructure each pending item needs). Status words mean:
      paragraphs after the same heading, the same paragraph, bold + delete, reload, server killed and restarted while
      one editor kept typing offline), with no console errors.
 
+## 3i. What phase 9 added (v15.0.0)
+
+**Nebulix Android on separate compute nodes.**
+
+```
+Browser ──(REST: create / start / stop / ticket)──▶ Nebulix server (Fly.io) ──(HMAC-signed control API)──▶ compute node (KVM host)
+Browser ◀────────────────(WebSocket: H.264 + input, 10-minute ticket bound to one device and owner)──────────── compute node
+```
+
+* `services/compute-node/agent.js` (no npm dependencies, README + `setup.sh`): manages AVDs for the official Android
+  Emulator with AOSP `default` x86_64 images (no Google Play), quick-boot, named snapshots, adb, the emulator console and
+  scrcpy 3.3.4's server (H.264, control channel, clipboard). Up to `NX_MAX_RUNNING` devices at once, idle devices stop
+  after 30 min. Control calls need `Authorization: NX <ts>.<hmac>`; browser endpoints need a ticket. Host commands always
+  use argument arrays; `adb shell` runs inside the device.
+* `server/compute.js` + `server/routes/android.js`: node registry in `S.meta.compute` (owner-only, secrets never sent to
+  browsers), table `cdevices` (per-user quota: free 1, PRO 2–5, staff 10; free hardware ≤ 2 CPU / 3 GB / 6 GB), health
+  checks, tickets, node origins added to the CSP `connect-src`. Admin → Compute tab.
+* `public/js/views/android.js` (`#/android`, OS app “Nebulix Android”): device list, create dialog, device page with the
+  WebCodecs player (mouse/touch/multi-touch, wheel, keyboard and text, right-click = back, Ctrl+V pastes), navigation
+  bar, and Apps / Files / Device / Snapshots / Shell / Logs panels.
+* Tested on a real KVM host (this repo's dev machine): 40 API/node checks (no-node honesty, owner-only node admin, wrong
+  secret, quotas and hardware caps, boot in ~40 s, stream handshake, HOME key over the control channel, forged tickets,
+  unsigned calls, screenshot PNG, APK install of F-Droid, launch, uninstall, snapshot restore bringing it back, file
+  upload/list/download, traversal and missing files, GPS, resolution, logcat, MP4 recording, stopped-device errors) and
+  6 browser checks (H.264 decoded on the canvas at 720×1280, a mouse click opening Gallery inside Android, no console
+  errors, no mobile overflow). Bugs found and fixed while testing: adb accepting the forward before scrcpy listens
+  (now waits for the dummy byte), adb offline for ~3 s after a snapshot restore, node errors surfacing as HTTP 500,
+  orphaned devices that could not be deleted, a loading overlay that never hid.
+* **Production needs a node**: Fly.io machines cannot run KVM. Run the agent on a KVM server behind HTTPS and add it in
+  Admin → Compute. Until then `#/android` says so and offers the in-browser Android-x86.
+
 ## 4. Next phases (in order)
 
 1. Office: the same live sessions for Sheets (cell operations) and Slides (element operations); character-level
    merging inside one paragraph in Docs.
-2. Cloud Android / server-side VMs: separate compute nodes with KVM, a session manager service and WebRTC streaming;
-   the Fly.io app only brokers sessions. Needs hardware/hosting decisions and budget from the owner.
+2. Server-side Linux VMs (Cloud PC) on the same compute nodes: QEMU/KVM + VNC over WebSocket, reusing the node
+   registry, tickets and quotas from Nebulix Android.
 
 ## 5. How to verify
 

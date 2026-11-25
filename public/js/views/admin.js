@@ -18,7 +18,7 @@ export default {
     if (!isStaff()) { mount(root, h('div.page', h('div.empty', h('div.empty-art.ea-mark'), h('h3', t('Staff only'))))); return () => {}; }
     const TABS = [['overview', 'Overview', 'monitor', overview], ['users', 'Users', 'users', users], ['reports', 'Reports', 'flag', reports], ['content', 'Content', 'layers', content], ['modlog', 'Moderation log', 'clock', modlog]];
     if (isAdmin()) TABS.splice(2, 0, ['coins', 'Coins', 'coins', coinsTab], ['control', 'Control', 'power', controlTab]);
-    if (isAdmin()) TABS.push(['ai', 'AI', 'bolt', aiTab], ['groles', 'Community roles', 'shield', groles], ['codes', 'PRO codes', 'gift', codes], ['announce', 'Announce', 'bell', announce], ['system', 'System', 'server', system]);
+    if (isAdmin()) TABS.push(['ai', 'AI', 'bolt', aiTab], ['groles', 'Community roles', 'shield', groles], ['codes', 'PRO codes', 'gift', codes], ['announce', 'Announce', 'bell', announce], ['system', 'System', 'server', system], ['compute', 'Compute', 'cpu', computeTab]);
     let cleanup = null, token = 0;
     const body = h('div.adm-body');
     const first = TABS.some((x) => x[0] === ctx.params[0]) ? ctx.params[0] : 'overview';
@@ -335,4 +335,28 @@ async function controlTab(box) {
   mount(box, lockBox, onBox, h('p.tiny.muted', t('Nebulix never shows you other people’s screens: that would break their privacy. You see the same activity status their friends see.')));
   paintLock(); loadOnline(); timer = setInterval(loadOnline, 10000);
   return () => clearInterval(timer);
+}
+
+// Nebulix 3.0: compute nodes (separate KVM servers that run Nebulix Android). Only the owner can add or remove them.
+async function computeTab(box) {
+  const listEl = h('div.col', { style: 'gap:10px' });
+  const gb = (n) => (n / 1073741824).toFixed(1) + ' GB';
+  async function load() {
+    let r; try { r = await api.get('/api/admin/compute'); } catch (e) { mount(listEl, h('span.error', e.message)); return; }
+    mount(listEl, r.nodes.length ? r.nodes.map((n) => { const hh = n.health || {}; return h('div.card.cn-node', { style: 'padding:14px' },
+      h('div.row', { style: 'gap:10px' }, h('b.grow', n.name), h('span.an-state.' + (hh.ok ? 'good' : 'bad'), hh.ok ? t('Online') : t('Offline')), n.enabled ? null : h('span.an-state.idle', t('Paused'))),
+      h('div.tiny.muted', n.url + ' · ' + t('{n} devices', { n: n.devices })),
+      hh.ok ? h('div.small', { style: 'margin-top:6px' }, [t('Agent {v}', { v: hh.version }), 'KVM ' + (hh.kvm ? '✓' : '✗'), hh.cpus + ' CPU', gb(hh.memFree) + ' / ' + gb(hh.memTotal) + ' RAM', t('{a} of {b} running', { a: hh.running, b: hh.maxRunning }), t('Android {v}', { v: (hh.images || []).map((i) => i.android).join(', ') || '—' })].join(' · ')) : h('div.small.error', hh.error || ''),
+      owner() ? h('div.row', { style: 'gap:6px;margin-top:8px' },
+        h('button.btn.sm', { onClick: async () => { try { await api.put('/api/admin/compute/' + n.id, { enabled: !n.enabled }); load(); } catch (e) { toastErr(e); } } }, n.enabled ? t('Pause') : t('Resume')),
+        h('button.btn.sm.danger', { onClick: async () => { if (!await confirmBox(t('Remove this node? Its devices stop being reachable from Nebulix.'), { danger: true })) return; try { await api.delete('/api/admin/compute/' + n.id); load(); } catch (e) { toastErr(e); } } }, t('Remove'))) : null); })
+      : h('p.muted', t('No compute nodes yet. Nebulix Android needs at least one.')));
+  }
+  const name = h('input', { placeholder: 'node-1' }); const url = h('input', { placeholder: 'https://node1.example.com' }); const secret = h('input', { type: 'password', placeholder: 'NX_NODE_SECRET', autocomplete: 'off' });
+  const add = owner() ? h('div.card', { style: 'padding:14px' }, h('h3', t('Connect a compute node')),
+    h('p.small.muted', t('A compute node is a Linux server with KVM that runs services/compute-node/agent.js (see its README). Enter its public HTTPS address and the same NX_NODE_SECRET you set on it. The secret is stored on the server and never sent to browsers.')),
+    h('div.an-hw', field(t('Name'), name), field(t('Address'), url), field(t('Secret'), secret)),
+    h('button.btn.primary', { onClick: async () => { try { await api.post('/api/admin/compute', { name: name.value, url: url.value, secret: secret.value }); secret.value = ''; toast(t('Node connected'), 'good'); load(); } catch (e) { toastErr(e); } } }, icon('plus', 15), t('Connect'))) : null;
+  mount(box, h('div.col', { style: 'gap:14px' }, h('p.small.muted', t('Heavy services (Android devices) run on separate servers so they never slow down the Nebulix web server.')), listEl, add));
+  await load();
 }

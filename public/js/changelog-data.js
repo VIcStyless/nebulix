@@ -2,6 +2,36 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.0",
+    "date": "2026-11-25",
+    "title": {
+      "en": "Nebulix 3.0, phase 9: Nebulix Android — real Android devices",
+      "es": "Nebulix 3.0, fase 9: Nebulix Android, dispositivos Android reales"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Nebulix Android: create real Android phones and tablets (official Android Emulator, open-source Android 5–16, hardware virtualisation) and use them from the browser with mouse, touch and keyboard. They run on separate Nebulix compute servers, so the website stays fast.",
+        "es": "Nebulix Android: crea móviles y tablets con Android real (el emulador oficial de Android, Android de código abierto del 5 al 16, virtualización por hardware) y úsalos desde el navegador con el ratón, la pantalla táctil y el teclado. Funcionan en servidores de cómputo aparte, así la web sigue rápida."
+      },
+      {
+        "type": "new",
+        "en": "Install APKs by dragging them in, open, stop and uninstall apps, send files to the device and download them, take screenshots and record the screen, share the clipboard both ways, set the GPS location, rotate and change the resolution.",
+        "es": "Instala APK arrastrándolos, abre, detén y desinstala apps, envía archivos al dispositivo y descárgalos, haz capturas y graba la pantalla, comparte el portapapeles en los dos sentidos, fija la ubicación GPS, gira la pantalla y cambia la resolución."
+      },
+      {
+        "type": "new",
+        "en": "Snapshots: save the whole device and go back to that moment. Stopping a device saves where you left off. Plus adb shell commands, logs and adjustable processor, memory and storage.",
+        "es": "Instantáneas: guarda todo el dispositivo y vuelve a ese momento. Al detener un dispositivo se guarda dónde lo dejaste. Además, comandos adb shell, registros y procesador, memoria y almacenamiento ajustables."
+      },
+      {
+        "type": "new",
+        "en": "Admin → Compute: connect and monitor compute nodes. Nebulix shows honestly when no node is connected — Google Play is not included.",
+        "es": "Admin → Cómputo: conecta y supervisa los nodos de cómputo. Nebulix indica claramente cuándo no hay ningún nodo conectado. No incluye Google Play."
+      }
+    ]
+  },
+  {
     "v": "14.9",
     "date": "2026-11-25",
     "title": {
