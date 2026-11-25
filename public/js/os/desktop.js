@@ -106,7 +106,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   const root = h('div.os-desktop', { onContextmenu: (e) => { if (e.target === root || e.target === winLayer || e.target === wallEl || e.target.closest('.os-icons') === iconsEl && !e.target.closest('.os-icon')) { e.preventDefault(); deskMenu(e); } } },
     wallEl, iconsEl, widgetsEl, dwLayer, winLayer, snapPrev, gbar, gdock, startEl, taskbar, hotEl);
   const offWidgets = mountWidgets(dwLayer);
-  window.__nbxOs = { list: () => [...wins.values()].map((w) => ({ name: w.name, title: w.title || t(appOf(w.name)[1]), ws: w.ws || 0, min: !!w.min, focused: focused === w })), focus: (n) => { const w = wins.get(n); if (w) focus(w); }, close: (n) => { const w = wins.get(n); if (w) close(w); } };
+  window.__nbxOs = { list: () => [...wins.values()].map((w) => ({ name: w.name, title: w.title || t(appOf(w.name)[1]), ws: w.ws || 0, min: !!w.min, focused: focused === w })), focus: (n) => { const w = wins.get(n); if (w) focus(w); }, close: (n) => { const w = wins.get(n); if (w) close(w); }, appName: (n) => appOf(n)[1] };
   const onCopy = () => { const txt = String(document.getSelection() || '').trim(); if (!txt || txt.length > 20000) return; const l = (ls('os.clip') || []).filter((y) => y.t !== txt); l.unshift({ t: txt, at: Date.now() }); const pins = l.filter((y) => y.pin); ls('os.clip', [...new Set([...l.slice(0, 40), ...pins])]); dispatchEvent(new Event('nbx:clip')); };
   document.addEventListener('copy', onCopy);
   // Alt+` (and Alt+Shift+`): window switcher with live previews of every open window, like Alt+Tab
@@ -436,7 +436,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
     const launch = (n) => { toggleStart(false); go(n); };
     const q = h('input.os-sq', { placeholder: linux ? t('Type to search') : t('Search for apps, settings, and documents'), 'aria-label': t('Search'), onInput: () => paint() });
     const body = h('div.os-sbody');
-    const appBtn = (n, size) => h('button.os-sapp', { onClick: () => launch(n), onContextmenu: (ev) => { ev.preventDefault(); openMenu([{ label: t('Open'), icon: 'external', onClick: () => launch(n) }, { label: pinsOf().includes(n) ? t('Unpin from taskbar') : t('Pin to taskbar'), icon: 'pin', onClick: () => togglePin(n) }], ev); } }, tile(n, size, '.sti'), h('span', t(appOf(n)[1])));
+    const appBtn = (n, size) => h('button.os-sapp', { onClick: () => launch(n), onContextmenu: (ev) => { ev.preventDefault(); openMenu([{ label: t('Open'), icon: 'external', onClick: () => launch(n) }, { label: pinsOf().includes(n) ? t('Unpin from taskbar') : t('Pin to taskbar'), icon: 'pin', onClick: () => togglePin(n) }, { label: (ls('os.startup') || []).includes(n) ? t('Do not open at startup') : t('Open at startup'), icon: 'power', onClick: () => toggleStartup(n) }], ev); } }, tile(n, size, '.sti'), h('span', t(appOf(n)[1])));
     const match = () => { const s = q.value.trim().toLowerCase(); return apps.filter(([n, l]) => t(l).toLowerCase().includes(s) || n.includes(s) || t(metaOf(n)[2] || '').toLowerCase().includes(s)).map(([n]) => n); };
     function paint() {
       const s = q.value.trim();
@@ -525,7 +525,13 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   applyWall(); paintIcons(); paintWidgets(); paintTask(); tickClock(); loadProg(); loadLive(); boot();
   const liveT = setInterval(() => { if (os().widgets) loadLive(); }, 60000);
   api.post('/api/progress/event', { type: 'os' }, { quiet: true }).catch(() => {});
-  const restoreSession = (skip) => { if (os().restore === false) return; for (const n of (ls('os.session') || []).filter((x) => x !== 'camera').slice(0, 6)) if (n !== skip && loaders[n] && (n !== 'admin' || isStaff())) open(n, { params: [], query: new URLSearchParams() }); };
+  const restoreSession = (skip) => {
+    const ok = (n) => n !== skip && loaders[n] && (n !== 'admin' || isStaff()) && !wins.has(n);
+    if (os().restore !== false) for (const n of (ls('os.session') || []).filter((x) => x !== 'camera').slice(0, 6)) if (ok(n)) open(n, { params: [], query: new URLSearchParams() });
+    for (const n of (ls('os.startup') || []).slice(0, 8)) if (ok(n)) open(n, { params: [], query: new URLSearchParams() }); // 3.0: startup apps
+  };
+  const startupOf = () => ls('os.startup') || [];
+  const toggleStartup = (n) => { const l = startupOf(); ls('os.startup', l.includes(n) ? l.filter((x) => x !== n) : [...l, n].slice(0, 8)); toast(l.includes(n) ? t('Will no longer open at startup') : t('Will open when Nebulix OS starts'), 'good'); };
   const saveSession = debounce(() => ls('os.session', [...wins.keys()]), 500);
   return {
     el: root, open, wins,

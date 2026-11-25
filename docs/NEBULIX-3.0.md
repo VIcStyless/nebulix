@@ -28,7 +28,7 @@ infrastructure each pending item needs). Status words mean:
 |---|---|---|
 | **Nebulix OS** (desktop, windows, snapping, taskbar, start menu, search, widgets, 4 virtual desktops, quick settings, glass/Linux effects, Alt+\` switcher, Ctrl+K palette) | Implemented | `public/js/os/desktop.js`, `os14.css` |
 | OS system apps: Files (local VFS), Text editor, Task Manager, Clipboard history, Screenshot (screen capture API), Camera, Calculator, Focus timer, System monitor, Command Center, Widgets, Nova Agents | Implemented | `public/js/os/apps.js`, `apps2.js` |
-| OS: PDF viewer, archive manager, download manager, startup apps, app permissions | Pending | needs file-type handlers in Files |
+| OS: PDF viewer, archive manager (ZIP list/extract/compress), startup apps (phase 11); app permissions (Hub apps, phase 4) | Implemented. Pending: a download manager (needs a server-side download queue) | `os/apps2.js`, `zipread.js` |
 | **Nebulix Android** | **Implemented on compute nodes** (phase 9): real devices with the official Android Emulator + AOSP x86_64 images (API 21–36) under KVM, managed by `services/compute-node/agent.js`; H.264 stream (scrcpy server) decoded with WebCodecs; APKs, apps, files, screenshots, recording, clipboard, GPS, rotation, resolution, snapshots, shell, logcat, hardware settings, quotas. **Connected** in production only once the owner adds a node (Admin → Compute). No Google Play. The in-browser Android-x86 4.4 (v86) stays as an offline fallback. | `views/android.js`, `server/routes/android.js`, `server/compute.js`, `services/compute-node/` |
 | **Virtual machines** | In-browser (v86): templates, ISO/IMG, disks, snapshots, clone, export, Linux terminal. **Cloud PC (phase 10): server-side QEMU/KVM VMs on compute nodes** — ready-made qcow2 systems or ISOs, noVNC screen, ACPI shutdown / force off / reset, key combos, PNG screenshots, disk+memory snapshots, live CPU/RAM, hardware settings, quotas. Connected in production once a node is added. | `views/vm.js`, `views/cloudpc.js`, `services/compute-node/` |
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
@@ -43,7 +43,7 @@ infrastructure each pending item needs). Status words mean:
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
 | **Social** — community chat, servers/channels, DMs, voice rooms (WebRTC), profiles, plaza, feed, clans, reports/moderation | Implemented (existing). |
 | **Nova AI** — chat with history, per-conversation model choice, streaming, Markdown/code, web search, images, voice, Nova Agent (PRO), Nova Agents team (OS), tutor (Study) | Implemented / Connected (provider keys in Admin → AI; free models otherwise). |
-| **Developer** — Nebulix Code (repos), Studio, Terminal, **Developer Toolbox** (JSON, regex, encoders + SHA-256, UUID/passwords, timestamps, cron, colours/gradients, diff, Markdown, text tools — new in 3.0), Nerd Lab, Security Lab | Implemented. Pending: QR generator, HTTP request tester (needs a server-side fetch with SSRF protection), SQL playground, isolated Python. |
+| **Developer** — Nebulix Code (repos), Studio, Terminal, **Developer Toolbox** (JSON, regex, encoders + SHA-256, UUID/passwords, timestamps, cron, colours/gradients, diff, Markdown, text tools — new in 3.0), Nerd Lab, Security Lab | Implemented. QR codes, HTTP request tester (server-side, SSRF-protected) and SQL playground (sql.js) added in phase 11. Pending: isolated Python (needs sandboxed execution on compute nodes). |
 | **Education** — Nebulix Study (notes, flashcards SRS, AI tutor, quizzes, live class quizzes, grades, exams, tools) | Implemented (existing). |
 | **Browser** — proxy browser, links, VPN mode | Implemented (existing). |
 | **Economy** — coins, gems, bank, invest, market, shop, daily rewards, achievements, quests; server-side validation | Implemented (existing; unchanged in 3.0 except new arcade game entries with plausibility checks). |
@@ -209,12 +209,30 @@ Browser ◀────────────────(WebSocket: H.264 + i
 * Known flake: one full Android run (right after restarting the agent) had 2 failing checks that did not reproduce in
   the next three runs (40/40 each); the log showed stream reconnects around a snapshot restore. Watch for it.
 
+## 3k. What phase 11 added (v15.2.0)
+
+1. **Files (Nebulix OS):** binary files are stored as data URLs (importing a PDF/ZIP used to corrupt it — fixed);
+   PDFs open in the browser's own viewer inside a window (`frame-src blob:` added to the CSP for this); ZIP archives
+   are listed and extracted with `public/js/zipread.js` (stored + deflate via `DecompressionStream`, entry and size
+   limits counted while inflating, `..` path parts dropped); any file or folder can be compressed to ZIP.
+2. **Startup apps:** “Open at startup” in the Start menu (`os.startup`), opened after the session restore; listed and
+   removable in the Task Manager.
+3. **Developer Toolbox:** QR codes (qrcode-generator 2.0.4, MIT, vendored; UTF-8 via TextEncoder), HTTP request tester
+   (`POST /api/devtools/http`, verified users, 30/min, reuses the proxy's SSRF guard: scheme/credential/port/host checks
+   and connect-time DNS validation; no automatic redirects; 1 MB cap; 12 s timeout) and SQL playground (sql.js 1.17.0,
+   MIT, vendored; open/download .sqlite).
+4. Tested: 17 HTTP-tester checks (public GET/POST with headers and body, redirect not followed, blocked loopback,
+   localhost, 169.254.169.254, 10/8, 192.168/16, ::1, a public DNS name resolving to 127.0.0.1, IPv4-mapped IPv6,
+   decimal IP, port 22, ftp, credentials, header injection, anonymous) and 11 browser checks (QR drawn incl. UTF-8,
+   SQLite query results, PDF rendered in the viewer window with no CSP error, archive listing, extract-all of deflated
+   text + subfolder + PNG, compress-and-read-back, startup app opened on reload, no console errors).
+
 ## 4. Next phases (in order)
 
 1. Office: the same live sessions for Sheets (cell operations) and Slides (element operations); character-level
    merging inside one paragraph in Docs.
-2. OS file handlers (PDF viewer, archive manager, download manager, startup apps) and developer tools (QR codes,
-   HTTP request tester with SSRF protection, SQL playground).
+2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
+3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
 
 ## 5. How to verify
 

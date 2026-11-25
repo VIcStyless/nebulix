@@ -8,6 +8,8 @@ import { api } from '../api.js';
 import { S } from '../state.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, confirmBox, promptBox, openMenu, modal } from '../ui.js';
+import { readZip } from '../zipread.js';
+import { zipFiles } from '../zipwrite.js';
 
 // ================= virtual file system (localStorage) =================
 const ROOTS = [['/Home', 'Home', 'home'], ['/Home/Desktop', 'Desktop', 'layout'], ['/Home/Documents', 'Documents', 'note'], ['/Home/Pictures', 'Pictures', 'image'], ['/Home/Music', 'Music', 'music'], ['/Home/Downloads', 'Downloads', 'download']];
@@ -25,6 +27,50 @@ export const vfs = {
 };
 const isText = (x) => x && !x.d && /^text\/|json|markdown/.test(x.m || 'text/plain');
 const isImg = (x) => x && !x.d && /^image\//.test(x.m || '');
+// 3.0: binary files (PDF, ZIP, anything that is not text or an image) are kept as data: URLs so nothing is corrupted
+const TEXT_EXT = /\.(txt|md|markdown|json|js|mjs|ts|css|html?|xml|csv|tsv|ya?ml|ini|log|py|java|c|cpp|h|rs|go|sh|sql|svg|toml)$/i;
+const isTextFile = (f) => /^text\//.test(f.type) || /json|xml|javascript|markdown/.test(f.type) || (!f.type && TEXT_EXT.test(f.name)) || TEXT_EXT.test(f.name);
+const isPdf = (x) => x && !x.d && (x.m === 'application/pdf' || /\.pdf$/i.test(x.name || x.path || ''));
+const isZip = (x) => x && !x.d && (/zip/.test(x.m || '') || /\.zip$/i.test(x.name || x.path || ''));
+const isData = (x) => typeof x.v === 'string' && x.v.startsWith('data:');
+function bytesOf(x) { if (isData(x)) { const b = atob(x.v.slice(x.v.indexOf(',') + 1)); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; } return new TextEncoder().encode(x.v || ''); }
+const toDataUrl = (blob) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+const MIME = { pdf: 'application/pdf', zip: 'application/zip', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', txt: 'text/plain', md: 'text/markdown', json: 'application/json', html: 'text/html', css: 'text/css', js: 'text/javascript', csv: 'text/csv', mp3: 'audio/mpeg', mp4: 'video/mp4' };
+const mimeOf = (name) => MIME[(name.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
+function pdfViewer(x) { // the browser's own PDF viewer, in an Nebulix window
+  const url = URL.createObjectURL(new Blob([bytesOf(x)], { type: 'application/pdf' }));
+  modal({ title: x.name, cls: 'wide fx-pdfm', body: h('iframe.fx-pdf', { src: url, title: x.name }), actions: [{ label: t('Download'), onClick: () => { const a = h('a', { href: url, download: x.name }); a.click(); return false; } }, { label: t('Close'), kind: 'primary' }] }).then(() => setTimeout(() => URL.revokeObjectURL(url), 1000));
+}
+async function archiveViewer(x, dir, after) {
+  let z; try { z = await readZip(bytesOf(x)); } catch (e) { toast({ not_zip: t('This file is not a ZIP archive'), zip64: t('ZIP64 archives are not supported'), too_many: t('Too many files in this archive'), corrupt: t('The archive is damaged') }[e.message] || e.message, 'err'); return; }
+  const files = z.entries.filter((e) => !e.dir); const total = files.reduce((a, e) => a + e.size, 0);
+  async function extract(list, target) {
+    let ok = 0; let skipped = 0;
+    for (const e of list) {
+      try {
+        const data = await z.extract(e); const parts = e.name.split('/').filter((s2) => s2 && s2 !== '..' && s2 !== '.'); if (!parts.length) continue;
+        let cur = target; for (const d of parts.slice(0, -1)) { cur += '/' + d.replace(/[\\]/g, '-'); if (!vfs.get(cur)) vfs.mkdir(cur); }
+        const name = parts[parts.length - 1]; const m = mimeOf(name); const text = /^text\/|json/.test(m);
+        const v = text ? new TextDecoder().decode(data) : await toDataUrl(new Blob([data], { type: m }));
+        if (vfs.write(vfs.unique(cur, name), v, m)) ok++; else { skipped++; break; }
+      } catch { skipped++; }
+    }
+    toast(skipped ? t('{a} files extracted, {b} skipped (too big or no space)', { a: ok, b: skipped }) : t('{a} files extracted', { a: ok }), skipped ? 'err' : 'good'); after && after();
+  }
+  const base = x.name.replace(/\.zip$/i, '');
+  modal({ title: x.name, cls: 'wide', body: h('div.col', { style: 'gap:8px' }, h('div.small.muted', t('{n} files · {s} uncompressed', { n: files.length, s: fmt.bytes(total) })),
+    h('div.fx-zl', files.slice(0, 400).map((e) => h('div.fx-zr', h('span.grow.ellipsis', e.name), h('span.tiny.muted', fmt.bytes(e.size)), h('button.btn.sm.ghost', { title: t('Extract'), onClick: () => extract([e], dir) }, icon('download', 13))))),
+    files.length > 400 ? h('p.tiny.muted', t('Showing 400 of {n}', { n: files.length })) : null),
+  actions: [{ label: t('Close'), value: false }, { label: t('Extract all to “{n}”', { n: base }), kind: 'primary', onClick: async () => { const target = vfs.unique(dir, base); vfs.mkdir(target); await extract(files, target); } }] });
+}
+async function compress(x, dir, after) {
+  const entries = []; const root = x.path; const all = vfs.load().n;
+  for (const [p, it] of Object.entries(all)) if (!it.d && (p === root || p.startsWith(root + '/'))) entries.push({ path: x.d ? root.split('/').pop() + p.slice(root.length) : x.name, file: new Blob([bytesOf(it)]) });
+  if (!entries.length) return toast(t('This folder is empty'), 'err');
+  const blob = await zipFiles(entries); if (blob.size > 2 * 1048576) return toast(t('The ZIP would be bigger than 2 MB — too big for Files'), 'err');
+  const name = (x.d ? x.name : x.name.replace(/\.[^.]+$/, '')) + '.zip';
+  if (vfs.write(vfs.unique(dir, name), await toDataUrl(blob), 'application/zip')) toast(t('Created {n}', { n: name }), 'good'); after && after();
+}
 const FOLDER_COL = { Desktop: '#ec4899', Documents: '#3b82f6', Pictures: '#22c55e', Music: '#a855f7', Downloads: '#f59e0b', Trash: '#64748b' };
 function folderArt(name, size = 56) {
   const c = FOLDER_COL[name] || '#facc15';
@@ -44,13 +90,13 @@ const files = {
     const search = h('input.input.sm.fx-search', { placeholder: t('Search'), onInput: (e) => { q = e.target.value.toLowerCase(); paint(); } });
     const go = (dir, push = true) => { if (push && dir !== cwd) { backS.push(cwd); fwdS.length = 0; } cwd = dir; sel = null; q = ''; search.value = ''; paint(); };
     const tb = (ic, label, fn) => h('button.fx-tb', { title: label, 'aria-label': label, onClick: fn }, icon(ic, 16));
-    const openItem = (x) => { if (x.d) return go(x.path); if (isText(x)) return ctx.go('texted', { f: x.path }); if (isImg(x)) return modal({ title: x.name, cls: 'wide', body: h('img', { src: x.v, alt: x.name, style: 'max-width:100%;border-radius:10px' }), actions: [{ label: t('Close'), kind: 'primary' }] }); download(x); };
-    const download = (x) => { const a = document.createElement('a'); a.href = isImg(x) ? x.v : URL.createObjectURL(new Blob([x.v || ''], { type: x.m || 'text/plain' })); a.download = x.name; a.click(); };
+    const openItem = (x) => { if (x.d) return go(x.path); if (isText(x)) return ctx.go('texted', { f: x.path }); if (isPdf(x)) return pdfViewer(x); if (isZip(x)) return archiveViewer(x, cwd, paint); if (isImg(x)) return modal({ title: x.name, cls: 'wide', body: h('img', { src: x.v, alt: x.name, style: 'max-width:100%;border-radius:10px' }), actions: [{ label: t('Close'), kind: 'primary' }] }); download(x); };
+    const download = (x) => { const a = document.createElement('a'); a.href = isImg(x) || isData(x) ? x.v : URL.createObjectURL(new Blob([x.v || ''], { type: x.m || 'text/plain' })); a.download = x.name; a.click(); };
     const newFolder = async () => { const n = await promptBox(t('New folder'), { label: t('Name'), value: t('New folder') }); if (!n) return; vfs.mkdir(vfs.unique(cwd, n.replace(/\//g, '-'))); paint(); };
     const newFile = async () => { const n = await promptBox(t('New text file'), { label: t('Name'), value: 'note.txt' }); if (!n) return; const p = vfs.unique(cwd, n.replace(/\//g, '-')); vfs.write(p, '', /\.md$/i.test(p) ? 'text/markdown' : 'text/plain'); paint(); ctx.go('texted', { f: p }); };
-    const importFiles = () => { const i = h('input', { type: 'file', multiple: true, onChange: async () => { for (const f of i.files) { if (f.size > 2 * 1048576) { toast(t('{n} is too big (max 2 MB)', { n: f.name }), 'err'); continue; } const img = f.type.startsWith('image/'); const v = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); if (img) r.readAsDataURL(f); else r.readAsText(f); }); vfs.write(vfs.unique(cwd, f.name), v, f.type || 'text/plain'); } paint(); } }); i.click(); };
+    const importFiles = () => { const i = h('input', { type: 'file', multiple: true, onChange: async () => { for (const f of i.files) { if (f.size > 2 * 1048576) { toast(t('{n} is too big (max 2 MB)', { n: f.name }), 'err'); continue; } const asText = isTextFile(f) && !f.type.startsWith('image/'); const v = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); if (asText) r.readAsText(f); else r.readAsDataURL(f); }); vfs.write(vfs.unique(cwd, f.name), v, f.type || mimeOf(f.name)); } paint(); } }); i.click(); };
     const ctxMenu = (e, x) => { e.preventDefault(); e.stopPropagation(); sel = x.path; paint(); const inTrash = cwd === '/Trash';
-      openMenu([{ label: t('Open'), icon: 'external', onClick: () => openItem(x) }, !x.d ? { label: t('Download'), icon: 'download', onClick: () => download(x) } : null,
+      openMenu([{ label: t('Open'), icon: 'external', onClick: () => openItem(x) }, !x.d ? { label: t('Download'), icon: 'download', onClick: () => download(x) } : null, isZip(x) ? { label: t('Open archive'), icon: 'layers', onClick: () => archiveViewer(x, cwd, paint) } : null, cwd !== '/Trash' ? { label: t('Compress to ZIP'), icon: 'layers', onClick: () => compress(x, cwd, paint) } : null,
         { label: t('Rename'), icon: 'edit', onClick: async () => { const n = await promptBox(t('Rename'), { label: t('Name'), value: x.name }); if (n && n !== x.name) { if (!vfs.move(x.path, cwd + '/' + n.replace(/\//g, '-'))) toast(t('That name is already used'), 'err'); paint(); } } },
         inTrash ? { label: t('Restore'), icon: 'refresh', onClick: () => { vfs.move(x.path, vfs.unique('/Home/Documents', x.name)); paint(); } } : null,
         { hr: true }, { label: inTrash ? t('Delete forever') : t('Move to Trash'), icon: 'trash', danger: true, onClick: async () => { if (inTrash) { if (await confirmBox(t('Delete “{n}” forever?', { n: x.name }), { danger: true })) vfs.remove(x.path); } else vfs.move(x.path, vfs.unique('/Trash', x.name)); paint(); } }].filter(Boolean), e); };
@@ -276,7 +322,8 @@ const taskmgr = {
         m ? (() => { const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 300 60'); sv.setAttribute('class', 'tm2-chart'); sv.innerHTML = '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + pts + '"/>'; return sv; })() : null,
         h('table.tm2-table', h('thead', h('tr', h('th', t('App')), h('th', t('Desktop')), h('th', t('State')), h('th', ''))), h('tbody', list.length ? list.map((w) => h('tr', h('td', h('b', w.title)), h('td', String(w.ws + 1)), h('td', w.min ? t('Minimized') : w.focused ? t('Active') : t('Open')),
           h('td.tm2-act', h('button.btn.sm.ghost', { onClick: () => os.focus(w.name) }, t('Switch to')), h('button.btn.sm.danger', { onClick: () => { os.close(w.name); setTimeout(paint, 200); } }, t('End task'))))) : h('tr', h('td', { colspan: 4 }, h('span.muted', t('No other windows are open.')))))),
-        h('p.tiny.muted', t('Every app runs inside this browser tab. Ending a task closes its window and frees its memory.'))));
+        h('p.tiny.muted', t('Every app runs inside this browser tab. Ending a task closes its window and frees its memory.')),
+        h('h4.tm2-h', t('Startup apps')), (() => { const st = ls('os.startup') || []; return st.length ? h('div.tm2-st', st.map((n) => h('div.row', { style: 'gap:8px;align-items:center' }, h('span.grow', os && os.appName ? t(os.appName(n)) : n), h('button.btn.sm.ghost', { onClick: () => { ls('os.startup', (ls('os.startup') || []).filter((x) => x !== n)); paint(); } }, t('Remove'))))) : h('p.tiny.muted', t('No apps open at startup. Right-click an app in Start and choose “Open at startup”.')); })()));
     }
     raf = requestAnimationFrame(loop); paint();
     return () => cancelAnimationFrame(raf);

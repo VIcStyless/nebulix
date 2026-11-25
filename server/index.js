@@ -29,7 +29,7 @@ function appCsp() {
   const ws = cfg.appOrigins().map((o) => o.replace(/^http/, 'ws')).join(' ');
   return [
     "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self' 'unsafe-inline'", `img-src 'self' data: blob: https://image.pollinations.ai ${cfg.proxyOrigin} https://*.scdn.co https://*.spotifycdn.com https://*.sndcdn.com https://*.ytimg.com https://*.mm.bing.net https://*.bing.com https://*.bing.net https://*.wikimedia.org https://static-cdn.jtvnw.net`, "font-src 'self' data:",
-    `connect-src 'self' ${ws} https://text.pollinations.ai https://api.llm7.io ${require('./compute').cspOrigins()}`, `frame-src ${cfg.proxyOrigin}${cfg.gamesOrigin ? ' ' + cfg.gamesOrigin : ''} https://open.spotify.com https://w.soundcloud.com https://www.youtube-nocookie.com https://player.twitch.tv https://www.twitch.tv 'self'`, "media-src 'self' blob: data:", "worker-src 'self' blob:", "object-src 'none'",
+    `connect-src 'self' ${ws} https://text.pollinations.ai https://api.llm7.io ${require('./compute').cspOrigins()}`, `frame-src blob: ${cfg.proxyOrigin}${cfg.gamesOrigin ? ' ' + cfg.gamesOrigin : ''} https://open.spotify.com https://w.soundcloud.com https://www.youtube-nocookie.com https://player.twitch.tv https://www.twitch.tv 'self'`, "media-src 'self' blob: data:", "worker-src 'self' blob:", "object-src 'none'",
     "base-uri 'none'", "form-action 'self'", `frame-ancestors 'self' ${cfg.appOrigins().join(' ')}`, // only Nebulix itself (the about:blank launcher, mirrors) may frame the app
   ].join('; ');
 }
@@ -222,7 +222,7 @@ function register() {
   registered = true;
   router = new Router();
   authMod = require('./routes/auth'); chatMod = require('./routes/chat');
-  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links', 'study', 'fusion', 'mods', 'gems', 'calendar', 'android']) require('./routes/' + m)(router);
+  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links', 'study', 'fusion', 'mods', 'gems', 'calendar', 'android', 'devtools']) require('./routes/' + m)(router);
   engine = require('./proxy/engine');
 }
 

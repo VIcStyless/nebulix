@@ -2,6 +2,17 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.2",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 11: PDFs, ZIP archives, startup apps and new developer tools", "es": "Nebulix 3.0, fase 11: PDF, archivos ZIP, apps de inicio y nuevas herramientas para desarrolladores" },
+    "changes": [
+      { "type": "new", "en": "Nebulix OS Files: open PDFs in a viewer window, browse ZIP archives and extract them (one file or everything), and compress any file or folder into a ZIP.", "es": "Archivos de Nebulix OS: abre PDF en una ventana de visor, explora archivos ZIP y extráelos (un archivo o todo) y comprime cualquier archivo o carpeta en un ZIP." },
+      { "type": "new", "en": "Startup apps: right-click an app in Start and choose “Open at startup”; manage the list in the Task Manager.", "es": "Apps de inicio: haz clic derecho en una app de Inicio y elige «Abrir al iniciar»; gestiona la lista en el Administrador de tareas." },
+      { "type": "new", "en": "Developer Toolbox: QR code generator (UTF-8, colours, PNG), HTTP request tester sent from the server with SSRF protection, and a SQL playground with a real SQLite database in your browser (open and download .sqlite files).", "es": "Caja de herramientas: generador de códigos QR (UTF-8, colores, PNG), probador de peticiones HTTP enviado desde el servidor con protección contra SSRF y zona de pruebas SQL con una base de datos SQLite real en tu navegador (abre y descarga archivos .sqlite)." },
+      { "type": "fixed", "en": "Files: importing a PDF, ZIP or other binary file no longer corrupts it (it used to be read as text).", "es": "Archivos: importar un PDF, un ZIP u otro archivo binario ya no lo estropea (antes se leía como texto)." }
+    ]
+  },
+  {
     "v": "15.1",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 10: Nebulix Cloud PC", "es": "Nebulix 3.0, fase 10: Nebulix Cloud PC" },

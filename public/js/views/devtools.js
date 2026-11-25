@@ -6,8 +6,9 @@ import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from '../ui.js';
 import { renderMarkdown } from '../markdown.js';
+import { api } from '../api.js';
 
-const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['text', 'Text tools', 'edit']];
+const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['text', 'Text tools', 'edit'], ['qr', 'QR codes', 'grid'], ['http', 'HTTP requests', 'globe'], ['sql', 'SQL playground', 'layers']];
 const area = (val, rows = 10, attrs = {}) => { const ta = h('textarea.input.dt-area', Object.assign({ rows, spellcheck: 'false' }, attrs)); ta.value = val || ''; return ta; };
 const copyBtn = (get) => h('button.btn.sm', { onClick: () => navigator.clipboard.writeText(get()).then(() => toast(t('Copied!'), 'good', 1200)).catch(() => {}) }, icon('copy', 13), t('Copy'));
 const out = () => h('pre.dt-out');
@@ -96,6 +97,69 @@ const tools = {
     inp.addEventListener('input', stats); setTimeout(stats);
     return [inp, st, h('div.dt-row', ops.map(([n, fn]) => h('button.btn.sm', { onClick: () => { inp.value = fn(inp.value); stats(); } }, n))), copyBtn(() => inp.value)];
   },
+
+  qr() { // qrcode-generator (MIT), vendored; text is encoded as UTF-8 bytes
+    const inp = area(saved('qr', 'https://nebulix.fly.dev'), 4); const ec = h('select.input', ['L', 'M', 'Q', 'H'].map((x) => h('option', { value: x, selected: x === 'M' }, x)));
+    const fg = h('input', { type: 'color', value: '#111827', 'aria-label': t('Colour') }); const bg = h('input', { type: 'color', value: '#ffffff', 'aria-label': t('Background') });
+    const canvas = h('canvas.dt-qr', { width: 320, height: 320, role: 'img', 'aria-label': t('QR code') }); const info = h('div.dt-status');
+    const draw = async () => {
+      ls('dt.qr', inp.value); const { qrcode } = await import('../vendor/qrcode/qrcode.mjs');
+      qrcode.stringToBytes = (s) => [...new TextEncoder().encode(s)];
+      try {
+        const q = qrcode(0, ec.value); q.addData(inp.value || ' ', 'Byte'); q.make(); const n = q.getModuleCount(); const quiet = 4; const px = Math.floor(320 / (n + quiet * 2));
+        canvas.width = canvas.height = px * (n + quiet * 2); const g = canvas.getContext('2d'); g.fillStyle = bg.value; g.fillRect(0, 0, canvas.width, canvas.height); g.fillStyle = fg.value;
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect((c + quiet) * px, (r + quiet) * px, px, px);
+        info.className = 'dt-status ok'; info.textContent = t('Version {v} · {n}×{n} modules · {b} bytes', { v: (n - 17) / 4, n, b: new TextEncoder().encode(inp.value).length });
+      } catch (e) { info.className = 'dt-status bad'; info.textContent = t('Too much text for one QR code'); }
+    };
+    [inp, ec, fg, bg].forEach((x) => x.addEventListener('input', draw)); ec.addEventListener('change', draw); setTimeout(draw);
+    const save = () => canvas.toBlob((b) => { const a = h('a', { href: URL.createObjectURL(b), download: 'qr.png' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); });
+    return [inp, h('div.dt-row', h('label.tiny.muted', t('Error correction')), ec, fg, bg, h('button.btn.sm.primary', { onClick: save }, icon('download', 13), t('Download PNG'))), info, canvas];
+  },
+  http() { // sent by the Nebulix server (SSRF-protected: public addresses only), see server/routes/devtools.js
+    const method = h('select.input', ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].map((m) => h('option', m)));
+    const url = h('input.input.dt-mono', { value: saved('httpu', 'https://api.github.com/zen'), placeholder: 'https://…', 'aria-label': 'URL' });
+    const hdrs = area(saved('httph', 'Accept: application/json'), 4, { placeholder: 'Header: value' }); const body = area(saved('httpb', ''), 5, { placeholder: t('Body (JSON, text…)') });
+    const res = h('div.dt-http'); const go = h('button.btn.primary', t('Send'));
+    const send = async () => {
+      ls('dt.httpu', url.value); ls('dt.httph', hdrs.value); ls('dt.httpb', body.value);
+      const headers = {}; for (const line of hdrs.value.split('\n')) { const i = line.indexOf(':'); if (i > 0) headers[line.slice(0, i).trim()] = line.slice(i + 1).trim(); }
+      go.disabled = true; mount(res, h('span.spinner'));
+      try {
+        const r = await api.post('/api/devtools/http', { method: method.value, url: url.value, headers, body: body.value || null });
+        let shown = r.body; if (shown && /json/i.test(r.contentType)) { try { shown = JSON.stringify(JSON.parse(shown), null, 2); } catch {} }
+        mount(res, h('div.dt-row', h('b.dt-code.' + (r.status < 300 ? 'ok' : r.status < 400 ? 'warn' : 'bad'), r.status + ' ' + (r.statusText || '')), h('span.tiny.muted', r.ms + ' ms · ' + t('first byte {n} ms', { n: r.ttfb }) + ' · ' + r.size + ' B' + (r.truncated ? ' · ' + t('cut at 1 MB') : ''))),
+          h('details', h('summary', t('Response headers ({n})', { n: Object.keys(r.headers).length })), h('pre.dt-out', Object.entries(r.headers).map(([k, v]) => k + ': ' + v).join('\n'))),
+          r.body != null ? h('pre.dt-out', shown) : h('p.small.muted', t('Binary response ({t}) — {n} bytes', { t: r.contentType || '?', n: r.size })), r.body != null ? copyBtn(() => r.body) : null);
+      } catch (e) { mount(res, h('div.dt-status.bad', e.message)); } finally { go.disabled = false; }
+    };
+    go.onclick = send; url.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+    return [h('div.dt-row', method, url, go), h('div.dt-cols', h('div', h('div.eyebrow', t('Headers')), hdrs), h('div', h('div.eyebrow', 'Body'), body)),
+      h('p.tiny.muted', t('Sent from the Nebulix server so CORS does not get in the way. Only public addresses; private networks, localhost and internal ports are blocked. 30 requests per minute.')), res];
+  },
+  sql() { // sql.js (MIT): SQLite compiled to WebAssembly, running entirely in this tab
+    const DEMO = "CREATE TABLE juegos (id INTEGER PRIMARY KEY, nombre TEXT, genero TEXT, puntos INT);\nINSERT INTO juegos (nombre, genero, puntos) VALUES\n ('Snake','Clásico',1200),('Ajedrez','Estrategia',1800),('Sudoku','Puzzle',950),('Space Rocks','Acción',2100);\nSELECT genero, COUNT(*) AS juegos, MAX(puntos) AS record FROM juegos GROUP BY genero ORDER BY record DESC;";
+    const ed = area(saved('sql', DEMO), 9, { class: 'input dt-area dt-mono' }); const res = h('div.dt-sql'); const st = h('div.dt-status'); let db = null; let SQL = null;
+    const load = async () => {
+      if (SQL) return SQL;
+      if (!window.initSqlJs) await new Promise((ok, bad) => { const s = h('script', { src: '/js/vendor/sqljs/sql-wasm.js' }); s.onload = ok; s.onerror = () => bad(new Error(t('Could not load SQLite'))); document.head.append(s); });
+      SQL = await window.initSqlJs({ locateFile: (f) => '/js/vendor/sqljs/' + f }); return SQL;
+    };
+    const run = async () => {
+      ls('dt.sql', ed.value); st.className = 'dt-status'; st.textContent = t('Running…');
+      try {
+        await load(); if (!db) db = new SQL.Database(); const t0 = performance.now(); const out = db.exec(ed.value); const ms = Math.round(performance.now() - t0);
+        st.className = 'dt-status ok'; st.textContent = t('{n} result sets · {m} rows changed · {ms} ms', { n: out.length, m: db.getRowsModified(), ms });
+        mount(res, out.map((r) => h('div.dt-tablewrap', h('table.dt-table', h('thead', h('tr', r.columns.map((c) => h('th', c)))), h('tbody', r.values.slice(0, 500).map((row) => h('tr', row.map((v) => h('td', v === null ? h('i.muted', 'NULL') : v instanceof Uint8Array ? '<blob ' + v.length + ' B>' : String(v))))))), r.values.length > 500 ? h('p.tiny.muted', t('Showing 500 of {n} rows', { n: r.values.length })) : null)));
+      } catch (e) { st.className = 'dt-status bad'; st.textContent = e.message; }
+    };
+    const reset = () => { if (db) db.close(); db = null; mount(res); st.textContent = t('Empty database'); };
+    const exportDb = () => { if (!db) return; const a = h('a', { href: URL.createObjectURL(new Blob([db.export()], { type: 'application/x-sqlite3' })), download: 'nebulix.sqlite' }); a.click(); };
+    const importDb = () => { const i = h('input', { type: 'file', accept: '.sqlite,.db,.sqlite3', onChange: async () => { const f = i.files[0]; if (!f) return; await load(); if (db) db.close(); db = new SQL.Database(new Uint8Array(await f.arrayBuffer())); const tbl = db.exec("SELECT name FROM sqlite_master WHERE type='table'"); st.className = 'dt-status ok'; st.textContent = t('Opened {f}: {n} tables', { f: f.name, n: tbl.length ? tbl[0].values.length : 0 }); } }); i.click(); };
+    ed.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
+    return [ed, h('div.dt-row', h('button.btn.sm.primary', { onClick: run }, icon('play', 13), t('Run') + ' (Ctrl+Enter)'), h('button.btn.sm', { onClick: reset }, t('New database')), h('button.btn.sm', { onClick: importDb }, icon('upload', 13), t('Open .sqlite')), h('button.btn.sm', { onClick: exportDb }, icon('download', 13), t('Download .sqlite'))),
+      h('p.tiny.muted', t('A real SQLite database running in this tab (WebAssembly). It is not saved unless you download it.')), st, res];
+  },
 };
 
 export default {
@@ -104,7 +168,7 @@ export default {
     let tool = TOOLS.some((x) => x[0] === ctx.params[0]) ? ctx.params[0] : ls('dt.tool') || 'json';
     const nav = h('nav.dt-nav'); const body = h('section.dt-body');
     const paint = () => { ls('dt.tool', tool); history.replaceState(null, '', '#/devtools/' + tool); mount(nav, TOOLS.map(([k, l, ic]) => h('button.dt-tab' + (k === tool ? '.on' : ''), { onClick: () => { tool = k; paint(); } }, icon(ic, 15), h('span', t(l))))); const cur = TOOLS.find((x) => x[0] === tool); mount(body, h('h3.dt-h', icon(cur[2], 18), ' ', t(cur[1])), tools[tool]()); };
-    mount(root, h('div.inner.dt', h('div.page-title', h('div', h('h2', icon('terminal', 22), ' ', t('Developer Toolbox')), h('p', t('Everyday developer utilities. Everything runs in your browser; nothing is uploaded.')))), h('div.dt-layout', nav, body)));
+    mount(root, h('div.inner.dt', h('div.page-title', h('div', h('h2', icon('terminal', 22), ' ', t('Developer Toolbox')), h('p', t('Everyday developer utilities. Everything runs in your browser, except the HTTP tester, which sends your request from the Nebulix server.')))), h('div.dt-layout', nav, body)));
     paint();
     return () => {};
   },

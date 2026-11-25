@@ -632,3 +632,18 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .cpc-meter em { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #6366f1); transition: width .4s; }
 .cpc-meter b { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 980px) { .cpc-main { grid-template-columns: 1fr; } }
+
+/* Nebulix 3.0 — Toolbox: QR, HTTP, SQL */
+.dt-qr { max-width: 320px; width: 100%; height: auto; border-radius: 12px; image-rendering: pixelated; box-shadow: 0 8px 30px -10px rgba(0,0,0,.4); }
+.dt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dt-code { padding: 2px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.dt-code.ok { background: color-mix(in srgb, #22c55e 18%, transparent); color: #16a34a; } .dt-code.warn { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #d97706; } .dt-code.bad { background: color-mix(in srgb, #ef4444 18%, transparent); color: #dc2626; }
+.dt-http, .dt-sql { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; min-width: 0; }
+.dt-tablewrap { overflow: auto; max-height: 50vh; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+.dt-table { border-collapse: collapse; width: 100%; font: 12.5px/1.4 ui-monospace, monospace; }
+.dt-table th, .dt-table td { padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent); text-align: left; white-space: nowrap; }
+.dt-table th { position: sticky; top: 0; background: color-mix(in srgb, var(--text) 6%, var(--bg)); }
+@media (max-width: 700px) { .dt-cols { grid-template-columns: 1fr; } }
+.fx-pdf { width: 100%; height: min(75vh, 900px); border: 0; border-radius: 10px; background: #525659; }
+.fx-zl { max-height: 50vh; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.fx-zr { display: flex; gap: 8px; align-items: center; padding: 4px 8px; border-radius: 8px; min-width: 0; font-size: .84rem; } .fx-zr:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
