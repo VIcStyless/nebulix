@@ -335,10 +335,15 @@ so no Android emulator, and Cloud PC there would be as slow as on Fly. There is 
 
 ## 4. Next phases (in order)
 
-1. A KVM compute node for Nebulix Android (and faster Cloud PC): a bare-metal or nested-virtualisation server with HTTPS,
-   added in Admin → Compute. Fly.io cannot provide KVM.
-2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
-3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
+Everything that can be built without the owner's purchases or keys is done (phases 1–16). What remains needs the owner:
+
+1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start
+   SYS-GAME-1/2, Hetzner AX42 or an auction server) with HTTPS, set up with `services/compute-node/README.md` and added
+   in Admin → Compute. No free host can do this (Fly: no KVM; Oracle Always Free: ARM only).
+2. **API keys** for IGDB (Twitch client ID/secret), the Steam Web API and Discord, if those integrations are wanted
+   (keyless official APIs — FreeToGame, CheapShark — are already integrated).
+3. Optional later: server-side runtimes (Python with packages, other languages) on compute nodes, reusing the VM
+   isolation; today Python runs safely in the browser (phase 14).
 
 ## 5. How to verify
 
