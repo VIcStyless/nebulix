@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.3",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 12: real-time co-editing in Sheets and Slides", "es": "Nebulix 3.0, fase 12: edición en tiempo real en Sheets y Slides" },
+    "changes": [
+      { "type": "new", "en": "Sheets: edit a spreadsheet with others at the same time — cells, formats, formulas and column widths update live, and each person’s selected cell is outlined with their name.", "es": "Sheets: edita una hoja de cálculo con otras personas a la vez; las celdas, los formatos, las fórmulas y el ancho de las columnas se actualizan en directo y la celda seleccionada de cada persona aparece marcada con su nombre." },
+      { "type": "new", "en": "Slides: build a presentation together — new slides, text, shapes, images and the slide order sync live, with coloured dots on the slide each person is viewing.", "es": "Slides: haced una presentación juntos; las diapositivas nuevas, los textos, las formas, las imágenes y el orden se sincronizan en directo, con puntos de color en la diapositiva que ve cada persona." }
+    ]
+  },
+  {
     "v": "15.2",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 11: PDFs, ZIP archives, startup apps and new developer tools", "es": "Nebulix 3.0, fase 11: PDF, archivos ZIP, apps de inicio y nuevas herramientas para desarrolladores" },

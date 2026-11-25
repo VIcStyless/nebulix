@@ -6,6 +6,8 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState } from '../ui.js';
 import { officeHome, officeBar, autosaver } from '../office.js';
+import { liveObj } from '../objlive.js';
+import { peersEl } from '../doclive.js';
 
 const THEMES = {
   nebula: { bg: 'linear-gradient(135deg,#1e1b4b,#4c1d95 60%,#0e7490)', fg: '#f8fafc', accent: '#a78bfa', font: 'system-ui' },
@@ -35,9 +37,10 @@ export default {
     let it; try { it = (await api.get('/api/drive/item/' + encodeURIComponent(id))).item; } catch (e) { mount(wrap, emptyState('alert', t('Presentation not found'), e.message)); return () => {}; }
     ctx.setTitle && ctx.setTitle(it.name);
     const data = Object.assign({ theme: 'nebula', slides: [] }, it.data || {}); if (!data.slides.length) data.slides.push({ id: rid(), els: [] });
-    let cur = 0; let selEl = null; const edit = it.canEdit;
-    const bar = officeBar(it, { emoji: '📽️', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); } catch (e) { toastErr(e); } }, extra: h('button.btn.sm', { onClick: () => present() }, icon('play', 14), t('Present')) });
-    const save = autosaver(it.id, bar); const changed = () => { if (edit) save(JSON.parse(JSON.stringify(data))); paintStrip(); };
+    let cur = 0; let selEl = null; const edit = it.canEdit; let live = null; let peerList = [];
+    const peersBox = peersEl(); const liveTag = h('span.dl-status', { hidden: true });
+    const bar = officeBar(it, { emoji: '📽️', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); } catch (e) { toastErr(e); } }, extra: h('div.row', { style: 'gap:6px' }, peersBox, liveTag, h('button.btn.sm', { onClick: () => present() }, icon('play', 14), t('Present'))) });
+    const save = autosaver(it.id, bar); const changed = () => { if (edit) { if (live && live.everLive) live.changed(); else save(JSON.parse(JSON.stringify(data))); } paintStrip(); };
     const th = () => THEMES[data.theme] || THEMES.nebula;
     const slide = () => data.slides[cur];
     const addEl = (el) => { el.id = rid(); slide().els.push(el); selEl = el.id; paintStage(); changed(); };
@@ -85,7 +88,7 @@ export default {
       addEventListener('pointermove', mv); addEventListener('pointerup', up);
     }
     function paintStage() { mount(stage, renderSlide(slide(), { interactive: true })); fitUnits(); }
-    function paintStrip() { mount(strip, data.slides.map((s, i) => h('button.sl-th' + (i === cur ? '.on' : ''), { type: 'button', onClick: () => { cur = i; selEl = null; paintAll(); } }, h('span.sl-n', i + 1), h('div.sl-mini', renderSlide(s))))); for (const m of strip.querySelectorAll('.sl-mini')) m.style.setProperty('--u', (m.clientWidth / 1000) + 'px'); }
+    function paintStrip() { if (live && data.slides[cur]) live.cursor('s:' + data.slides[cur].id); mount(strip, data.slides.map((s, i) => h('button.sl-th' + (i === cur ? '.on' : ''), { type: 'button', onClick: () => { cur = i; selEl = null; paintAll(); } }, h('span.sl-n', i + 1), h('span.sl-peers', peerList.filter((p) => p.at === 's:' + s.id).map((p) => h('i', { style: 'background:' + p.color, title: p.displayName }))), h('div.sl-mini', renderSlide(s))))); for (const m of strip.querySelectorAll('.sl-mini')) m.style.setProperty('--u', (m.clientWidth / 1000) + 'px'); }
     function fitUnits() { const w = stage.clientWidth || 800; stage.style.setProperty('--u', (w / 1000) + 'px'); }
     function paintAll() { paintStrip(); paintStage(); }
     function present() {
@@ -99,7 +102,23 @@ export default {
     }
     mount(wrap, bar, edit ? tools : null, h('div.sl-body', strip, stageWrap));
     const ro = new ResizeObserver(() => { fitUnits(); }); ro.observe(stage);
+    // ---- live co-editing (3.0) ----
+    const ST = { live: ['Live', 'good'], saving: ['Live', 'good'], connecting: ['Connecting…', ''], reconnecting: ['Reconnecting…', 'warn'], offline: ['Offline — changes will be sent when you reconnect', 'warn'] };
+    function setData(d) {
+      const curId = data.slides[cur] && data.slides[cur].id; const old = new Map(data.slides.map((x) => [x.id, x]));
+      const next = d.slides.map((x) => { const o = old.get(x.id); return o && JSON.stringify(o) === JSON.stringify(x) ? o : x; }); // keep unchanged slide objects
+      const curChanged = !next.some((x) => x === old.get(curId));
+      data.slides.splice(0, data.slides.length, ...next); for (const [k, v] of Object.entries(d)) if (k !== 'slides') data[k] = v;
+      if (!data.slides.length) data.slides.push({ id: rid(), els: [] });
+      const ni = data.slides.findIndex((x) => x.id === curId); cur = ni >= 0 ? ni : Math.min(cur, data.slides.length - 1);
+      paintStrip();
+      if (curChanged) { const focusId = document.activeElement && stage.contains(document.activeElement) && document.activeElement.dataset.id; paintStage(); if (focusId) { const n = stage.querySelector('[data-id="' + focusId + '"]'); if (n) { n.focus(); const r = document.createRange(); r.selectNodeContents(n); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } } }
+    }
+    live = liveObj(it, { kind: 'slides', getData: () => data, canEdit: () => edit, beforeJoin: () => save.flush(), setData,
+      onStatus: (st) => { const x = ST[st]; liveTag.hidden = !x; if (x) { liveTag.textContent = t(x[0]); liveTag.className = 'dl-status ' + x[1]; } if (st === 'saving') bar.saving(); if (st === 'live' && data.slides[cur]) live && live.cursor('s:' + data.slides[cur].id); },
+      onSaved: () => bar.saved(), onPeers: (list) => { peerList = list; peersBox.set(list); paintStrip(); },
+      onLost: (why) => { if (why === 'too_big') toast(t('This document is too large (2 MB)'), 'err'); else if (why === 'read_only') toast(t('You can only read this document now'), 'err'); } });
     paintAll();
-    return () => { ro.disconnect(); save.flush(); };
+    return () => { ro.disconnect(); const lost = live.everLive && !live.live && live.unsent; live.destroy(); if (lost && edit) save(JSON.parse(JSON.stringify(data))); save.flush(); };
   },
 };

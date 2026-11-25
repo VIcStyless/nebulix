@@ -254,6 +254,7 @@ async function start(opts = {}) {
   const close = async () => {
     for (const s of servers) { try { s.closeAllConnections && s.closeAllConnections(); s.close(); } catch {} }
     try { require('./doclive').flushAll(); } catch {}
+    try { require('./objlive').flushAll(); } catch {}
     try { state.S.store.flushSync(); } catch (e) { console.error('[store] flush on close failed', e.message); }
   };
   return { port, servers, close, cfg };

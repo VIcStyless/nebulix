@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['users', 'Sheets and Slides: edit together in real time', 'Edit spreadsheets and presentations with others at the same time; see who is where.', 'sheets'],
   ['terminal', 'Toolbox: QR codes, HTTP requests and SQL', 'Make QR codes, test APIs from the server with SSRF protection, and run SQLite in your browser.', 'devtools'],
   ['folder', 'PDF, ZIP archives and startup apps in Nebulix OS', 'Open PDFs in Files, browse and extract ZIP archives, compress folders, and choose apps that open when the desktop starts.', 'changelog'],
   ['monitor', 'Nebulix Cloud PC: Linux in the cloud', 'Full Linux virtual machines on Nebulix compute servers, with snapshots and live CPU and memory usage.', 'cloudpc'],

@@ -6,6 +6,8 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState } from '../ui.js';
 import { officeHome, officeBar, autosaver } from '../office.js';
+import { liveObj } from '../objlive.js';
+import { peersEl } from '../doclive.js';
 
 const colName = (i) => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
 const colIdx = (s) => { let n = 0; for (const ch of s) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
@@ -80,9 +82,11 @@ export default {
     ctx.setTitle && ctx.setTitle(it.name);
     const data = Object.assign({ cells: {}, cols: 26, rows: 100, widths: {} }, it.data || {});
     const cells = data.cells; const COLS = Math.min(52, data.cols || 26); const ROWS = Math.min(1000, data.rows || 100);
-    let sel = 'A1'; let editing = false;
-    const bar = officeBar(it, { emoji: '📊', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); } catch (e) { toastErr(e); } }, extra: h('button.btn.sm', { onClick: exportCsv }, icon('download', 14), 'CSV') });
-    const save = autosaver(it.id, bar);
+    let sel = 'A1'; let editing = false; let editRef = null; let live = null;
+    const peersBox = peersEl(); const liveTag = h('span.dl-status', { hidden: true });
+    const bar = officeBar(it, { emoji: '📊', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); } catch (e) { toastErr(e); } }, extra: h('div.row', { style: 'gap:6px' }, peersBox, liveTag, h('button.btn.sm', { onClick: exportCsv }, icon('download', 14), 'CSV')) });
+    const save0 = autosaver(it.id, bar);
+    const save = () => { if (live && live.everLive) live.changed(); else save0(Object.assign({}, data)); }; // 3.0: live co-editing when connected
     const refBox = h('input.sh-ref', { value: sel, onKeydown: (e) => { if (e.key === 'Enter') { const r = e.target.value.toUpperCase(); if (parseRef(r)) select(r); } } });
     const fx = h('input.sh-fx', { readonly: !it.canEdit, onInput: () => { setRaw(sel, fx.value, true); }, onKeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); move(0, 1); grid.focus(); } } });
     const getC = (r) => (cells[r] && typeof cells[r] === 'object' ? cells[r] : { v: cells[r] ?? '' });
@@ -101,16 +105,16 @@ export default {
     table.append(h('colgroup', h('col', { style: 'width:46px' }), Array.from({ length: COLS }, (_, c) => h('col', { style: `width:${data.widths[colName(c)] || 100}px` }))), h('thead', head), h('tbody', body));
     table.style.width = (46 + Array.from({ length: COLS }, (_, c) => data.widths[colName(c)] || 100).reduce((a, b) => a + b, 0)) + 'px'; grid.append(table);
     function paintCell(ref, skipEval) {
-      const td = tds[ref]; if (!td) return; const c = getC(ref); const v = evaluate(cells, ref);
+      const td = tds[ref]; if (!td || (editing && ref === editRef)) return; const c = getC(ref); const v = evaluate(cells, ref);
       td.textContent = fmtV(v, c.f); td.className = (typeof v === 'number' ? 'n' : '') + (String(v).startsWith('#') ? ' err' : '') + (ref === sel ? ' sel' : '');
       td.style.fontWeight = c.b ? '700' : ''; td.style.fontStyle = c.i ? 'italic' : ''; td.style.background = c.bg || ''; td.style.color = c.c || ''; td.style.textAlign = c.al || '';
       if (skipEval) for (const r of Object.keys(cells)) if (r !== ref && typeof getC(r).v === 'string' && getC(r).v[0] === '=') paintCell(r);
     }
-    function paint() { for (const ref of Object.keys(tds)) if (cells[ref] !== undefined || tds[ref].textContent || tds[ref].classList.contains('sel')) paintCell(ref); tds[sel] && tds[sel].classList.add('sel'); fx.value = String(getC(sel).v ?? ''); }
-    function select(ref) { if (tds[sel]) tds[sel].classList.remove('sel'); sel = ref; tds[sel].classList.add('sel'); refBox.value = sel; fx.value = String(getC(sel).v ?? ''); tds[sel].scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    function paint() { for (const ref of Object.keys(tds)) if (cells[ref] !== undefined || tds[ref].textContent || tds[ref].classList.contains('sel')) paintCell(ref); tds[sel] && tds[sel].classList.add('sel'); if (document.activeElement !== fx) fx.value = String(getC(sel).v ?? ''); markPeers(); }
+    function select(ref) { if (tds[sel]) tds[sel].classList.remove('sel'); sel = ref; tds[sel].classList.add('sel'); refBox.value = sel; fx.value = String(getC(sel).v ?? ''); tds[sel].scrollIntoView({ block: 'nearest', inline: 'nearest' }); if (live) live.cursor(sel); }
     function move(dc, dr) { const [c, r] = parseRef(sel); select(colName(Math.max(0, Math.min(COLS - 1, c + dc))) + Math.max(1, Math.min(ROWS, r + 1 + dr))); }
     function editCell(initial) {
-      if (!it.canEdit || editing) return; editing = true; const td = tds[sel]; const ref = sel;
+      if (!it.canEdit || editing) return; editing = true; const td = tds[sel]; const ref = sel; editRef = ref;
       const inp = h('input.sh-in', { value: initial !== undefined ? initial : String(getC(ref).v ?? '') });
       td.textContent = ''; td.append(inp); inp.focus(); if (initial === undefined) inp.select();
       const done = (commit, dc = 0, dr = 0) => { if (!editing) return; editing = false; if (commit) setRaw(ref, inp.value); else paintCell(ref); inp.remove(); paintCell(ref); if (dc || dr) move(dc, dr); grid.focus(); };
@@ -130,7 +134,19 @@ export default {
     });
     function exportCsv() { let maxR = 0, maxC = 0; for (const r of Object.keys(cells)) { const p = parseRef(r); if (p) { maxC = Math.max(maxC, p[0]); maxR = Math.max(maxR, p[1]); } } const rows = []; for (let r = 0; r <= maxR; r++) { const row = []; for (let c = 0; c <= maxC; c++) { const v = fmtV(evaluate(cells, colName(c) + (r + 1)), getC(colName(c) + (r + 1)).f); row.push(/[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v); } rows.push(row.join(',')); } const a = h('a', { href: URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' })), download: it.name + '.csv' }); a.click(); toast(t('Downloaded'), 'good', 1200); }
     mount(wrap, bar, it.canEdit ? tools : null, h('div.sh-fxbar', refBox, h('span.sh-fxl', 'fx'), fx), grid);
+    // ---- live co-editing ----
+    let peerList = []; let marked = [];
+    function markPeers() {
+      for (const td of marked) { td.style.boxShadow = ''; td.removeAttribute('data-peer'); } marked = [];
+      for (const p of peerList) { const td = p.at && tds[p.at]; if (!td) continue; td.style.boxShadow = 'inset 0 0 0 2px ' + p.color; td.dataset.peer = p.displayName; td.style.setProperty('--pc', p.color); marked.push(td); }
+    }
+    const ST = { live: ['Live', 'good'], saving: ['Live', 'good'], connecting: ['Connecting…', ''], reconnecting: ['Reconnecting…', 'warn'], offline: ['Offline — changes will be sent when you reconnect', 'warn'] };
+    live = liveObj(it, { kind: 'sheet', getData: () => data, canEdit: () => it.canEdit, beforeJoin: () => save0.flush(),
+      setData: (d) => { for (const k of Object.keys(cells)) if (!(k in d.cells)) delete cells[k]; Object.assign(cells, d.cells); for (const [k, v] of Object.entries(d)) if (k !== 'cells') data[k] = v; paint(); },
+      onStatus: (st) => { const x = ST[st]; liveTag.hidden = !x; if (x) { liveTag.textContent = t(x[0]); liveTag.className = 'dl-status ' + x[1]; } if (st === 'saving') bar.saving(); if (st === 'live') live && live.cursor(sel); },
+      onSaved: () => bar.saved(), onPeers: (list) => { peerList = list; peersBox.set(list); markPeers(); },
+      onLost: (why) => { if (why === 'read_only') { it.canEdit = false; fx.readOnly = true; tools.remove(); toast(t('You can only read this document now'), 'err'); } else if (why === 'too_big') toast(t('This document is too large (2 MB)'), 'err'); } });
     paint(); select('A1'); grid.focus();
-    return () => save.flush();
+    return () => { const lost = live.everLive && !live.live && live.unsent; live.destroy(); if (lost && it.canEdit) save0(Object.assign({}, data)); save0.flush(); };
   },
 };

@@ -37,7 +37,7 @@ infrastructure each pending item needs). Status words mean:
 | Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
 | External game APIs (Steam, Epic, IGDB, Discord) | Pending — need API keys from the user; must use official APIs only. |
 | **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
-| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments and **real-time co-editing** (3.0). Pending: real-time co-editing in Sheets and Slides. | `views/docs.js`, `sheets.js`, `slides.js`, `notes.js`, `drive.js` |
+| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Pending: character-level merging inside one paragraph / one cell. | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
 | Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
 | **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Pending: layered image editor, video timeline editor, audio editor. |
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
@@ -227,10 +227,23 @@ Browser ◀────────────────(WebSocket: H.264 + i
    SQLite query results, PDF rendered in the viewer window with no CSP error, archive listing, extract-all of deflated
    text + subfolder + PNG, compress-and-read-back, startup app opened on reload, no console errors).
 
+## 3l. What phase 12 added (v15.3.0)
+
+**Real-time co-editing in Sheets and Slides** (`server/objlive.js`, `public/js/objlive.js`; WebSocket `ol_*`, HTTP
+`POST /api/drive/item/:id/olive` for big batches). A document is a map of keyed units — one per cell (`c:B4`), per
+slide (`s:<id>`), the slide order (`o:`) and settings (`m:<field>`); the same split/assemble code runs on both sides.
+Edits are “set unit to JSON / delete” batches, one in flight per client; remote changes to units with unconfirmed
+local edits are skipped, so copies converge (same cell at the same instant → the later batch wins). Concurrent slide
+additions both survive (slides missing from the winning order are appended). Presence: peers stack, the other
+people’s selected cell outlined with their name, dots on the slide each person views. Whole-document saves end the
+session; the stored data stays the plain `item.data`, so exports and older clients keep working.
+Tested: 10 protocol checks (units, relays, malformed ops, persistence, concurrent slide adds, presence, reset,
+private / view-only) and 10 checks with two browsers (different cells at once, a formula using the other person’s
+numbers, the same cell at once, outlines, server copy, two slides added at once, text edit, presence, no console errors).
+
 ## 4. Next phases (in order)
 
-1. Office: the same live sessions for Sheets (cell operations) and Slides (element operations); character-level
-   merging inside one paragraph in Docs.
+1. Character-level merging inside one Docs paragraph / one Sheets cell (today the later edit wins for that unit).
 2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
 3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
 

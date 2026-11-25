@@ -130,6 +130,7 @@ function attachWs(conn, u) {
     else if (typeof m.t === 'string' && m.t.startsWith('c3d_')) require('../c3d').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('hr_')) require('../hubrooms').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('dl_')) require('../doclive').onMessage(conn, u, m);
+    else if (typeof m.t === 'string' && m.t.startsWith('ol_')) require('../objlive').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('w3_')) require('../worlds').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('ar_')) require('../arena').onMessage(conn, u, m);
     else if (typeof m.t === 'string' && m.t.startsWith('st_')) { if (m.t === 'st_rehost') { const g = require('../study').rejoinHost(conn, u); if (g) conn.send({ t: 'st_room', pin: g.pin, title: g.title, n: g.qs.length, host: true, phase: g.phase, players: [...g.players.values()].map((p) => p.name) }); } else require('../study').onMessage(conn, u, m); }
@@ -170,6 +171,7 @@ function attachWs(conn, u) {
     if (conn.data.c3d) require('../c3d').leave(conn, u);
     if (conn.data.hr) require('../hubrooms').leave(conn, u);
     if (conn.data.dl) require('../doclive').onClose(conn);
+    if (conn.data.ol) require('../objlive').onClose(conn);
     if (conn.data.w3) require('../worlds').leave(conn, u);
     if (conn.data.arena) require('../arena').onClose(conn, u);
     if (conn.data.study) require('../study').onClose(conn, u);

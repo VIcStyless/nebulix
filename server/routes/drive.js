@@ -75,7 +75,7 @@ module.exports = function register(r) {
   });
   r.put('/api/drive/item/:id', { auth: true, verified: true, limit: [240, 60000, 'user'], bodyLimit: MAX_DATA + 65536 }, async (c) => {
     const it = get(c, true); const u = c.user; const b = c.body; const own = it.owner === u.id;
-    if (b.data !== undefined && it.kind !== 'folder' && it.kind !== 'file') { const s = JSON.stringify(b.data); if (s.length > MAX_DATA) throw new HttpError(413, 'too_big', 'This document is too large (2 MB)'); if (it.kind === 'doc') live.reset(it.id); /* ends the live session (saving it first) before the new content wins */ it.data = b.data; it.updated = now(); it.editedBy = u.id; }
+    if (b.data !== undefined && it.kind !== 'folder' && it.kind !== 'file') { const s = JSON.stringify(b.data); if (s.length > MAX_DATA) throw new HttpError(413, 'too_big', 'This document is too large (2 MB)'); if (it.kind === 'doc') live.reset(it.id); else require('../objlive').reset(it.id); /* ends the live session (saving it first) before the new content wins */ it.data = b.data; it.updated = now(); it.editedBy = u.id; }
     if (b.name !== undefined) it.name = clean(b.name, 120) || it.name;
     if (own) {
       if (b.starred !== undefined) it.starred = !!b.starred;
@@ -88,7 +88,7 @@ module.exports = function register(r) {
   r.delete('/api/drive/item/:id', { auth: true, verified: true }, async (c) => {
     const it = get(c); if (it.owner !== c.user.id) throw new HttpError(403, 'forbidden', 'Only the owner can delete it');
     const purge = (x) => { x.purged = true; if (x.kind === 'file') blobs.charge(c.user, -(x.size || 0)); for (const ch of Object.values(items())) if (ch.parent === x.id && !ch.purged) purge(ch); };
-    purge(it); live.reset(it.id); delete it.data; if (comments()[it.id]) { delete comments()[it.id]; S.store.touch('doccomments'); } touch(); return { ok: true };
+    purge(it); live.reset(it.id); require('../objlive').reset(it.id); delete it.data; if (comments()[it.id]) { delete comments()[it.id]; S.store.touch('doccomments'); } touch(); return { ok: true };
   });
   // ---- Nebulix 3.0: comments on documents (threads anchored to a quoted piece of text, replies, resolve) ----
   // Anyone who can open the document can comment; the author or the document's owner can delete a thread, and
@@ -136,6 +136,11 @@ module.exports = function register(r) {
   // Nebulix 3.0: co-editing batches too big for one WebSocket frame (an inline image, a big paste)
   r.post('/api/drive/item/:id/live', { auth: true, verified: true, limit: [120, 60000, 'user'], bodyLimit: MAX_DATA + 65536 }, async (c) => {
     get(c, true); const res = live.applyHttp(c.user, c.params.id, c.body || {});
+    if (res.error && res.error !== 'too_big') throw new HttpError(res.error === 'rate_limited' ? 429 : 409, res.error, res.error === 'read_only' ? 'You can only read this document' : 'Live session not found — reload the document');
+    return res;
+  });
+  r.post('/api/drive/item/:id/olive', { auth: true, verified: true, limit: [120, 60000, 'user'], bodyLimit: MAX_DATA + 65536 }, async (c) => { // Sheets/Slides live batches too big for one socket frame
+    get(c, true); const res = require('../objlive').applyHttp(c.user, c.params.id, c.body || {});
     if (res.error && res.error !== 'too_big') throw new HttpError(res.error === 'rate_limited' ? 429 : 409, res.error, res.error === 'read_only' ? 'You can only read this document' : 'Live session not found — reload the document');
     return res;
   });

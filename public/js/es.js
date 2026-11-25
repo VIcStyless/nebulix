@@ -6557,4 +6557,6 @@ export default {
   "Open PDFs in Files, browse and extract ZIP archives, compress folders, and choose apps that open when the desktop starts.": "Abre PDF en Archivos, explora y extrae archivos ZIP, comprime carpetas y elige las apps que se abren al iniciar el escritorio.",
   "Toolbox: QR codes, HTTP requests and SQL": "Caja de herramientas: códigos QR, peticiones HTTP y SQL",
   "Make QR codes, test APIs from the server with SSRF protection, and run SQLite in your browser.": "Crea códigos QR, prueba APIs desde el servidor con protección contra SSRF y ejecuta SQLite en tu navegador.",
+  "Sheets and Slides: edit together in real time": "Sheets y Slides: editad juntos en tiempo real",
+  "Edit spreadsheets and presentations with others at the same time; see who is where.": "Edita hojas de cálculo y presentaciones con otras personas a la vez y mira dónde está cada uno.",
 };
