@@ -25,8 +25,9 @@ async function homePage(root, ctx) {
     const online = st.nodes.filter((n) => n.online); const imgs = new Map(); for (const n of online) for (const i of n.vmImages) imgs.set(i.id, i);
     const head = h('header.an-hero.cpc-hero',
       h('div.an-hero-txt', h('div.eyebrow', t('Your computer in the cloud')), h('h1', 'Nebulix Cloud PC'),
-        h('p', t('Full Linux virtual machines with hardware virtualisation, on Nebulix compute servers. Use them from any browser; they keep their disk between sessions.')),
-        h('div.an-status', !st.configured ? h('span.an-state.bad', t('No compute node connected')) : online.length ? h('span.an-state.good', t('{n} compute node(s) online', { n: online.length })) : h('span.an-state.bad', t('Compute nodes offline')), h('span.tiny.muted', t('{a} of {b} machines', { a: st.used, b: st.quota })))),
+        h('p', t('Full Linux virtual machines on Nebulix compute servers. Use them from any browser; they keep their disk between sessions.')),
+        h('div.an-status', !st.configured ? h('span.an-state.bad', t('No compute node connected')) : online.length ? h('span.an-state.good', t('{n} compute node(s) online', { n: online.length })) : h('span.an-state.bad', t('Compute nodes offline')), h('span.tiny.muted', t('{a} of {b} machines', { a: st.used, b: st.quota }))),
+        online.length && online.every((n) => n.accel === 'tcg') ? h('p.tiny.muted.cpc-tcg', icon('alert', 12), ' ', t('These servers have no hardware virtualisation, so machines run in software emulation: they work, but start and run more slowly.')) : null),
       h('div.an-hero-actions', h('button.btn.primary', { disabled: !imgs.size || st.used >= st.quota, onClick: () => create([...imgs.values()]) }, icon('plus', 16), t('New machine')), h('a.btn', { href: '#/vm' }, icon('monitor', 16), t('Machines in this browser (offline)'))));
     let body;
     if (!st.configured) body = emptyState('monitor', t('Cloud PC is not connected yet'), t('Virtual machines run on separate servers with KVM, not on the Nebulix web server. Until a compute node is connected you can run small systems inside your browser.'), S.me && (S.me.role === 'owner' || S.me.role === 'admin') ? h('a.btn.primary', { href: '#/admin/compute' }, icon('gear', 15), t('Connect a compute node')) : null);

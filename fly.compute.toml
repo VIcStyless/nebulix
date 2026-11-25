@@ -1,0 +1,30 @@
+# Nebulix compute node on Fly.io (Cloud PC with QEMU software emulation — Fly machines have no KVM).
+# Deploy: fly deploy -c fly.compute.toml   ·   secret: NX_NODE_SECRET (also in NX_COMPUTE_NODES on the nebulix app)
+app = "nebulix-compute"
+primary_region = "cdg"
+kill_signal = "SIGTERM"
+kill_timeout = 90
+
+[build]
+  dockerfile = "services/compute-node/Dockerfile"
+
+[env]
+  NX_ALLOWED_ORIGINS = "https://nebulix.fly.dev,https://nebulix-play.fly.dev,https://nebulix-zone.fly.dev,https://nebulix-hq.fly.dev"
+  NX_MAX_RUNNING = "1"
+  NX_MAX_DEVICES = "40"
+  NX_IDLE_MINUTES = "20"
+
+[[mounts]]
+  source = "compute_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8790
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "performance-2x"
+  memory = "4gb"

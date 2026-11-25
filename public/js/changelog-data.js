@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.6",
+    "date": "2026-11-25",
+    "title": { "en": "Cloud PC is live on Nebulix's own compute server", "es": "Cloud PC ya funciona en el servidor de cómputo de Nebulix" },
+    "changes": [
+      { "type": "new", "en": "Nebulix now has its own compute server: create Debian 12 or Alpine Linux machines in Cloud PC and use them from your browser. The server has no hardware virtualisation, so machines run in software emulation — they work, but boot in about a minute and run slower.", "es": "Nebulix ya tiene su propio servidor de cómputo: crea máquinas con Debian 12 o Alpine Linux en Cloud PC y úsalas desde el navegador. El servidor no tiene virtualización por hardware, así que las máquinas funcionan con emulación por software: van bien, pero tardan alrededor de un minuto en arrancar y son más lentas." },
+      { "type": "improved", "en": "Nebulix Android explains clearly that it needs a server with hardware virtualisation, which the current compute server does not have.", "es": "Nebulix Android explica claramente que necesita un servidor con virtualización por hardware, que el servidor de cómputo actual no tiene." }
+    ]
+  },
+  {
     "v": "15.5",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 14: Python in the browser", "es": "Nebulix 3.0, fase 14: Python en el navegador" },

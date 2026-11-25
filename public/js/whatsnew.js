@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['monitor', 'Cloud PC is live', "Create Linux machines that run on Nebulix's own compute server and use them from your browser.", 'cloudpc'],
   ['terminal', 'Python in the Toolbox', 'Write and run real Python 3 in your browser, with input(), tracebacks and a Stop button.', 'devtools'],
   ['users', 'Sheets and Slides: edit together in real time', 'Edit spreadsheets and presentations with others at the same time; see who is where.', 'sheets'],
   ['terminal', 'Toolbox: QR codes, HTTP requests and SQL', 'Make QR codes, test APIs from the server with SSRF protection, and run SQLite in your browser.', 'devtools'],

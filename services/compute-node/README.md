@@ -65,6 +65,12 @@ Then in Nebulix: **Admin → Compute → Connect a compute node** with the node'
 | `NX_VM_IMAGES`, `NX_QEMU`, `NX_QEMU_IMG` | `./vm-images`, `qemu-system-x86_64`, `qemu-img` | Cloud PC images and binaries |
 | `NX_GPU` | `swiftshader_indirect` | Emulator GPU mode (`host` on servers with a GPU) |
 
+## Running on Fly.io
+
+`fly.compute.toml` deploys this agent as the app `nebulix-compute`. Fly machines have **no KVM**, so it runs Cloud PC
+machines with QEMU software emulation (slower) and cannot run Nebulix Android. Set `NX_NODE_SECRET` with
+`fly secrets` and give the Nebulix app the same secret in `NX_COMPUTE_NODES="name|https://nebulix-compute.fly.dev|<secret>"`.
+
 ## Security
 
 * Control calls must carry `Authorization: NX <ts>.<HMAC-SHA256(secret, ts \n METHOD \n path \n sha256(body))>`,

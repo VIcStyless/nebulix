@@ -346,8 +346,8 @@ async function computeTab(box) {
     mount(listEl, r.nodes.length ? r.nodes.map((n) => { const hh = n.health || {}; return h('div.card.cn-node', { style: 'padding:14px' },
       h('div.row', { style: 'gap:10px' }, h('b.grow', n.name), h('span.an-state.' + (hh.ok ? 'good' : 'bad'), hh.ok ? t('Online') : t('Offline')), n.enabled ? null : h('span.an-state.idle', t('Paused'))),
       h('div.tiny.muted', n.url + ' · ' + t('{n} devices', { n: n.devices })),
-      hh.ok ? h('div.small', { style: 'margin-top:6px' }, [t('Agent {v}', { v: hh.version }), 'KVM ' + (hh.kvm ? '✓' : '✗'), hh.cpus + ' CPU', gb(hh.memFree) + ' / ' + gb(hh.memTotal) + ' RAM', t('{a} of {b} running', { a: hh.running, b: hh.maxRunning }), t('Android {v}', { v: (hh.images || []).map((i) => i.android).join(', ') || '—' })].join(' · ')) : h('div.small.error', hh.error || ''),
-      owner() ? h('div.row', { style: 'gap:6px;margin-top:8px' },
+      hh.ok ? h('div.small', { style: 'margin-top:6px' }, [t('Agent {v}', { v: hh.version }), (hh.accel === 'tcg' ? t('software emulation (no KVM)') : 'KVM ✓'), hh.cpus + ' CPU', gb(hh.memFree) + ' / ' + gb(hh.memTotal) + ' RAM', t('{a} of {b} running', { a: hh.running, b: hh.maxRunning }), t('Android {v}', { v: (hh.images || []).map((i) => i.android).join(', ') || '—' })].join(' · ')) : h('div.small.error', hh.error || ''),
+      n.env ? h('p.tiny.muted', { style: 'margin-top:6px' }, t('Configured on the server (NX_COMPUTE_NODES) — change it with Fly secrets.')) : owner() ? h('div.row', { style: 'gap:6px;margin-top:8px' },
         h('button.btn.sm', { onClick: async () => { try { await api.put('/api/admin/compute/' + n.id, { enabled: !n.enabled }); load(); } catch (e) { toastErr(e); } } }, n.enabled ? t('Pause') : t('Resume')),
         h('button.btn.sm.danger', { onClick: async () => { if (!await confirmBox(t('Remove this node? Its devices stop being reachable from Nebulix.'), { danger: true })) return; try { await api.delete('/api/admin/compute/' + n.id); load(); } catch (e) { toastErr(e); } } }, t('Remove'))) : null); })
       : h('p.muted', t('No compute nodes yet. Nebulix Android needs at least one.')));

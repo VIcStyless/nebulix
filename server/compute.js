@@ -7,7 +7,12 @@ const crypto = require('crypto');
 const { S } = require('./state');
 const { HttpError } = require('./util');
 
-const nodes = () => ((S.meta.compute = S.meta.compute || { nodes: [] }).nodes);
+const nodes = () => (S.meta ? (S.meta.compute = S.meta.compute || { nodes: [] }).nodes : []);
+// Nodes can also come from the server environment (Fly secret NX_COMPUTE_NODES="name|https://url|secret;…"), so a
+// node can be connected without the secret ever passing through a browser. They are read-only in Admin → Compute.
+let envNodes = null;
+const fromEnv = () => envNodes || (envNodes = String(process.env.NX_COMPUTE_NODES || '').split(';').map((x) => x.trim()).filter(Boolean).map((x) => { const [name, url, secret] = x.split('|'); try { return { id: 'env-' + crypto.createHash('sha256').update(url).digest('hex').slice(0, 8), name, url: new URL(url).origin, secret, enabled: true, env: true }; } catch { return null; } }).filter((n) => n && n.secret && n.secret.length >= 32));
+const allNodes = () => [...fromEnv(), ...nodes()];
 const health = new Map(); // node id -> { at, ok, data, error }
 
 function sign(node, method, path, body) {
@@ -35,10 +40,10 @@ function ticket(node, deviceId, ownerId, scopes, ms = 10 * 60000) {
   const p = Buffer.from(JSON.stringify({ d: deviceId, o: ownerId, s: scopes.join(' '), e: Date.now() + ms })).toString('base64url');
   return p + '.' + crypto.createHmac('sha256', node.secret).update('ticket:' + p).digest('base64url');
 }
-const enabled = () => nodes().filter((n) => n.enabled !== false);
+const enabled = () => allNodes().filter((n) => n.enabled !== false);
 function cspOrigins() { // nodes the browser may talk to (stream / uploads)
   const out = []; for (const n of enabled()) { try { const u = new URL(n.url); out.push(u.origin, u.origin.replace(/^http/, 'ws')); } catch {} }
   return out.join(' ');
 }
-const publicNode = (n, h) => ({ id: n.id, name: n.name, online: !!(h && h.ok), images: h && h.ok ? h.data.images : [], vmImages: h && h.ok ? (h.data.vmImages || []).map((i) => ({ id: i.id, name: i.name, kind: i.kind })) : [], running: h && h.ok ? h.data.running : 0, maxRunning: h && h.ok ? h.data.maxRunning : 0, kvm: h && h.ok ? h.data.kvm : null });
-module.exports = { nodes, enabled, call, check, ticket, cspOrigins, publicNode, health };
+const publicNode = (n, h) => ({ id: n.id, name: n.name, online: !!(h && h.ok), images: h && h.ok ? h.data.images : [], vmImages: h && h.ok ? (h.data.vmImages || []).map((i) => ({ id: i.id, name: i.name, kind: i.kind })) : [], running: h && h.ok ? h.data.running : 0, maxRunning: h && h.ok ? h.data.maxRunning : 0, kvm: h && h.ok ? h.data.kvm : null, accel: h && h.ok ? h.data.accel || (h.data.kvm ? 'kvm' : 'tcg') : null });
+module.exports = { nodes, allNodes, enabled, call, check, ticket, cspOrigins, publicNode, health };

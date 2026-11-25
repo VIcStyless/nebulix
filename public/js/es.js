@@ -6570,4 +6570,12 @@ export default {
   "Real CPython running in this tab (WebAssembly) — nothing runs on the server. Standard library only; variables persist between runs until you press Stop.": "CPython real funcionando en esta pestaña (WebAssembly): nada se ejecuta en el servidor. Solo la biblioteca estándar; las variables se conservan entre ejecuciones hasta que pulses Detener.",
   "Python in the Toolbox": "Python en la caja de herramientas",
   "Write and run real Python 3 in your browser, with input(), tracebacks and a Stop button.": "Escribe y ejecuta Python 3 real en tu navegador, con input(), trazas de error y un botón para detener.",
+  "Full Linux virtual machines on Nebulix compute servers. Use them from any browser; they keep their disk between sessions.": "Máquinas virtuales Linux completas en los servidores de cómputo de Nebulix. Úsalas desde cualquier navegador; conservan su disco entre sesiones.",
+  "These servers have no hardware virtualisation, so machines run in software emulation: they work, but start and run more slowly.": "Estos servidores no tienen virtualización por hardware, así que las máquinas funcionan con emulación por software: van bien, pero arrancan y funcionan más despacio.",
+  "software emulation (no KVM)": "emulación por software (sin KVM)",
+  "Configured on the server (NX_COMPUTE_NODES) — change it with Fly secrets.": "Configurado en el servidor (NX_COMPUTE_NODES): cámbialo con los secretos de Fly.",
+  "Cloud PC is live": "Cloud PC ya funciona",
+  "Create Linux machines that run on Nebulix's own compute server and use them from your browser.": "Crea máquinas Linux que funcionan en el servidor de cómputo de Nebulix y úsalas desde tu navegador.",
+  "No connected server can run Android": "Ningún servidor conectado puede ejecutar Android",
+  "Android needs a server with hardware virtualisation (KVM). The current Nebulix compute servers do not have it — they run Cloud PC machines instead. Until a KVM server is added you can use the in-browser Android.": "Android necesita un servidor con virtualización por hardware (KVM). Los servidores de cómputo actuales de Nebulix no la tienen: ejecutan máquinas de Cloud PC. Hasta que se añada un servidor con KVM puedes usar el Android del navegador.",
 };

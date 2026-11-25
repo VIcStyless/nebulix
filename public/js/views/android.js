@@ -35,12 +35,13 @@ async function homePage(root, ctx) {
     const head = h('header.an-hero',
       h('div.an-hero-txt', h('div.eyebrow', t('Real Android in your browser')), h('h1', 'Nebulix Android'),
         h('p', t('Real Android devices running on Nebulix compute servers with hardware virtualisation. Install APKs, use apps, test your projects. Open-source Android (AOSP): there is no Google Play.')),
-        h('div.an-status', !st.configured ? h('span.an-state.bad', t('No compute node connected')) : online.length ? h('span.an-state.good', t('{n} compute node(s) online', { n: online.length })) : h('span.an-state.bad', t('Compute nodes offline')),
+        h('div.an-status', !st.configured ? h('span.an-state.bad', t('No compute node connected')) : !online.length ? h('span.an-state.bad', t('Compute nodes offline')) : !imgs.size ? h('span.an-state.bad', t('No connected server can run Android')) : h('span.an-state.good', t('{n} compute node(s) online', { n: online.filter((n) => n.images.length).length })),
           h('span.tiny.muted', t('{a} of {b} devices', { a: st.used, b: st.quota })))),
       h('div.an-hero-actions', h('button.btn.primary', { disabled: !online.length || st.used >= st.quota, onClick: () => createDialog([...imgs.values()].sort((a, b) => b.api - a.api)) }, icon('plus', 16), t('New device')),
         h('a.btn', { href: '#/vm/android' }, icon('monitor', 16), t('Android in this browser (offline)'))));
     let body;
     if (!st.configured) body = emptyState('phone', t('Nebulix Android is not connected yet'), t('Real devices run on separate servers with KVM, not on the Nebulix web server. Until a compute node is connected you can use the in-browser Android (Android-x86 4.4, emulated in WebAssembly).'), isStaff() ? h('a.btn.primary', { href: '#/admin/compute' }, icon('gear', 15), t('Connect a compute node')) : null);
+    else if (online.length && !imgs.size && !list.devices.length) body = emptyState('phone', t('No connected server can run Android'), t('Android needs a server with hardware virtualisation (KVM). The current Nebulix compute servers do not have it — they run Cloud PC machines instead. Until a KVM server is added you can use the in-browser Android.'), h('a.btn', { href: '#/cloudpc' }, icon('monitor', 15), 'Cloud PC'));
     else if (!list.devices.length) body = emptyState('phone', t('No devices yet'), t('Create a phone or tablet with the Android version you need. It keeps its apps and data between sessions.'));
     else body = h('div.an-grid', list.devices.map((d) => h('article.an-card', { tabIndex: 0, onKeydown: (e) => { if (e.key === 'Enter') ctx.go('android/' + d.id); } },
       h('div.an-card-art.' + d.profile, h('div.an-mini', icon('phone', 26))),

@@ -9,13 +9,13 @@ const C = require('../compute');
 
 const devs = () => S.store.table('cdevices');
 const touch = () => S.store.touch('cdevices');
-const nodeOf = (d) => C.nodes().find((n) => n.id === d.node);
+const nodeOf = (d) => C.allNodes().find((n) => n.id === d.node);
 const kindOf = (d) => d.kind || 'android';
 const staff = (u) => u.role === 'owner' || u.role === 'admin';
 
 const KINDS = {
   android: {
-    prefix: '/api/android', label: 'Android device',
+    prefix: '/api/android', label: 'Android device', needsKvm: true,
     quota: (u) => (staff(u) ? 10 : isPro(u) ? [2, 3, 4, 5][tierRank(u)] || 2 : 1),
     caps: (u) => (isPro(u) ? { cpu: 4, ram: 6144, storage: 16 } : { cpu: 2, ram: 3072, storage: 6 }),
     defaults: { cpu: 2, ram: 2048, storage: 4 }, min: { cpu: 1, ram: 1536, storage: 2 },
@@ -29,7 +29,7 @@ const KINDS = {
     none: 'Nebulix Android needs a compute node, and none is connected yet', noFit: 'No compute node has that Android version online right now',
   },
   vm: {
-    prefix: '/api/cloudpc', label: 'virtual machine',
+    prefix: '/api/cloudpc', label: 'virtual machine', needsKvm: false,
     quota: (u) => (staff(u) ? 10 : isPro(u) ? [2, 3, 4, 5][tierRank(u)] || 2 : 1),
     caps: (u) => (isPro(u) ? { cpu: 8, ram: 16384, storage: 200 } : { cpu: 2, ram: 4096, storage: 30 }),
     defaults: { cpu: 2, ram: 2048, storage: 20 }, min: { cpu: 1, ram: 512, storage: 4 },
@@ -67,9 +67,9 @@ function mount(r, kind) {
     const u = c.user; const b = c.body || {};
     if (owned(u).length >= K.quota(u)) throw new HttpError(403, 'quota', isPro(u) ? 'You have reached your limit' : 'Free accounts can have 1 — PRO plans can have more');
     const cands = [];
-    for (const n of C.enabled()) { const h = await C.check(n); if (h.ok && h.data.kvm && K.fits(h, b)) cands.push([n, h]); }
+    for (const n of C.enabled()) { const h = await C.check(n); if (h.ok && (h.data.kvm || !K.needsKvm) && K.fits(h, b)) cands.push([n, h]); }
     if (!cands.length) throw new HttpError(503, 'no_node', C.enabled().length ? K.noFit : K.none);
-    cands.sort((a, x) => (a[1].data.running / a[1].data.maxRunning) - (x[1].data.running / x[1].data.maxRunning));
+    cands.sort((a, x) => (x[1].data.kvm ? 1 : 0) - (a[1].data.kvm ? 1 : 0) || (a[1].data.running / a[1].data.maxRunning) - (x[1].data.running / x[1].data.maxRunning)); // KVM nodes first
     const [node] = cands[0]; const id = crypto.randomBytes(6).toString('hex'); const hw = clampHw(u, b);
     const j = await C.call(node, 'POST', '/v1/devices', { id, owner: u.id, name: String(b.name || '').slice(0, 40), ...K.body(b), ...hw }, 120000);
     const d = { id, owner: u.id, node: node.id, name: j.device.name, ...K.record(j, b), cpu: j.device.cpu, ram: j.device.ram, storage: j.device.storage, created: now() };
@@ -103,9 +103,9 @@ module.exports = function register(r) {
   mount(r, 'android'); mount(r, 'vm');
 
   // ---- admin: compute nodes ----
-  const adminView = (n, h) => ({ id: n.id, name: n.name, url: n.url, enabled: n.enabled !== false, added: n.added, health: h ? { ok: h.ok, error: h.error || null, at: h.at, ...(h.ok ? { version: h.data.version, kvm: h.data.kvm, images: h.data.images, vmImages: h.data.vmImages || [], running: h.data.running, maxRunning: h.data.maxRunning, devices: h.data.devices, cpus: h.data.cpus, memFree: h.data.memFree, memTotal: h.data.memTotal, load: h.data.load } : {}) } : null,
+  const adminView = (n, h) => ({ id: n.id, name: n.name, url: n.url, enabled: n.enabled !== false, added: n.added, env: !!n.env, health: h ? { ok: h.ok, error: h.error || null, at: h.at, ...(h.ok ? { version: h.data.version, kvm: h.data.kvm, images: h.data.images, vmImages: h.data.vmImages || [], accel: h.data.accel || (h.data.kvm ? 'kvm' : 'tcg'), running: h.data.running, maxRunning: h.data.maxRunning, devices: h.data.devices, cpus: h.data.cpus, memFree: h.data.memFree, memTotal: h.data.memTotal, load: h.data.load } : {}) } : null,
     devices: Object.values(devs()).filter((d) => d.node === n.id).length });
-  r.get('/api/admin/compute', { auth: true, role: 'admin' }, async () => { const list = C.nodes(); const hs = await Promise.all(list.map((n) => C.check(n, true))); return { nodes: list.map((n, i) => adminView(n, hs[i])) }; });
+  r.get('/api/admin/compute', { auth: true, role: 'admin' }, async () => { const list = C.allNodes(); const hs = await Promise.all(list.map((n) => C.check(n, true))); return { nodes: list.map((n, i) => adminView(n, hs[i])) }; });
   r.post('/api/admin/compute', { auth: true, role: 'owner', limit: [20, 60000, 'user'] }, async (c) => {
     const b = c.body || {}; let url; try { url = new URL(String(b.url || '')); } catch { throw new HttpError(400, 'bad_url', 'Enter the node address, e.g. https://node1.example.com'); }
     if (!/^https?:$/.test(url.protocol)) throw new HttpError(400, 'bad_url', 'The address must start with https://');

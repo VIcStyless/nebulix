@@ -85,7 +85,7 @@ function checkSig(req, body) {
 // Tickets for the browser: b64url(json { d: device, o: owner, s: 'view ctl apk file shot rec', e: expiry ms }).b64url(hmac)
 function ticket(q, scope) {
   const [p, sig] = String(q || '').split('.'); if (!p || !sig) return null;
-  const want = hmac('ticket:' + p); const got = Buffer.from(sig, 'base64url'); if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return null;
+  const want = Buffer.from(hmac('ticket:' + p).toString('base64url')); const got = Buffer.from(String(sig)); if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return null; // compare the canonical text: base64url's last character has unused bits
   let t; try { t = JSON.parse(Buffer.from(p, 'base64url').toString()); } catch { return null; }
   if (!t || t.e < Date.now() || !devices[t.d] || devices[t.d].owner !== t.o) return null;
   if (scope && !String(t.s || '').split(' ').includes(scope)) return null;
@@ -265,7 +265,9 @@ async function vmStart(d) {
   const running = [...live.values()].filter((l) => l.state !== 'stopped').length; if (running >= CFG.maxRunning) throw Object.assign(new Error('This node is running as many machines as it can. Try again later.'), { status: 503, code: 'node_full' });
   const n = freeVnc(); const dir = vmDir(d); const sock = path.join(dir, 'qmp.sock'); fs.rmSync(sock, { force: true });
   const img = d.iso ? path.join(CFG.vmImages, d.iso) : null;
-  const args = ['-name', 'nx-' + d.id, '-enable-kvm', '-cpu', 'host', '-machine', 'q35', '-smp', String(d.cpu), '-m', String(d.ram),
+  // without /dev/kvm (e.g. Fly.io Firecracker machines) QEMU emulates the CPU in software (TCG): it works, just slower
+  const accel = fs.existsSync('/dev/kvm') ? ['-enable-kvm', '-cpu', 'host'] : ['-accel', 'tcg,thread=multi', '-cpu', 'max'];
+  const args = ['-name', 'nx-' + d.id, ...accel, '-machine', 'q35', '-smp', String(d.cpu), '-m', String(d.ram),
     '-drive', 'file=' + path.join(dir, 'disk.qcow2') + ',if=virtio,format=qcow2,cache=writeback',
     ...(img && fs.existsSync(img) ? ['-drive', 'file=' + img + ',media=cdrom,readonly=on', '-boot', 'order=cd'] : []),
     '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0', '-device', 'virtio-balloon', '-vga', 'std', '-usb', '-device', 'usb-tablet',
@@ -275,7 +277,7 @@ async function vmStart(d) {
   const l = { proc, vnc: n, state: 'starting', since: Date.now(), viewers: new Set(), lastSeen: Date.now(), vm: true, cpu0: null };
   live.set(d.id, l); d.pid = proc.pid; save();
   proc.on('exit', (code) => { fs.closeSync(logf); if (live.get(d.id) === l) { try { l.qmp && l.qmp.close(); } catch {} live.delete(d.id); d.pid = null; save(); log('vm', d.id, 'exited', code); for (const v of l.viewers) v.close(1000); } });
-  try { l.qmp = await new Qmp(sock).open(10000); l.state = 'running'; l.since = Date.now(); log('vm', d.id, 'running on vnc', 5900 + n); }
+  try { l.qmp = await new Qmp(sock).open(30000); l.state = 'running'; l.since = Date.now(); log('vm', d.id, 'running on vnc', 5900 + n); }
   catch (e) { try { proc.kill('SIGKILL'); } catch {} let why = ''; try { why = fs.readFileSync(path.join(dir, 'qemu.log'), 'utf8').trim().split('\n').pop(); } catch {} throw Object.assign(new Error('The machine could not start: ' + (why || e.message)), { status: 500, code: 'vm_failed' }); }
   return view(d);
 }
@@ -325,7 +327,7 @@ async function vmApi(req, res, d, op, sub, b) {
 
 async function controlApi(req, res, url, body) {
   const p = url.pathname; let m;
-  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, kvm: fs.existsSync('/dev/kvm'), images: images(), vmImages: vmImages(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
+  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, kvm: fs.existsSync('/dev/kvm'), accel: fs.existsSync('/dev/kvm') ? 'kvm' : 'tcg', images: images(), vmImages: vmImages(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
   const b = body.length ? JSON.parse(body.toString()) : {};
   if (p === '/v1/devices' && req.method === 'GET') return J(res, 200, { devices: Object.values(devices).filter((d) => !url.searchParams.get('owner') || d.owner === url.searchParams.get('owner')).map(view) });
   if (p === '/v1/devices' && req.method === 'POST') {

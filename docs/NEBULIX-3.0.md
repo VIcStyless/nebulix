@@ -267,9 +267,30 @@ lines feed `input()`. Extra packages (numpy, …) are not available because they
 Tested in the browser: demo with statistics/math/f-strings/input() (first load ~4 s), traceback, page responsive during
 an endless loop, Stop, run again after Stop, no console errors.
 
+## 3o. Production compute node on Fly.io (v15.6.0)
+
+* App **`nebulix-compute`** (`fly.compute.toml`, image `services/compute-node/Dockerfile`: node 24 + QEMU 7.2 +
+  qemu-utils), region cdg, `performance-2x` (2 dedicated vCPU, 4 GB), 20 GB volume `compute_data` (VM images downloaded
+  on first boot by `start.sh`, VM disks, agent state). `auto_stop_machines = "stop"`, `min_machines_running = 0`: it
+  sleeps when nobody uses it and wakes on the first request; `kill_timeout = 90` lets VMs shut down cleanly.
+* **Measured, not assumed: Fly machines are Firecracker microVMs with no `/dev/kvm` and no vmx/svm flags.** So this node
+  runs Cloud PC with QEMU **software emulation (TCG)** — the agent switches automatically (`accel: 'tcg'`), Nebulix shows
+  a notice, and the Debian 12 console boots in well under 100 s. **Nebulix Android cannot run here** (the Android
+  Emulator refuses x86_64 guests without hardware acceleration); the Android page now says so. Android still needs a
+  KVM server (bare metal or nested virtualisation) added in Admin → Compute.
+* Connection: secret `NX_NODE_SECRET` on `nebulix-compute` and `NX_COMPUTE_NODES` (`name|url|secret`) on `nebulix`,
+  generated in the shell and never printed. Env nodes are read-only in Admin → Compute. VMs are placed on KVM nodes first.
+* Ticket signatures are now compared as canonical base64url text (a variant spelling of the last character, which
+  decodes to the same bytes, used to be accepted — not a forgery, but no longer allowed).
+* Tested against the real Fly node from a local Nebulix server: 22/22 Cloud PC API checks (incl. VNC handshake, PNG
+  screenshot, stats, snapshots, ACPI shutdown, Alpine ISO) and a browser session that logged into Debian and ran
+  `uname -sr`. (This dev machine's DNS cache was stuck on the new hostname, so the local tests mapped it to Fly's IP;
+  production resolves normally.)
+
 ## 4. Next phases (in order)
 
-1. Production compute node (owner: a KVM server with HTTPS, then Admin → Compute) so Nebulix Android and Cloud PC work on the live site.
+1. A KVM compute node for Nebulix Android (and faster Cloud PC): a bare-metal or nested-virtualisation server with HTTPS,
+   added in Admin → Compute. Fly.io cannot provide KVM.
 2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
 3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
 
