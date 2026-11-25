@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.6.1",
+    "date": "2026-11-25",
+    "title": { "en": "Fixes from a full quality sweep", "es": "Correcciones tras una revisión completa" },
+    "changes": [
+      { "type": "fixed", "en": "The old #/fps link showed “This page could not be loaded”; it now opens the Arena (Nebula Ops 3D).", "es": "El antiguo enlace #/fps mostraba «Esta página no se pudo cargar»; ahora abre el Arena (Nebula Ops 3D)." },
+      { "type": "fixed", "en": "The server no longer re-parses the shared Arena code with a warning on every start.", "es": "El servidor ya no vuelve a analizar el código compartido del Arena con un aviso en cada arranque." }
+    ]
+  },
+  {
     "v": "15.6",
     "date": "2026-11-25",
     "title": { "en": "Cloud PC is live on Nebulix's own compute server", "es": "Cloud PC ya funciona en el servidor de cómputo de Nebulix" },

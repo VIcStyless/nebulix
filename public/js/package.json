@@ -1,0 +1,1 @@
+{ "type": "module", "private": true, "description": "Browser ES modules; this tells Node that files here are ES modules when the server imports one (server/arena.js)." }

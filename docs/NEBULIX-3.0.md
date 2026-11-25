@@ -287,6 +287,19 @@ an endless loop, Stop, run again after Stop, no console errors.
   `uname -sr`. (This dev machine's DNS cache was stuck on the new hostname, so the local tests mapped it to Fly's IP;
   production resolves normally.)
 
+## 3p. Quality sweep (v15.6.1)
+
+* Route crawler (owner account): all 78 routes at 1366×820 (console errors, exceptions, same-origin HTTP ≥ 400, error
+  states) and at 390×844 (horizontal overflow) → one broken route (`#/fps` pointed at a file that never existed; now
+  opens the Arena). No overflow on any route.
+* Nebulix OS crawler: all 40 desktop apps opened as windows → no errors.
+* Arcade crawler: all 25 games started and played with keys and clicks → no errors.
+* The 38 earlier regression suites (economy, Hub, media, study, plaza, arena, casino, worlds, …) rerun on fresh data:
+  every remaining failure traced to the tests themselves (old cookie name `nbx_s`, 1 product/2 prices before the three
+  Premium tiers, 7 boosts before the gem shop) or to pre-existing state in the test data (existing AAPL shares,
+  interns, shields, an open Hi-Lo round, missing answer argument) — no product bugs.
+* `public/js/package.json` declares the browser modules as ES modules for Node (server/arena.js imports one).
+
 ## 4. Next phases (in order)
 
 1. A KVM compute node for Nebulix Android (and faster Cloud PC): a bare-metal or nested-virtualisation server with HTTPS,
