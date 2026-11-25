@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.9",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 17: Nebulix Photo and Nebulix Audio", "es": "Nebulix 3.0, fase 17: Nebulix Photo y Nebulix Audio" },
+    "changes": [
+      { "type": "new", "en": "Nebulix Photo: a layered image editor — images, text and shapes; move, resize and rotate; opacity, blend modes and filters per layer; crop; templates for YouTube thumbnails, banners, posts and stories; undo; export PNG/JPG and save projects to Drive.", "es": "Nebulix Photo: un editor de imágenes por capas: imágenes, textos y formas; mover, redimensionar y girar; opacidad, modos de fusión y filtros por capa; recorte; plantillas para miniaturas de YouTube, banners, publicaciones e historias; deshacer; exporta PNG/JPG y guarda proyectos en Drive." },
+      { "type": "new", "en": "Nebulix Audio: open or record audio, select on the waveform and cut, trim, copy/paste, fade, change the volume, normalise, reverse or mix in another file; export WAV or save it to Drive.", "es": "Nebulix Audio: abre o graba audio, selecciona en la forma de onda y corta, recorta, copia/pega, aplica fundidos, cambia el volumen, normaliza, invierte o mezcla otro archivo; exporta WAV o guárdalo en Drive." }
+    ]
+  },
+  {
     "v": "15.8",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 16: Productivity tools and Forms", "es": "Nebulix 3.0, fase 16: herramientas de productividad y Formularios" },

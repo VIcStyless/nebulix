@@ -34,12 +34,12 @@ infrastructure each pending item needs). Status words mean:
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
 | Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
 | Game library (Hub games + Vault store + reviews, collections, saves) | Implemented | `views/hub.js`, `vault.js`, `library.js` |
-| Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
+| Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix), Game API (scores, achievements, multiplayer rooms — phases 2–4), creator guide + starter template (phase 5). Pending: visual level editor. |
 | External game APIs | **Implemented (phase 15)** with keyless official public APIs: FreeToGame (free-to-play catalogue) and CheapShark (deals across official stores) in `#/discover`. Pending: IGDB / Steam Web API / Discord (need keys from the owner). |
-| **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
+| **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Install/uninstall into Nebulix OS with update badges (phases 2–3) and a manifest permission system (phase 4). |
 | **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Same-spot edits are merged (phase 13). | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
-| Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
-| **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Pending: layered image editor, video timeline editor, audio editor. |
+| Tasks / calendar / whiteboard / markdown | Implemented: Calendar & Tasks with invitations (phases 2 and 4), Flow Board (kanban), Sketch Board, Markdown Writer, Habits, Journal, Mind maps, Forms (phase 16). |
+| **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Nebulix Photo (layered image editor) and Nebulix Audio (waveform editor) in phase 17. Pending: video timeline editor. |
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
 | **Social** — community chat, servers/channels, DMs, voice rooms (WebRTC), profiles, plaza, feed, clans, reports/moderation | Implemented (existing). |
 | **Nova AI** — chat with history, per-conversation model choice, streaming, Markdown/code, web search, images, voice, Nova Agent (PRO), Nova Agents team (OS), tutor (Study) | Implemented / Connected (provider keys in Admin → AI; free models otherwise). |
@@ -332,6 +332,20 @@ so no Android emulator, and Cloud PC there would be as slow as on Fly. There is 
   starter options (they used to exist only in the editor).
 * Tested: 19 API checks, a redirect-to-private-address unit test (both IP and DNS-name targets blocked), and 13
   browser checks covering every tool and a form answered by a second user; no console errors.
+
+## 3s. What phase 17 added (v15.9.0)
+
+* **Nebulix Photo** (`#/photo`, `public/js/views/photo.js`): canvas editor with image/text/rectangle/ellipse layers,
+  move (mouse/arrow keys), proportional resize handle, rotation, opacity, 16 blend modes, 7 filters, lock/hide/reorder/
+  duplicate, crop tool, canvas size with templates, transparent background, undo/redo (60 steps), drag-and-drop and
+  paste of images, export PNG/JPG, projects saved/opened as `.nbxphoto` JSON in Drive. No background removal (it would
+  need an external service — not faked).
+* **Nebulix Audio** (`#/audio`, `public/js/views/audio.js`): Web Audio decoding of any browser-supported file or a
+  microphone recording; waveform with zoom; selection; cut/copy/paste/delete/trim/silence/fade in/fade out/gain (dB)/
+  normalise (−1 dBFS)/reverse/mix a second file (resampled with OfflineAudioContext); undo/redo; playback with playhead;
+  16-bit WAV encoder; download or Drive.
+* Tested in the browser (17 checks): layers, mouse drag and resize, filter + undo, crop, PNG size, Drive project;
+  delete/undo, fade, normalise peak 0.891, reverse, copy/paste length, WAV header and size, Drive; no console errors.
 
 ## 4. Next phases (in order)
 

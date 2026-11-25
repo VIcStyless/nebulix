@@ -702,3 +702,28 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .fm-bar i { height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--text) 8%, transparent); overflow: hidden; } .fm-bar em { display: block; height: 100%; background: #7c3aed; } .fm-bl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-texts { display: flex; flex-direction: column; gap: 4px; } .fm-text { padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); font-size: .88rem; }
 @media (max-width: 760px) { .pt-journal { grid-template-columns: 1fr; } .fm-bar { grid-template-columns: 90px 1fr 30px; } }
+
+/* Nebulix 3.0 phase 17 — Nebulix Photo and Nebulix Audio */
+.ph { display: flex; flex-direction: column; height: 100%; min-height: calc(100vh - 80px); }
+.ph-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+.ph-name { width: 220px; font-weight: 700; }
+.ph-main { flex: 1; display: grid; grid-template-columns: 54px minmax(0, 1fr) 300px; min-height: 0; }
+.ph-tools { display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; border-right: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+.ph-tool { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.ph-tool:hover, .ph-tool.on { background: color-mix(in srgb, var(--accent, #6366f1) 22%, transparent); }
+.ph-center { overflow: auto; display: grid; place-items: center; padding: 20px; background: repeating-conic-gradient(color-mix(in srgb, var(--text) 6%, transparent) 0 25%, transparent 0 50%) 0 0 / 22px 22px; }
+.ph-stage { display: grid; place-items: center; width: 100%; height: 100%; }
+.ph-canvas { max-width: 100%; max-height: calc(100vh - 200px); box-shadow: 0 20px 50px -18px rgba(0,0,0,.6); cursor: crosshair; touch-action: none; outline: none; }
+.ph-side { overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; border-left: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+.ph-layers, .ph-props { display: flex; flex-direction: column; gap: 6px; }
+.ph-layer { display: flex; gap: 4px; align-items: center; padding: 4px 6px; border-radius: 8px; cursor: pointer; font-size: .85rem; } .ph-layer.on { background: color-mix(in srgb, var(--accent, #6366f1) 20%, transparent); }
+.ph-layer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ph-range { display: grid; grid-template-columns: 90px 1fr 46px; gap: 6px; align-items: center; font-size: .8rem; } .ph-range b { text-align: right; font-variant-numeric: tabular-nums; }
+.ph-tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+@media (max-width: 900px) { .ph-main { grid-template-columns: 1fr; } .ph-tools { flex-direction: row; flex-wrap: wrap; border-right: 0; } .ph-side { border-left: 0; } .ph-name { width: 100%; } }
+.au { padding: 20px clamp(12px, 3vw, 32px); display: flex; flex-direction: column; gap: 12px; }
+.au-bar { display: flex; gap: 10px; flex-wrap: wrap; } .au-group { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding: 4px; border-radius: 10px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.au-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); background: #0b1220; }
+.au-wave { display: block; height: 220px; cursor: text; touch-action: none; outline: none; } .au-wave:focus-visible { box-shadow: inset 0 0 0 2px #6366f1; }
+.au-info { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; font-variant-numeric: tabular-nums; }

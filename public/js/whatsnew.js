@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['image', 'Nebulix Photo and Nebulix Audio', 'A layered image editor for thumbnails and banners, and an audio editor with cut, fades, normalise and WAV export.', 'photo'],
   ['check', 'Productivity tools and Forms', 'Habits, journal, reading list, mind maps, an encrypted password vault, a document scanner and forms with shareable links.', 'ptools'],
   ['tag', 'Discover free games and deals', 'Free-to-play games and the best current deals from official stores, in one place.', 'discover'],
   ['monitor', 'Cloud PC is live', "Create Linux machines that run on Nebulix's own compute server and use them from your browser.", 'cloudpc'],
