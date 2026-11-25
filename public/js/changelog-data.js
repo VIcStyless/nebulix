@@ -2,6 +2,31 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "14.9",
+    "date": "2026-11-25",
+    "title": {
+      "en": "Nebulix 3.0, phase 8: real-time co-editing in Docs",
+      "es": "Nebulix 3.0, fase 8: edición en tiempo real en Docs"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Docs: write together. Everyone with edit access sees each other's changes as they type, paragraph by paragraph, with no reloads.",
+        "es": "Docs: escribid juntos. Todos los que pueden editar ven los cambios de los demás mientras escriben, párrafo a párrafo y sin recargar."
+      },
+      {
+        "type": "new",
+        "en": "Docs: see who is in the document and where they are writing — each person has a coloured cursor with their name, and their selection is highlighted.",
+        "es": "Docs: mira quién está en el documento y dónde escribe: cada persona tiene un cursor de color con su nombre y se resalta lo que selecciona."
+      },
+      {
+        "type": "improved",
+        "en": "Docs: if your connection drops you can keep writing; your changes are sent when it comes back, even after a server update.",
+        "es": "Docs: si se corta la conexión puedes seguir escribiendo; tus cambios se envían al volver, incluso después de una actualización del servidor."
+      }
+    ]
+  },
+  {
     "v": "14.8",
     "date": "2026-11-24",
     "title": {

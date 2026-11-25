@@ -552,3 +552,19 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 @media (max-width: 900px) { .dc-body:has(> .dcm:not([hidden])) { grid-template-columns: 1fr; } .dcm:not([hidden]) { position: fixed; inset: auto 0 0 0; max-height: 60vh; z-index: 40; border-left: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.25); padding-bottom: calc(80px + env(safe-area-inset-bottom)); } }
 @media print { .dcm { display: none !important; } }
 @media (max-width: 700px) { .dcm-lbl { display: none; } }
+
+/* Nebulix 3.0 — live co-editing in Docs */
+.docs .dc-scroll { position: relative; }
+.dl-layer { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; pointer-events: none; z-index: 3; }
+.dl-caret { position: absolute; width: 2px; margin-left: -1px; background: var(--c); border-radius: 1px; transition: left .08s linear, top .08s linear; }
+.dl-flag { position: absolute; left: -1px; bottom: 100%; padding: 1px 6px; border-radius: 4px 4px 4px 0; background: var(--c); color: #fff; font: 600 11px/16px system-ui, sans-serif; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.dl-sel { position: absolute; opacity: .22; border-radius: 2px; }
+.dl-peers { display: flex; align-items: center; }
+.dl-peer { width: 26px; height: 26px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; background: var(--c); color: #fff; font: 700 12px system-ui, sans-serif; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.dl-peer:first-child { margin-left: 0; } .dl-peer img { width: 100%; height: 100%; object-fit: cover; } .dl-peer.more { background: var(--bg-3, #334155); box-shadow: 0 0 0 2px var(--bg); }
+.dl-status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; color: var(--muted); background: color-mix(in srgb, var(--text) 7%, transparent); }
+.dl-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.dl-status.good { color: #22c55e; } .dl-status.warn { color: #f59e0b; }
+@media (max-width: 700px) { .dl-status { font-size: 0; padding: 4px; } .dl-status::before { font-size: initial; } }
+@media (prefers-reduced-motion: reduce) { .dl-caret { transition: none; } }
+@media print { .dl-layer { display: none !important; } }

@@ -74,7 +74,7 @@ export function commentsPanel(it, page, { onCount } = {}) {
   page.addEventListener('keydown', onKey);
   const off = bus.on('ws:dcomm', (m) => { if (m.item === it.id) load(); });
   // re-anchor highlights while people type (cheap: only when there are open threads)
-  let hlT = 0; const onInput = () => { clearTimeout(hlT); hlT = setTimeout(paintHighlights, 600); }; page.addEventListener('input', onInput);
+  let hlT = 0; const onInput = () => { clearTimeout(hlT); hlT = setTimeout(paintHighlights, 600); }; page.addEventListener('input', onInput); page.addEventListener('nx-remote', onInput);
   load();
-  return { el, toggle, load, destroy() { alive = false; off && off(); page.removeEventListener('keydown', onKey); page.removeEventListener('input', onInput); clearTimeout(hlT); if (hl) CSS.highlights.delete('nbx-comments'); } };
+  return { el, toggle, load, destroy() { alive = false; off && off(); page.removeEventListener('keydown', onKey); page.removeEventListener('input', onInput); page.removeEventListener('nx-remote', onInput); clearTimeout(hlT); if (hl) CSS.highlights.delete('nbx-comments'); } };
 }

@@ -6360,4 +6360,12 @@ export default {
   "Word document downloaded": "Documento de Word descargado",
   "Docs: Word export and comments": "Docs: exportar a Word y comentarios",
   "Download your documents as Word (.docx) and comment on any sentence; replies and new comments arrive live.": "Descarga tus documentos como Word (.docx) y comenta cualquier frase; las respuestas y los comentarios nuevos llegan en directo.",
+  "Connecting…": "Conectando…",
+  "Reconnecting…": "Reconectando…",
+  "Offline — changes will be sent when you reconnect": "Sin conexión: los cambios se enviarán al reconectar",
+  "You can only read this document now": "Ahora solo puedes leer este documento",
+  "viewing": "viendo",
+  "This document is too large (2 MB)": "Este documento es demasiado grande (2 MB)",
+  "Docs: write together in real time": "Docs: escribid juntos en tiempo real",
+  "Edit a document with friends at the same time: you see their changes as they type, where their cursor is, and who is in the document.": "Edita un documento con amigos a la vez: ves sus cambios mientras escriben, dónde está su cursor y quién está en el documento.",
 };

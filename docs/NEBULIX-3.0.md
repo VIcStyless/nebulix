@@ -37,7 +37,7 @@ infrastructure each pending item needs). Status words mean:
 | Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
 | External game APIs (Steam, Epic, IGDB, Discord) | Pending — need API keys from the user; must use official APIs only. |
 | **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
-| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented (existing). Pending: DOCX export, real-time co-editing, comments. | `views/docs.js`, `sheets.js`, `slides.js`, `notes.js`, `drive.js` |
+| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments and **real-time co-editing** (3.0). Pending: real-time co-editing in Sheets and Slides. | `views/docs.js`, `sheets.js`, `slides.js`, `notes.js`, `drive.js` |
 | Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
 | **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Pending: layered image editor, video timeline editor, audio editor. |
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
@@ -134,9 +134,33 @@ infrastructure each pending item needs). Status words mean:
 3. **Live spectating:** opening `/api/duels/:id/watch` registers you for 90 s; every move is pushed to spectators over the
    WebSocket (`watch: true`), and the client only renews its seat every 20 s. Tested with three accounts.
 
+## 3h. What phase 8 added (v14.9.0)
+
+1. **Real-time co-editing in Nebulix Docs** (`server/doclive.js`, `public/js/doclive.js`). A live session per document
+   holds the document as an ordered list of top-level blocks (paragraphs, headings, lists, tables) with ids. Editors send
+   block operations (`s` replace, `i` insert after, `d` delete as a tombstone) over the WebSocket as `dl_*` messages, or
+   over `POST /api/drive/item/:id/live` when a batch is bigger than the 64 KB socket frame (inline images). The server
+   applies them in arrival order, relays them, and saves the merged HTML into `item.data.html` (at most every 1.5 s, and
+   on shutdown), so Drive, Word export, comments and older clients keep working.
+   * **Convergence:** one batch in flight per client; a remote operation on a block with unconfirmed local changes is
+     skipped (the server applied it first, ours overwrites it), and remote inserts skip over our own unconfirmed
+     inserts at the same spot. Edits beat deletes. Two people typing in the *same paragraph* at the same instant: the
+     last batch the server receives wins for that paragraph (no character-level merge). A hash check every 20 s
+     resends the full state if anything ever differs.
+   * **Presence:** people stack in the toolbar, a coloured caret with the person's name, and their selection.
+   * **Offline / restarts:** edits made while disconnected are queued and sent on reconnect; after a server restart
+     (new block ids) unconfirmed changes are matched to the new blocks by content and position.
+   * An old-style whole-document save (`PUT /api/drive/item/:id` with `data`) ends the live session first; everyone
+     reloads. If WebSockets are unavailable the editor keeps the previous behaviour (autosave + 10 s refresh).
+   * Tested: 22 protocol checks (relay, acks, persistence, tombstones, resurrect, HTTP batches, hash check, view-only and
+     private access, reset) and 20 checks with two real browser editors typing at once (different paragraphs, new
+     paragraphs after the same heading, the same paragraph, bold + delete, reload, server killed and restarted while
+     one editor kept typing offline), with no console errors.
+
 ## 4. Next phases (in order)
 
-1. Office: real-time co-editing of Docs over the WebSocket (today: autosave plus a 10 s refresh when you are not typing).
+1. Office: the same live sessions for Sheets (cell operations) and Slides (element operations); character-level
+   merging inside one paragraph in Docs.
 2. Cloud Android / server-side VMs: separate compute nodes with KVM, a session manager service and WebRTC streaming;
    the Fly.io app only brokers sessions. Needs hardware/hosting decisions and budget from the owner.
 

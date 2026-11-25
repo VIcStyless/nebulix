@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['users', 'Docs: write together in real time', 'Edit a document with friends at the same time: you see their changes as they type, where their cursor is, and who is in the document.', 'docs'],
   ['chat', 'Docs: Word export and comments', 'Download your documents as Word (.docx) and comment on any sentence; replies and new comments arrive live.', 'docs'],
   ['calendar', 'Calendar & Tasks', 'Events that repeat, reminders as notifications, tasks with projects and subtasks — and your Study exams.', 'calendar'],
   ['grid', 'Chess, Checkers, Solitaire and more', 'New in the Arcade: Chess, Checkers, Solitaire, Minesweeper, Sudoku, Space Rocks, Gem Match and Reflex.', 'arcade'],

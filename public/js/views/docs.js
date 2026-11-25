@@ -7,6 +7,7 @@ import { toast, toastErr, loading, emptyState, promptBox, openMenu } from '../ui
 import { officeHome, officeBar, autosaver, sanitize } from '../office.js';
 import { htmlToDocx, prepareImages } from '../docx.js';
 import { commentsPanel } from '../doccomments.js';
+import { liveDoc, peersEl } from '../doclive.js';
 
 const TPL = [
   ['Blank document', null, ''],
@@ -30,8 +31,9 @@ export default {
     const page = h('div.dc-page', { contentEditable: it.canEdit ? 'true' : 'false', spellcheck: 'true' });
     page.innerHTML = sanitize((it.data && it.data.html) || '');
     const words = h('span.tiny.muted');
+    const peersBox = peersEl(); const liveTag = h('span.dl-status', { hidden: true });
     const bar = officeBar(it, { emoji: '📄', onRename: async (n) => { try { await api.put('/api/drive/item/' + it.id, { name: n }); it.name = n; } catch (e) { toastErr(e); } },
-      extra: h('div.row', { style: 'gap:6px' }, words, cBtn, h('button.btn.sm', { onClick: (e) => openMenu([{ label: t('Download as Word (.docx)'), icon: 'download', onClick: () => downloadDocx() }, { label: t('Download as HTML'), icon: 'download', onClick: () => download('html') }, { label: t('Download as text'), icon: 'download', onClick: () => download('txt') }, { label: t('Print / save as PDF'), icon: 'external', onClick: () => window.print() }], e.currentTarget) }, icon('download', 14), t('Export'))) });
+      extra: h('div.row', { style: 'gap:6px' }, peersBox, liveTag, words, cBtn, h('button.btn.sm', { onClick: (e) => openMenu([{ label: t('Download as Word (.docx)'), icon: 'download', onClick: () => downloadDocx() }, { label: t('Download as HTML'), icon: 'download', onClick: () => download('html') }, { label: t('Download as text'), icon: 'download', onClick: () => download('txt') }, { label: t('Print / save as PDF'), icon: 'external', onClick: () => window.print() }], e.currentTarget) }, icon('download', 14), t('Export'))) });
     const save = autosaver(it.id, bar);
     const ex = (cmd, val) => { page.focus(); document.execCommand(cmd, false, val); changed(); };
     const btn = (ic, title, fn, label) => h('button.dc-b', { type: 'button', title, onMousedown: (e) => e.preventDefault(), onClick: fn }, label ? h('b', label) : icon(ic, 16));
@@ -51,7 +53,7 @@ export default {
       btn(null, t('Table'), () => ex('insertHTML', '<table><tbody>' + '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>'.repeat(3) + '</tbody></table><p></p>'), '▦'),
       btn(null, t('Horizontal line'), () => ex('insertHorizontalRule'), '―'), btn(null, t('Clear formatting'), () => ex('removeFormat'), 'Tx'));
     const outline = h('nav.dc-outline');
-    function changed() { if (!it.canEdit) return; save({ html: sanitize(page.innerHTML) }); stats(); }
+    function changed() { if (!it.canEdit) return; if (live.everLive) live.changed(); else save({ html: sanitize(page.innerHTML) }); stats(); }
     function stats() { const txt = page.innerText || ''; const w = (txt.match(/\S+/g) || []).length; words.textContent = t('{n} words', { n: w }); const hs = [...page.querySelectorAll('h1,h2,h3')]; mount(outline, hs.length ? h('div.eyebrow', t('Outline')) : null, hs.map((x) => h('a.dc-o.' + x.tagName.toLowerCase(), { href: '#', onClick: (e) => { e.preventDefault(); x.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, x.textContent.slice(0, 40) || '…'))); }
     page.addEventListener('input', changed);
     page.addEventListener('paste', (e) => { const html = e.clipboardData.getData('text/html'); if (html) { e.preventDefault(); document.execCommand('insertHTML', false, sanitize(html)); changed(); } });
@@ -60,12 +62,24 @@ export default {
     async function downloadDocx() {
       try { const blob = await htmlToDocx(sanitize(page.innerHTML), { title: it.name, images: await prepareImages(page) }); const a = h('a', { href: URL.createObjectURL(new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })), download: it.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.docx' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast(t('Word document downloaded'), 'good'); } catch (e) { toastErr(e); }
     }
+    // Nebulix 3.0: real-time co-editing. Until the live session answers (or if WebSockets are blocked) the document
+    // keeps the old behaviour: autosave over HTTP and a refresh every 10 s.
+    const ST = { live: ['Live', 'good'], saving: ['Live', 'good'], connecting: ['Connecting…', ''], reconnecting: ['Reconnecting…', 'warn'], offline: ['Offline — changes will be sent when you reconnect', 'warn'] };
+    const live = liveDoc(it, page, {
+      canEdit: () => it.canEdit,
+      beforeJoin: () => save.flush(),
+      onStatus: (st) => { const x = ST[st]; liveTag.hidden = !x; if (x) { liveTag.textContent = t(x[0]); liveTag.className = 'dl-status ' + x[1]; } if (st === 'saving') bar.saving(); },
+      onSaved: () => bar.saved(),
+      onPeers: (list) => peersBox.set(list),
+      onChange: () => stats(),
+      onLost: (why) => { if (why === 'read_only') { it.canEdit = false; page.contentEditable = 'false'; tools.remove(); toast(t('You can only read this document now'), 'err'); } else if (why === 'too_big') toast(t('This document is too large (2 MB)'), 'err'); },
+    });
     const comments = commentsPanel(it, page, { onCount: (n) => { cCount.hidden = !n; cCount.textContent = n; } });
     mount(wrap, bar, it.canEdit ? tools : null, h('div.dc-body', outline, h('div.dc-scroll', page), comments.el));
     stats(); if (it.canEdit) page.focus();
     // keep in sync with other editors when you are not typing
     let lastLocal = Date.now(); page.addEventListener('input', () => { lastLocal = Date.now(); });
-    const poll = setInterval(async () => { if (Date.now() - lastLocal < 8000 || document.activeElement === page) return; try { const d = (await api.get('/api/drive/item/' + it.id, { quiet: true })).item; if (d.data && d.data.html !== undefined && sanitize(d.data.html) !== page.innerHTML) { page.innerHTML = sanitize(d.data.html); stats(); } } catch {} }, 10000);
-    return () => { clearInterval(poll); comments.destroy(); save.flush(); };
+    const poll = setInterval(async () => { if (live.everLive || Date.now() - lastLocal < 8000 || document.activeElement === page) return; try { const d = (await api.get('/api/drive/item/' + it.id, { quiet: true })).item; if (d.data && d.data.html !== undefined && sanitize(d.data.html) !== page.innerHTML) { page.innerHTML = sanitize(d.data.html); stats(); } } catch {} }, 10000);
+    return () => { clearInterval(poll); comments.destroy(); const lost = live.everLive && !live.live && live.unsent; live.destroy(); if (lost && it.canEdit) save({ html: sanitize(page.innerHTML) }); save.flush(); };
   },
 };
