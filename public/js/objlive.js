@@ -4,6 +4,7 @@
 // unconfirmed edits for are skipped (ours reach the server later and win), so every copy converges.
 import { api, ws } from './api.js';
 import { S, bus } from './state.js';
+import { mergeJson } from './merge3.js';
 
 // ---- the same split / assemble rules as server/objlive.js ----
 export function split(kind, data) {
@@ -39,7 +40,7 @@ export function liveObj(it, { kind, getData, setData, canEdit, onStatus, onPeers
   function diff() {
     if (!everLive || !canEdit()) return; clearTimeout(diffT); diffT = 0;
     const cur = split(kind, getData()); const ops = [];
-    for (const [k, v] of cur) if (shadow.get(k) !== v) { ops.push({ k, v }); shadow.set(k, v); }
+    for (const [k, v] of cur) if (shadow.get(k) !== v) { ops.push({ k, v, b: shadow.has(k) ? shadow.get(k) : null }); shadow.set(k, v); }
     for (const k of [...shadow.keys()]) if (!cur.has(k)) { ops.push({ k, v: null }); shadow.delete(k); }
     if (ops.length) { pending.push(...ops); pump(); }
   }
@@ -80,6 +81,17 @@ export function liveObj(it, { kind, getData, setData, canEdit, onStatus, onPeers
       if (!mine(m) || !inflight || m.seq !== inflight.seq) return; clearTimeout(ackT);
       if (m.error === 'rate_limited') { pending = inflight.ops.concat(pending); inflight = null; setTimeout(pump, 1200); return; }
       if (m.error) { inflight = null; pending = []; onLost && onLost(m.error); ws.send({ t: 'ol_resync', item: it.id, cid }); return; }
+      if (m.fixes && m.fixes.length) { // the server merged our change with someone else's (phase 13)
+        diff(); const changed = new Set();
+        for (const f of m.fixes) {
+          const mine = [...inflight.ops].reverse().find((o) => o.k === f.k); if (!mine) continue; const later = pending.filter((o) => o.k === f.k);
+          let now = f.v;
+          if (later.length && later[later.length - 1].v !== null) { const local = shadow.get(f.k); try { now = JSON.stringify(mergeJson(JSON.parse(mine.v), JSON.parse(f.v), JSON.parse(local))); } catch { now = local; } const last = later[later.length - 1]; for (const o of later) if (o !== last) pending.splice(pending.indexOf(o), 1); last.b = f.v; last.v = now; if (now === f.v) pending.splice(pending.indexOf(last), 1); }
+          else if (later.length) continue;
+          shadow.set(f.k, now); changed.add(f.k);
+        }
+        if (changed.size) show(changed);
+      }
       ver = m.ver; inflight = null; if (m.bad) ws.send({ t: 'ol_resync', item: it.id, cid });
       if (pending.length) pump(); else { setStatus('live'); onSaved && onSaved(); }
     }),

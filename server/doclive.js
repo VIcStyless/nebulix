@@ -93,15 +93,18 @@ function leave(s, cid) {
 function apply(s, m, ops) {
   const it = items()[s.item]; if (!it || !P().canEdit(it, S.users[m.uid] || {})) { m.edit = false; return { error: 'read_only' }; }
   if (!Array.isArray(ops) || !ops.length || ops.length > 500) return { error: 'bad_ops' };
-  let bad = 0; const done = []; let size = s.size;
+  let bad = 0; const done = []; let size = s.size; const fixes = [];
   for (const op of ops) {
     if (!op || typeof op !== 'object' || !ID.test(String(op.id || ''))) { bad++; continue; }
-    const h = op.h === undefined ? '' : String(op.h);
+    let h = op.h === undefined ? '' : String(op.h);
     let b = s.index.get(op.id);
     if (op.o === 'd') { if (!b) { bad++; continue; } if (!b.dead) { size -= b.h.length; b.dead = true; b.h = ''; } done.push({ o: 'd', id: op.id }); continue; }
     if (op.o !== 's' && op.o !== 'i') { bad++; continue; }
     if (size - (b && !b.dead ? b.h.length : 0) + h.length > MAX_DATA) return { error: 'too_big', ver: s.ver };
-    if (b) { size += h.length - (b.dead ? 0 : b.h.length); b.h = h; b.dead = false; done.push({ o: 's', id: op.id, h }); continue; } // an insert retried after a reconnect is already there
+    if (b) {
+      // 3.0 phase 13: someone changed this block since the sender's base → three-way merge (per character; tags are tokens)
+      if (typeof op.b === 'string' && !b.dead && b.h !== op.b && b.h !== h) { const mh = require('./merge').mergeHtml(op.b, b.h, h); if (mh !== null && mh !== h) { h = mh; fixes.push({ id: op.id, h }); } }
+      size += h.length - (b.dead ? 0 : b.h.length); b.h = h; b.dead = false; done.push({ o: 's', id: op.id, h }); continue; } // an insert retried after a reconnect is already there
     if (op.o === 's') { bad++; continue; }
     if (s.blocks.length >= MAX_ENTRIES) return { error: 'too_big', ver: s.ver };
     const a = op.a == null ? null : String(op.a); let at = 0;
@@ -111,7 +114,7 @@ function apply(s, m, ops) {
   }
   s.size = size;
   if (done.length) { s.ver++; s.by = m.uid; later(s); send(s, { t: 'dl_ops', item: s.item, ver: s.ver, by: m.cid, ops: done }, m.cid); }
-  return { ver: s.ver, bad };
+  return fixes.length ? { ver: s.ver, bad, fixes } : { ver: s.ver, bad };
 }
 
 function member(conn, u, m) {

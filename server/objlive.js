@@ -63,17 +63,21 @@ function leave(s, cid) {
 function apply(s, m, ops) {
   const it = items()[s.item]; if (!it || !P().canEdit(it, S.users[m.uid] || {})) { m.edit = false; return { error: 'read_only' }; }
   if (!Array.isArray(ops) || !ops.length || ops.length > 5000) return { error: 'bad_ops' };
-  let size = s.size; let bad = 0; const done = [];
-  for (const op of ops) {
+  let size = s.size; let bad = 0; const done = []; const fixes = [];
+  for (let op of ops) {
     if (!op || !KEY.test(String(op.k || '')) || (op.v !== null && typeof op.v !== 'string')) { bad++; continue; }
     if (op.v !== null) { try { JSON.parse(op.v); } catch { bad++; continue; } }
-    const old = s.units.get(op.k); const nsize = size - (old ? old.length : 0) + (op.v ? op.v.length : 0);
+    const old = s.units.get(op.k);
+    if (typeof op.b === 'string' && op.v !== null && old !== undefined && old !== op.b && old !== op.v) { // 3.0 phase 13: three-way merge of the unit (fields, items by id, text per character)
+      try { const mv = JSON.stringify(require('./merge').mergeJson(JSON.parse(op.b), JSON.parse(old), JSON.parse(op.v))); if (mv !== op.v) { op = { k: op.k, v: mv }; fixes.push(op); } } catch {}
+    }
+    const nsize = size - (old ? old.length : 0) + (op.v ? op.v.length : 0);
     if (nsize > MAX_DATA || (!old && s.units.size >= MAX_UNITS)) return { error: 'too_big', ver: s.ver };
     if (op.v === null) s.units.delete(op.k); else s.units.set(op.k, op.v); size = nsize; done.push({ k: op.k, v: op.v });
   }
   s.size = size;
   if (done.length) { s.ver++; s.by = m.uid; later(s); send(s, { t: 'ol_ops', item: s.item, ver: s.ver, by: m.cid, ops: done }, m.cid); }
-  return { ver: s.ver, bad };
+  return fixes.length ? { ver: s.ver, bad, fixes } : { ver: s.ver, bad };
 }
 function member(conn, u, m) { const s = sessions.get(String(m.item || '')); const mm = s && s.members.get(String(m.cid || '')); return mm && mm.conn === conn && mm.uid === u.id ? [s, mm] : [null, null]; }
 function onMessage(conn, u, m) {

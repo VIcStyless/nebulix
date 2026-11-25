@@ -37,7 +37,7 @@ infrastructure each pending item needs). Status words mean:
 | Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix). Pending: visual scene/level editor, sprite/animation editors, multiplayer & achievements APIs for Hub games. |
 | External game APIs (Steam, Epic, IGDB, Discord) | Pending — need API keys from the user; must use official APIs only. |
 | **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Pending: install/uninstall into the OS dock, manifest + permission system for apps. |
-| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Pending: character-level merging inside one paragraph / one cell. | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
+| **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Same-spot edits are merged (phase 13). | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
 | Tasks / calendar / whiteboard / markdown | Partial: Flow Board (kanban), Sketch Board, Markdown Writer as Hub apps; OS calendar widget; Study planner. Pending: a shared calendar with invitations. |
 | **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Pending: layered image editor, video timeline editor, audio editor. |
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
@@ -241,9 +241,26 @@ Tested: 10 protocol checks (units, relays, malformed ops, persistence, concurren
 private / view-only) and 10 checks with two browsers (different cells at once, a formula using the other person’s
 numbers, the same cell at once, outlines, server copy, two slides added at once, text edit, presence, no console errors).
 
+## 3m. What phase 13 added (v15.4.0)
+
+**Three-way merge instead of “last edit wins”.** `public/js/merge3.js` (the server runs the same code between its
+markers in an isolated vm, `server/merge.js`): LCS-based diff3 on tokens (HTML tags and entities are one token, text is
+per character; common prefix/suffix trimmed, 2.5 M-cell cap), pure insertions at the same spot keep both (theirs
+first), real overlapping replacements return null; `mergeJson` merges objects key by key, arrays of `{id}` items by id
+(edits beat deletes), strings per character.
+* Docs: `s` ops carry `b` (the block as the sender last knew it). If the server's block changed since, it merges
+  (`mergeHtml`), relays the merged block and returns `fixes` in the ack; the sender applies them and rebases anything
+  typed meanwhile. The caret is shifted with text added before it (common prefix/suffix mapping).
+* Sheets/Slides: unit ops carry `b`; the server merges with `mergeJson` (a newly created unit at the same instant is
+  still last-wins). Same `fixes` flow in `public/js/objlive.js`.
+* Overlapping replacements of the very same characters fall back to the later edit, as before.
+* Tested: 14 merge unit cases and 7 two-browser checks (same paragraph typed at both ends at once, bold + typing in
+  one paragraph, server copy, two edits to one cell, bold + new value on one cell, a move + a text edit on one slide
+  element, no console errors), stable over 3 runs; all earlier co-editing suites still pass.
+
 ## 4. Next phases (in order)
 
-1. Character-level merging inside one Docs paragraph / one Sheets cell (today the later edit wins for that unit).
+1. Python and other runtimes: in the browser (WebAssembly, no server execution) first; compute-node runtimes later.
 2. Game library integrations through official APIs (IGDB / Steam Web API / Discord) — need API keys from the owner.
 3. Sandboxed Python and other runtimes on compute nodes (reuse the VM isolation).
 

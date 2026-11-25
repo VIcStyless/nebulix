@@ -2,6 +2,16 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.4",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 13: no more lost edits when you write in the same place", "es": "Nebulix 3.0, fase 13: ya no se pierden cambios al escribir en el mismo sitio" },
+    "changes": [
+      { "type": "improved", "en": "Docs: when two people type in the same paragraph at the same time, both texts are kept (merged letter by letter), and your cursor moves with text others add before it.", "es": "Docs: cuando dos personas escriben a la vez en el mismo párrafo se conservan los dos textos (se combinan letra a letra) y tu cursor se desplaza con lo que otros añaden antes." },
+      { "type": "improved", "en": "Sheets: two edits to the same cell are combined — a format from one person and a new value from another both stay, and text edits in different parts of a cell are merged.", "es": "Sheets: dos cambios en la misma celda se combinan: el formato de una persona y el valor nuevo de otra se mantienen, y los textos editados en partes distintas se fusionan." },
+      { "type": "improved", "en": "Slides: moving an element while someone else edits its text keeps both changes; new elements added at the same time are all kept.", "es": "Slides: mover un elemento mientras otra persona edita su texto conserva los dos cambios; los elementos nuevos añadidos a la vez se mantienen todos." }
+    ]
+  },
+  {
     "v": "15.3",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 12: real-time co-editing in Sheets and Slides", "es": "Nebulix 3.0, fase 12: edición en tiempo real en Sheets y Slides" },

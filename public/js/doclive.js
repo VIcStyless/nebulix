@@ -9,6 +9,7 @@ import { api, ws } from './api.js';
 import { S, bus } from './state.js';
 import { t } from './i18n.js';
 import { sanitize } from './office.js';
+import { mergeHtml } from './merge3.js';
 
 const INLINE = /^(#text|B|STRONG|I|EM|U|S|STRIKE|A|SPAN|FONT|MARK|SUB|SUP|CODE|BR|IMG)$/;
 const BLOCK = /^(P|H1|H2|H3|H4|UL|OL|BLOCKQUOTE|PRE|DIV|HR|TABLE)$/;
@@ -47,10 +48,18 @@ export function liveDoc(it, page, { canEdit, onStatus, onPeers, onChange, onSave
   function caret() {
     const s = getSelection(); if (!s || !s.rangeCount || !page.contains(s.anchorNode)) return null;
     const b = topOf(s.focusNode); if (!b) return null; const a = topOf(s.anchorNode);
-    return { b: idOf.get(b) || null, o: textOff(b, s.focusNode, s.focusOffset), ab: a && idOf.get(a), ao: a ? textOff(a, s.anchorNode, s.anchorOffset) : 0 };
+    return { b: idOf.get(b) || null, o: textOff(b, s.focusNode, s.focusOffset), bt: b.textContent, ab: a && idOf.get(a), ao: a ? textOff(a, s.anchorNode, s.anchorOffset) : 0, at: a ? a.textContent : '' };
+  }
+  // Where a caret at offset o in `was` ends up in `now` (text changed around it): keep it relative to the unchanged
+  // start or end of the paragraph, so text another person added before the caret pushes it along.
+  function shift(was, now, o) {
+    if (was === now || was == null) return o; let pre = 0; while (pre < was.length && pre < now.length && was[pre] === now[pre]) pre++;
+    let suf = 0; while (suf < was.length - pre && suf < now.length - pre && was[was.length - 1 - suf] === now[now.length - 1 - suf]) suf++;
+    if (o <= pre) return o; if (o >= was.length - suf) return now.length - (was.length - o); return Math.max(0, Math.min(now.length, now.length - (was.length - o)));
   }
   function restore(c) {
     if (!c || !c.b || document.activeElement !== page) return; const el = elOf.get(c.b); if (!el || !el.isConnected) return;
+    c = { ...c, o: shift(c.bt, el.textContent, c.o) }; if (c.ab) { const ae0 = elOf.get(c.ab); if (ae0) c.ao = shift(c.at, ae0.textContent, c.ao); }
     try { const s = getSelection(); const [n, o] = posAt(el, c.o); const ae = c.ab && elOf.get(c.ab); const [an, ao] = ae && ae.isConnected ? posAt(ae, c.ao) : [n, o]; s.setBaseAndExtent(an, ao, n, o); } catch {}
   }
 
@@ -86,11 +95,11 @@ export function liveDoc(it, page, { canEdit, onStatus, onPeers, onChange, onSave
       for (let k = 0; k < kids.length; k++) {
         const el = kids[k]; let id = ids[k];
         if (!id || !kept.has(id)) { id = newId(); bind(id, el); const e = { id, h: el.outerHTML, dead: false }; const at = prev === null ? 0 : shadow.indexOf(index.get(prev)) + 1; shadow.splice(at, 0, e); index.set(id, e); ops.push({ o: 'i', id, a: prev, h: e.h }); }
-        else if (dirty.has(el)) { const e = index.get(id); const hh = el.outerHTML; if (hh !== e.h) { e.h = hh; ops.push({ o: 's', id, h: hh }); } }
+        else if (dirty.has(el)) { const e = index.get(id); const hh = el.outerHTML; if (hh !== e.h) { ops.push({ o: 's', id, h: hh, b: e.h }); e.h = hh; } }
         prev = id;
       }
     } else {
-      for (const el of dirty) { const e = index.get(idOf.get(el)); const hh = el.outerHTML; if (hh !== e.h) { e.h = hh; ops.push({ o: 's', id: e.id, h: hh }); } }
+      for (const el of dirty) { const e = index.get(idOf.get(el)); const hh = el.outerHTML; if (hh !== e.h) { ops.push({ o: 's', id: e.id, h: hh, b: e.h }); e.h = hh; } }
     }
     dirty.clear(); structural = false;
     if (ops.length) { pending.push(...ops); pump(); }
@@ -109,6 +118,19 @@ export function liveDoc(it, page, { canEdit, onStatus, onPeers, onChange, onSave
     clearTimeout(ackT); ackT = setTimeout(() => { if (inflight && inflight.seq === seq) rejoin(); }, 15000);
   }
   const unacked = () => (inflight ? inflight.ops : []).concat(pending);
+
+  // The server merged our edit with someone else's (phase 13): take its result, and rebase anything typed since.
+  function applyFixes(sent, fixes) {
+    diff(); const c = caret();
+    for (const f of fixes) {
+      const e = index.get(f.id); if (!e) continue; const mine = [...sent].reverse().find((o) => o.id === f.id && o.h !== undefined); if (!mine) continue;
+      const later = pending.filter((o) => o.id === f.id && o.o !== 'd');
+      let now = f.h;
+      if (later.length) { const local = e.h; now = mergeHtml(mine.h, f.h, local); if (now === null) now = local; const last = later[later.length - 1]; for (const o of later) if (o !== last) pending.splice(pending.indexOf(o), 1); last.b = f.h; last.h = now; if (now === f.h) pending.splice(pending.indexOf(last), 1); }
+      if (e.dead) continue; e.h = now; const old = elOf.get(f.id); if (old && old.isConnected) { const el = mkEl(now); old.replaceWith(el); bind(f.id, el); }
+    }
+    mo.takeRecords(); restore(c); changedRemote();
+  }
 
   // ---------- remote changes ----------
   function applyOne(op, skip, ownIns) {
@@ -225,6 +247,7 @@ export function liveDoc(it, page, { canEdit, onStatus, onPeers, onChange, onSave
       if (m.error === 'rate_limited') { pending = inflight.ops.concat(pending); inflight = null; setTimeout(pump, 1200); return; }
       if (m.error === 'read_only') { inflight = null; pending = []; onLost && onLost('read_only'); ws.send({ t: 'dl_resync', item: it.id, cid }); return; }
       if (m.error) { inflight = null; pending = []; onLost && onLost(m.error); ws.send({ t: 'dl_resync', item: it.id, cid }); return; }
+      if (m.fixes && m.fixes.length) applyFixes(inflight.ops, m.fixes);
       ver = m.ver; inflight = null; if (m.bad) ws.send({ t: 'dl_resync', item: it.id, cid });
       if (pending.length) pump(); else { setStatus('live'); onSaved && onSaved(); }
     }),
