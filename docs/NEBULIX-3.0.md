@@ -314,6 +314,25 @@ errors or CSP violations, no mobile overflow).
 **Free compute?** Checked: Fly machines have no KVM; Oracle's Always Free tier is ARM (now 2 OCPU / 12 GB) — no x86 KVM,
 so no Android emulator, and Cloud PC there would be as slow as on Fly. There is no free host that runs Nebulix Android.
 
+## 3r. What phase 16 added (v15.8.0)
+
+* **Productivity** (`#/ptools/<tool>`, `server/routes/ptools.js`, table `ptools`): Habits (14-day grid, streaks),
+  Journal (moods, search), Read later (title/description fetched through the SSRF guard, every redirect hop re-checked),
+  Mind maps (tidy tree, Tab/Enter/F2/Delete, fold, SVG export), Password vault and Scanner. Per-user documents with
+  count/size limits and optimistic concurrency (`base` → 409 when changed on another device).
+* **Password vault:** PBKDF2-SHA256 (310 000 iterations) → AES-256-GCM in the browser; the server accepts only
+  `{v, salt, iv, ct, iter}` and refuses anything else; auto-lock after 5 min; copied passwords cleared after 30 s;
+  unbiased password generator (rejection sampling).
+* **Scanner:** camera or photos → grayscale + auto levels (or black & white / colour) → multi-page PDF written in the
+  browser (JPEG pages) → download or Drive.
+* **Forms** (`#/forms`, tables `forms`, `formresp`): 8 question types, required, open/closed, one or several answers per
+  person, anonymous mode, server-side validation, owner notice on each answer, results with bars/averages, CSV.
+* **Fixed:** `api.delete()` did not exist (the client exposes `api.del`), so the Delete buttons in Nebulix Android,
+  Cloud PC and Admin → Compute crashed; an alias was added. Forms: switching a question to a choice type now saves two
+  starter options (they used to exist only in the editor).
+* Tested: 19 API checks, a redirect-to-private-address unit test (both IP and DNS-name targets blocked), and 13
+  browser checks covering every tool and a form answered by a second user; no console errors.
+
 ## 4. Next phases (in order)
 
 1. A KVM compute node for Nebulix Android (and faster Cloud PC): a bare-metal or nested-virtualisation server with HTTPS,

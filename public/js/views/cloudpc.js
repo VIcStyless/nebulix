@@ -40,7 +40,7 @@ async function homePage(root, ctx) {
     mount(wrap, head, body);
   }
   async function act(d, op) { try { await api.post(B + '/devices/' + d.id + '/' + op, {}); load(); } catch (e) { toastErr(e); } }
-  async function del(d) { if (!await confirmBox(t('Delete “{n}” and its disk? This cannot be undone.', { n: d.name }), { danger: true, ok: t('Delete') })) return; try { await api.delete(B + '/devices/' + d.id); toast(t('Machine deleted'), 'good'); load(); } catch (e) { toastErr(e); } }
+  async function del(d) { if (!await confirmBox(t('Delete “{n}” and its disk? This cannot be undone.', { n: d.name }), { danger: true, ok: t('Delete') })) return; try { await api.del(B + '/devices/' + d.id); toast(t('Machine deleted'), 'good'); load(); } catch (e) { toastErr(e); } }
   function create(imgs) {
     const cap = st.caps; const name = h('input', { placeholder: t('My Linux PC'), maxLength: 40 });
     const img = h('select', imgs.map((i) => h('option', { value: i.id }, i.name + (i.kind === 'iso' ? ' — ' + t('installer / live (ISO)') : ''))));

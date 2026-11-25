@@ -54,7 +54,7 @@ async function homePage(root, ctx) {
     mount(wrap, head, body);
   }
   async function act(d, op) { try { await api.post('/api/android/devices/' + d.id + '/' + op, {}); await load(); } catch (e) { toastErr(e); } }
-  async function del(d) { if (!await confirmBox(t('Delete “{n}” and everything inside it? This cannot be undone.', { n: d.name }), { danger: true, ok: t('Delete') })) return; try { await api.delete('/api/android/devices/' + d.id); toast(t('Device deleted'), 'good'); load(); } catch (e) { toastErr(e); } }
+  async function del(d) { if (!await confirmBox(t('Delete “{n}” and everything inside it? This cannot be undone.', { n: d.name }), { danger: true, ok: t('Delete') })) return; try { await api.del('/api/android/devices/' + d.id); toast(t('Device deleted'), 'good'); load(); } catch (e) { toastErr(e); } }
   function createDialog(imgs) {
     const name = h('input', { value: '', placeholder: t('My phone'), maxLength: 40 });
     const ver = h('select', imgs.map((i) => h('option', { value: i.api }, 'Android ' + i.android + ' (API ' + i.api + ')')));

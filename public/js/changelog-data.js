@@ -2,6 +2,17 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "15.8",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phase 16: Productivity tools and Forms", "es": "Nebulix 3.0, fase 16: herramientas de productividad y Formularios" },
+    "changes": [
+      { "type": "new", "en": "Productivity: Habits with streaks, a Journal with moods, Read later (saves the page title), Mind maps (keyboard friendly, SVG export), an encrypted Password vault and a document Scanner that saves PDFs to Drive.", "es": "Productividad: Hábitos con rachas, un Diario con estado de ánimo, Leer más tarde (guarda el título de la página), Mapas mentales (con teclado y exportación SVG), una caja fuerte de contraseñas cifrada y un Escáner de documentos que guarda PDF en Drive." },
+      { "type": "new", "en": "Password vault: encrypted in your browser with your master password (AES-256); Nebulix only stores the encrypted vault and cannot read it. It locks itself after 5 minutes and clears copied passwords from the clipboard.", "es": "Caja fuerte de contraseñas: se cifra en tu navegador con tu contraseña maestra (AES-256); Nebulix solo guarda la caja cifrada y no puede leerla. Se bloquea sola a los 5 minutos y borra del portapapeles las contraseñas copiadas." },
+      { "type": "new", "en": "Forms: build surveys and sign-ups with 8 kinds of questions, share the link, and see the answers with charts or download them as CSV.", "es": "Formularios: crea encuestas e inscripciones con 8 tipos de pregunta, comparte el enlace y mira las respuestas con gráficos o descárgalas en CSV." },
+      { "type": "fixed", "en": "Deleting an Android device, a Cloud PC machine or a compute node from the page no longer fails.", "es": "Eliminar un dispositivo Android, una máquina de Cloud PC o un nodo de cómputo desde la página ya no falla." }
+    ]
+  },
+  {
     "v": "15.7",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 15: discover free games and deals", "es": "Nebulix 3.0, fase 15: descubre juegos gratis y ofertas" },

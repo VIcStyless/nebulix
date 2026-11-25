@@ -24,6 +24,7 @@ async function req(method, path, body, opts = {}) {
 export const api = {
   get: (p, o) => req('GET', p, undefined, o), post: (p, b, o) => req('POST', p, b === undefined ? {} : b, o), put: (p, b, o) => req('PUT', p, b, o),
   patch: (p, b, o) => req('PATCH', p, b, o), del: (p, o) => req('DELETE', p, undefined, o),
+  delete: (p, o) => req('DELETE', p, undefined, o), // alias: api.delete() used to be undefined and crashed callers
   upload(kind, file) { return req('POST', '/api/upload?kind=' + encodeURIComponent(kind), file, { type: file.type || 'application/octet-stream' }); },
 };
 
