@@ -6,13 +6,13 @@ export function runGame(canvas, level, hooks) {
   hooks = hooks || {};
   const T = 32; const g = canvas.getContext('2d'); const W = level.w, H = level.h;
   const grav = (level.gravity || 10) * 0.12, jumpV = -(level.jump || 10) * 1.05, speed = (level.speed || 10) * 0.32;
-  let grid, coins, enemies, p, cam, state, score, collected, time, keys = {}, raf = 0, last = 0, deaths = 0, stopped = false;
+  let grid, coins, enemies, p, cam, state, score, collected, time, keys = {}, raf = 0, last = 0, deaths = 0, stopped = false, steps = 0;
   const solid = (c) => c === '#' || c === 'B';
   const at = (x, y) => (x < 0 || x >= W ? '#' : y < 0 ? '.' : y >= H ? '.' : grid[y][x]);
   function reset(full) {
     grid = level.tiles.map((r) => r.padEnd(W, '.').slice(0, W).split('')); coins = 0; collected = 0; enemies = []; let sx = 1, sy = 1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = grid[y][x]; if (c === 'S') { sx = x; sy = y; grid[y][x] = '.'; } else if (c === 'E') { enemies.push({ x: x * T, y: y * T, vx: -1.2, vy: 0, alive: true }); grid[y][x] = '.'; } else if (c === 'o') coins++; }
-    p = { x: sx * T + 4, y: sy * T, w: 24, h: 30, vx: 0, vy: 0, ground: false }; cam = 0; state = 'play'; time = 0; if (full) { score = 0; deaths = 0; }
+    p = { x: sx * T + 4, y: sy * T, w: 24, h: 30, vx: 0, vy: 0, ground: false }; cam = 0; state = 'play'; time = 0; steps = 0; if (full) { score = 0; deaths = 0; }
   }
   function collide(o, dx, dy) {
     o.x += dx; let x0 = Math.floor(o.x / T), x1 = Math.floor((o.x + o.w - 1) / T), y0 = Math.floor(o.y / T), y1 = Math.floor((o.y + o.h - 1) / T);
@@ -23,7 +23,7 @@ export function runGame(canvas, level, hooks) {
   }
   function die() { deaths++; if (hooks.onEvent) hooks.onEvent('death'); state = 'dead'; setTimeout(() => { if (!stopped) { const s = score; reset(false); score = s; } }, 900); }
   function step() {
-    if (state !== 'play') return; time += 1 / 60;
+    if (state !== 'play') return; time += 1 / 60; if (hooks.onStep) hooks.onStep(steps++); // optional: replays and tests drive input per physics step
     const left = keys.ArrowLeft || keys.a || keys.A, right = keys.ArrowRight || keys.d || keys.D, jump = keys[' '] || keys.ArrowUp || keys.w || keys.W;
     p.vx = (right ? speed : 0) - (left ? speed : 0); if (jump && p.ground) { p.vy = jumpV; p.ground = false; }
     p.vy = Math.min(p.vy + grav, 14); collide(p, p.vx, 0); collide(p, 0, p.vy);

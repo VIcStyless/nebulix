@@ -262,9 +262,10 @@ export function renderAuth(root, onDone0, init) {
         h('div.auth-top', h('div.brand', logoMark(28, 'logo-draw'), 'Nebulix'), h('span.pill', 'v' + ((S.cfg && S.cfg.version) || '3.0'))),
         h('div.auth-visual', map),
         h('div.auth-copy',
-          h('div.eyebrow', t('Nebulix 5 · The big update')),
+          h('div.eyebrow', t('Nebulix 3.0 · The big update')),
           h('h1.auth-h1', t('Your whole internet,'), h('br'), h('span.auth-grad', t('in one place.'))),
           h('p.tag', t('Browse privately, play in a 3D casino, code, store files, write documents and hang out with your community — all in Nebulix.')),
+          h('button.btn.primary.auth-trailer', { type: 'button', onClick: () => import('../trailer.js').then((m) => m.openTrailer()) }, icon('play', 15), t('Watch the trailer')),
           feats),
         h('div.auth-foot', h('span', t('Created by') + ' ', h('b', 'VicStyles')), h('span.muted', '·'), h('span.muted', t('Play money only. No real-money gambling.')))),
       h('section.auth-box', h('div.auth-card', h('div.row', { style: 'justify-content:flex-end;margin-bottom:18px' }, langSw()), h('div.auth-form', { key: st.mode }, form))));

@@ -2,6 +2,16 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.2",
+    "date": "2026-11-26",
+    "title": { "en": "The Nebulix 3.0 trailer", "es": "El tráiler de Nebulix 3.0" },
+    "changes": [
+      { "type": "new", "en": "Release trailer: a one-minute tour of Nebulix 3.0 recorded from the real interface, with original music. Watch it on Home, on the sign-in page or at #/trailer.", "es": "Tráiler de lanzamiento: un recorrido de un minuto por Nebulix 3.0 grabado con la interfaz real y con música original. Míralo en Inicio, en la página de acceso o en #/trailer." },
+      { "type": "fixed", "en": "Nebulix Android: after the first video stream ended, every new one timed out (the stream server removed its own file and was never copied again). Streams now always start, and a failed start retries once by itself.", "es": "Nebulix Android: cuando terminaba la primera transmisión de vídeo, todas las siguientes fallaban (el servidor de vídeo borraba su propio archivo y no se volvía a copiar). Ahora las transmisiones siempre arrancan y, si un inicio falla, se reintenta solo una vez." },
+      { "type": "improved", "en": "Game Maker engine: optional per-step hook for replays and tests.", "es": "Motor del Creador de juegos: gancho opcional por paso para repeticiones y pruebas." }
+    ]
+  },
+  {
     "v": "16.1",
     "date": "2026-11-26",
     "title": { "en": "Nebulix 3.0, phase 20: download manager", "es": "Nebulix 3.0, fase 20: gestor de descargas" },

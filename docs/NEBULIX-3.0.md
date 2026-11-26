@@ -374,6 +374,27 @@ charged, Drive item created (`source` = link), notice when done; up to 3 at a ti
 jobs kept in memory (last 50). Tested (9 checks): a PDF stored byte-exact, a page, 404, private address, non-http, a
 10 GB file refused before downloading, a 125 MB download cancelled mid-way, the 3-at-a-time limit.
 
+## 3v. Release trailer and a streaming fix (v16.2.0)
+
+* **Trailer** (`public/media/nebulix-3.0-trailer.mp4`, 54 s, 1080p30 H.264/AAC, 14.8 MB, poster `.jpg`): shown on the
+  sign-in page (button), on Home (dismissible card, `nbx.trailer.hide`) and at `#/trailer`; shared player in
+  `public/js/trailer.js`. Big static files are streamed with Range support, so it seeks without downloading everything.
+  How it was made (tooling in `tools/trailer/`, see its README):
+  * Footage recorded from a local copy of the site (test accounts only, no real user data) in headless Brave at
+    1920×1080 with CDP screencast. Page-driven scenes ran with the page clock slowed to ¼ (performance.now, Date.now,
+    rAF, timers and CSS animations scaled) and played back 4× faster → smooth 30 fps; Android and Cloud PC streams
+    recorded in real time from the local KVM node.
+  * The Game Maker run is a real win: a press schedule found by searching against the engine in Node, replayed
+    frame-exactly in the editor through the new optional `hooks.onStep`.
+  * Original soundtrack synthesized with numpy (no samples or third-party audio); title cards rendered from HTML with
+    Inter (OFL); edited with ffmpeg on the bar grid (120 BPM).
+  * Android carries a “Próximamente” badge: it works on a KVM node, but the public site has none yet.
+* **Fix — Android streams after the first one:** scrcpy's `cleanup=true` deletes the server jar from the device when a
+  stream ends, but the agent cached “already pushed”, so every later stream timed out (`connect timeout`). The agent now
+  pushes the jar before every stream (as the official client does) and retries a failed start once. Regression test:
+  three streams in a row, each started after the previous one stopped (30 s after its last viewer) → 3/3 live.
+  The production compute node has no Android, so this ships to the KVM node when it is set up.
+
 ## 4. Next phases (in order)
 
 Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).

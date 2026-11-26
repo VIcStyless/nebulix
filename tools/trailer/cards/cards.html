@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent;font-family:Inter,sans-serif;color:#fff}
+.full{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ background:radial-gradient(1200px 700px at 30% 20%,#4c1d95 0%,transparent 60%),radial-gradient(900px 600px at 80% 90%,#0e7490 0%,transparent 55%),#07060f}
+.full::after{content:"";position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 10% 20%,#fff8,transparent),radial-gradient(1px 1px at 70% 30%,#fff6,transparent),radial-gradient(1.5px 1.5px at 40% 80%,#fff5,transparent),radial-gradient(1px 1px at 85% 65%,#fff7,transparent),radial-gradient(1px 1px at 25% 55%,#fff5,transparent),radial-gradient(1.5px 1.5px at 60% 12%,#fff6,transparent);background-size:600px 400px}
+.logo{display:flex;align-items:center;gap:40px;position:relative;z-index:1}
+.logo svg{width:190px;height:190px;filter:drop-shadow(0 0 60px #d4ff3f66)}
+.word{font-size:200px;font-weight:900;letter-spacing:-.04em;line-height:1}
+.ver{font-size:200px;font-weight:900;color:#d4ff3f;letter-spacing:-.04em;line-height:1}
+.sub{margin-top:40px;font-size:44px;font-weight:600;color:#c4b5fd;letter-spacing:.02em;position:relative;z-index:1}
+.tag{font-size:110px;font-weight:800;letter-spacing:-.03em;line-height:1.08;text-align:center;position:relative;z-index:1}
+.tag em{font-style:normal;color:#d4ff3f}
+.cap{position:absolute;left:90px;bottom:90px;padding:34px 48px 36px 40px;border-radius:28px;background:linear-gradient(135deg,#0b0a18ee,#1e1b4bdd);border:1.5px solid #ffffff22;box-shadow:0 20px 80px #0009;display:flex;gap:28px;align-items:center;max-width:1300px}
+.cap .bar{width:10px;align-self:stretch;border-radius:5px;background:#d4ff3f}
+.cap h1{margin:0;font-size:76px;font-weight:900;letter-spacing:-.03em;line-height:1.02}
+.cap p{margin:12px 0 0;font-size:36px;font-weight:600;color:#ddd6fe}
+.pill{display:inline-block;margin-left:22px;vertical-align:middle;font-size:28px;font-weight:800;padding:8px 20px;border-radius:999px;background:#d4ff3f;color:#0b0c0e;letter-spacing:.02em;position:relative;top:-10px}
+.big{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.big span{font-size:220px;font-weight:900;letter-spacing:-.05em;text-shadow:0 10px 80px #000c,0 0 40px #0008}
+.big span i{font-style:normal;color:#d4ff3f}
+.url{margin-top:30px;font-size:56px;font-weight:800;color:#d4ff3f;position:relative;z-index:1}
+</style></head><body><div id="root"></div>
+<script>
+const LOGO='<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="#d4ff3f"/><path d="M20 46V24.5a2.5 2.5 0 0 1 4.3-1.7L39.7 41.2a2.5 2.5 0 0 0 4.3-1.7V18" fill="none" stroke="#0b0c0e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="46" r="4.5" fill="#0b0c0e"/><circle cx="44" cy="18" r="4.5" fill="#0b0c0e"/></svg>';
+window.render=(c)=>{const r=document.getElementById('root');
+ if(c.kind==='bg')r.innerHTML='<div class="full"></div>';
+ if(c.kind==='logo')r.innerHTML=`<div class="full"><div class="logo">${LOGO}<span class="word">Nebulix</span><span class="ver">3.0</span></div><div class="sub">${c.sub||''}</div></div>`;
+ if(c.kind==='tag')r.innerHTML=`<div class="full"><div class="tag">${c.html}</div></div>`;
+ if(c.kind==='cap')r.innerHTML=`<div class="cap"><div class="bar"></div><div><h1>${c.t}${c.pill?`<span class="pill">${c.pill}</span>`:''}</h1><p>${c.s}</p></div></div>`;
+ if(c.kind==='big')r.innerHTML=`<div class="big"><span>${c.html}</span></div>`;
+ if(c.kind==='end')r.innerHTML=`<div class="full"><div class="logo">${LOGO}<span class="word">Nebulix</span><span class="ver">3.0</span></div><div class="sub">Ya disponible · Gratis en tu navegador</div><div class="url">nebulix.fly.dev</div></div>`;
+ return document.fonts.ready.then(()=>true);};
+</script></body></html>

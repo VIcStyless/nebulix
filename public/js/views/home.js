@@ -1,4 +1,5 @@
 // Home: greeting + clock, launcher, KPIs, apps, daily reward, friends online, focus timer, squads, events, activity.
+import { trailerCard } from '../trailer.js';
 import { h, mount, fmt, ls, countUp } from '../util.js';
 import { t, locale, getLang as _gl } from '../i18n.js';
 import { api } from '../api.js';
@@ -172,7 +173,7 @@ export default {
       mount(seasonCard, h('span.ss-home-ic', '⭐'), h('div.grow', h('b', t('Season') + ' · ' + (_gl() === 'es' ? d.name[1] : d.name[0])), h('div.ss-bar.sm', h('i', { style: { width: pct + '%' } })), h('span.tiny.muted', t('Tier {n}', { n: d.tier }) + ' / ' + d.tiers + ' · ' + t('{a}/{b} weekly challenges', { a: wk, b: d.weekly.length }))),
         d.unclaimed ? h('span.ss-home-badge', t('{n} rewards waiting', { n: d.unclaimed })) : h('span.btn.sm', t('Open'))); }).catch(() => seasonCard.remove());
     const cc = commandCentre({ designNow, setDesign }); unsubs.push(() => cc.stop());
-    mount(root, h('div.inner.home', hero, mailNudge, cc, seasonCard, kpis,
+    mount(root, h('div.inner.home', hero, trailerCard(), mailNudge, cc, seasonCard, kpis,
       h('div.home-grid', annCard, spot, apps, dailyCard, friendsCard, focusCard, activity, squadsCard, eventsCard),
       gamesCard,
       h('div.footer-credit', 'Nebulix · ', t('Created by') + ' ', h('b', 'VicStyles'))));

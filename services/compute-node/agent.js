@@ -163,7 +163,9 @@ async function startStream(d, l) {
   if (l.stream || l.state !== 'running') return; const st = { scid: crypto.randomBytes(4).readUInt32BE(0) & 0x7fffffff, meta: null, config: null, alive: true };
   l.stream = st;
   try {
-    if (!l.jar) { const r = await adb(l.serial, ['push', CFG.scrcpy, '/data/local/tmp/nx-scrcpy.jar'], { timeout: 30000 }); if (r.code) throw new Error('push failed: ' + r.err); l.jar = true; }
+    // push every time, like the official client: scrcpy's cleanup=true deletes the jar when a stream ends, so a cached
+    // "already pushed" flag made every stream after the first one time out
+    { const r = await adb(l.serial, ['push', CFG.scrcpy, '/data/local/tmp/nx-scrcpy.jar'], { timeout: 30000 }); if (r.code) throw new Error('push failed: ' + r.err); }
     const sock = 'scrcpy_' + st.scid.toString(16).padStart(8, '0');
     const fw = await adbText(l.serial, ['forward', 'tcp:0', 'localabstract:' + sock]); st.port = Number(fw.text.trim()); if (!st.port) throw new Error('forward failed');
     st.proc = spawn(ADB, ['-s', l.serial, 'shell', 'CLASSPATH=/data/local/tmp/nx-scrcpy.jar', 'app_process', '/', 'com.genymobile.scrcpy.Server', CFG.scrcpyVersion,
@@ -188,7 +190,13 @@ async function startStream(d, l) {
     const ctrl = await connectRetry(st.port, 3000); st.ctrl = ctrl; let cb = Buffer.alloc(0);
     ctrl.on('data', (chunk) => { cb = Buffer.concat([cb, chunk]); while (cb.length >= 1) { const type = cb[0]; if (type === 0) { if (cb.length < 5) break; const n = cb.readUInt32BE(1); if (cb.length < 5 + n) break; const text = cb.subarray(5, 5 + n).toString(); cb = cb.subarray(5 + n); for (const v of l.viewers) v.send({ t: 'clip', text }); } else if (type === 1) { if (cb.length < 9) break; cb = cb.subarray(9); } else { cb = Buffer.alloc(0); } } });
     ctrl.on('error', () => {});
-  } catch (e) { log('stream', d.id, 'failed', e.message); stopStream(l); for (const v of l.viewers) v.send({ t: 'error', error: 'stream_failed' }); }
+    l.streamRetry = 0;
+  } catch (e) {
+    log('stream', d.id, 'failed', e.message); stopStream(l);
+    // a busy host can miss the first connect window: retry once by itself before telling the viewers
+    if (l.viewers.size && l.state === 'running' && !l.streamRetry) { l.streamRetry = 1; log('stream', d.id, 'retrying'); setTimeout(() => startStream(d, l), 1500); return; }
+    l.streamRetry = 0; for (const v of l.viewers) v.send({ t: 'error', error: 'stream_failed' });
+  }
 }
 function stopStream(l) {
   const st = l.stream; if (!st) return; l.stream = null; st.alive = false;
@@ -357,7 +365,7 @@ async function controlApi(req, res, url, body) {
   const l = ready(d);
   if (op === 'snapshots') {
     if (sub === 'save') { const name = clean(b.name, 32).replace(/\s+/g, '_') || 'snap_' + Date.now(); const r = await adbText(l.serial, ['emu', 'avd', 'snapshot', 'save', name], { timeout: 120000 }); if (!/OK/.test(r.text)) return J(res, 500, { error: 'snapshot_failed', message: r.text.trim().slice(0, 200) }); d.snapshots = [...(d.snapshots || []).filter((s) => s.name !== name), { name, at: Date.now() }].slice(-10); save(); return J(res, 200, { snapshots: d.snapshots }); }
-    if (sub === 'load') { const s = (d.snapshots || []).find((x) => x.name === b.name); if (!s) return J(res, 404, { error: 'no_snapshot' }); stopStream(l); const r = await adbText(l.serial, ['emu', 'avd', 'snapshot', 'load', s.name], { timeout: 120000 }); await waitAdb(l); l.jar = false; if (l.viewers.size) startStream(d, l).catch(() => {}); return J(res, /OK/.test(r.text) ? 200 : 500, { ok: /OK/.test(r.text), message: r.text.trim().slice(0, 200) }); }
+    if (sub === 'load') { const s = (d.snapshots || []).find((x) => x.name === b.name); if (!s) return J(res, 404, { error: 'no_snapshot' }); stopStream(l); const r = await adbText(l.serial, ['emu', 'avd', 'snapshot', 'load', s.name], { timeout: 120000 }); await waitAdb(l); if (l.viewers.size) startStream(d, l).catch(() => {}); return J(res, /OK/.test(r.text) ? 200 : 500, { ok: /OK/.test(r.text), message: r.text.trim().slice(0, 200) }); }
     if (sub === 'delete') { await adbText(l.serial, ['emu', 'avd', 'snapshot', 'delete', String(b.name || '')], { timeout: 60000 }); d.snapshots = (d.snapshots || []).filter((x) => x.name !== b.name); save(); return J(res, 200, { snapshots: d.snapshots }); }
     return J(res, 200, { snapshots: d.snapshots || [] });
   }

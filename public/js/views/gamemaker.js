@@ -65,7 +65,7 @@ export default {
       const box = h('div.gm-test', h('div.row', { style: 'gap:8px;align-items:center' }, h('b.grow', t('Play-test') + ': ' + lv.title), h('span.tiny.muted', t('Arrows/A D to move, Space/W to jump')), h('button.btn.sm', { onClick: () => test && test.restart() }, t('Restart')), h('button.btn.sm', { onClick: stopTest }, t('Back to editor'))), c, res,
         h('div.row', { style: 'gap:10px;justify-content:space-between' }, h('div.row', { style: 'gap:8px' }, btn('ArrowLeft', '◀'), btn('ArrowRight', '▶')), btn(' ', '⤒')));
       editor.hidden = true; root.querySelector('.gm').append(box); c.focus();
-      test = runGame(c, JSON.parse(JSON.stringify(lv)), { onWin: (r) => mount(res, h('p.gm-win', '🏁 ' + t('Level completed: {s} points, {c}/{n} coins, {t} s', { s: r.score, c: r.coins, n: r.total, t: r.time.toFixed(1) }))) });
+      test = runGame(c, JSON.parse(JSON.stringify(lv)), { onStep: (n) => { if (window.__nbxGM && window.__nbxGM.onStep) window.__nbxGM.onStep(n); }, onWin: (r) => mount(res, h('p.gm-win', '🏁 ' + t('Level completed: {s} points, {c}/{n} coins, {t} s', { s: r.score, c: r.coins, n: r.total, t: r.time.toFixed(1) }))) });
       window.__nbxGM.test = test;
     }
     function stopTest() { if (test) { test.stop(); test = null; } const b = root.querySelector('.gm-test'); if (b) b.remove(); editor.hidden = false; }
