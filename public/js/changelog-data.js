@@ -2,6 +2,14 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.1",
+    "date": "2026-11-26",
+    "title": { "en": "Nebulix 3.0, phase 20: download manager", "es": "Nebulix 3.0, fase 20: gestor de descargas" },
+    "changes": [
+      { "type": "new", "en": "Downloads: paste a link to a file and the Nebulix server downloads it straight into your Drive, with progress, cancel and retry (public links only, within your storage quota). Also in Nebulix OS.", "es": "Descargas: pega el enlace de un archivo y el servidor de Nebulix lo descarga directamente en tu Drive, con progreso, cancelación y reintento (solo enlaces públicos y dentro de tu cuota). También en Nebulix OS." }
+    ]
+  },
+  {
     "v": "16.0",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phases 18–19: Video editor and Game Maker", "es": "Nebulix 3.0, fases 18–19: Editor de vídeo y Creador de juegos" },

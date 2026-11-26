@@ -7,6 +7,7 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['download', 'Download manager', 'Paste a link and Nebulix downloads the file straight into your Drive.', 'downloads'],
   ['video', 'Video editor and Game Maker', 'Edit videos with fades, text and subtitles, and build platform games you can publish to the Hub.', 'gamemaker'],
   ['image', 'Nebulix Photo and Nebulix Audio', 'A layered image editor for thumbnails and banners, and an audio editor with cut, fades, normalise and WAV export.', 'photo'],
   ['check', 'Productivity tools and Forms', 'Habits, journal, reading list, mind maps, an encrypted password vault, a document scanner and forms with shareable links.', 'ptools'],

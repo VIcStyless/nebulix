@@ -28,7 +28,7 @@ infrastructure each pending item needs). Status words mean:
 |---|---|---|
 | **Nebulix OS** (desktop, windows, snapping, taskbar, start menu, search, widgets, 4 virtual desktops, quick settings, glass/Linux effects, Alt+\` switcher, Ctrl+K palette) | Implemented | `public/js/os/desktop.js`, `os14.css` |
 | OS system apps: Files (local VFS), Text editor, Task Manager, Clipboard history, Screenshot (screen capture API), Camera, Calculator, Focus timer, System monitor, Command Center, Widgets, Nova Agents | Implemented | `public/js/os/apps.js`, `apps2.js` |
-| OS: PDF viewer, archive manager (ZIP list/extract/compress), startup apps (phase 11); app permissions (Hub apps, phase 4) | Implemented. Pending: a download manager (needs a server-side download queue) | `os/apps2.js`, `zipread.js` |
+| OS: PDF viewer, archive manager (ZIP list/extract/compress), startup apps (phase 11); app permissions (Hub apps, phase 4) | Implemented, including the download manager (phase 20). | `os/apps2.js`, `zipread.js` |
 | **Nebulix Android** | **Implemented on compute nodes** (phase 9): real devices with the official Android Emulator + AOSP x86_64 images (API 21–36) under KVM, managed by `services/compute-node/agent.js`; H.264 stream (scrcpy server) decoded with WebCodecs; APKs, apps, files, screenshots, recording, clipboard, GPS, rotation, resolution, snapshots, shell, logcat, hardware settings, quotas. **Connected** in production only once the owner adds a node (Admin → Compute). No Google Play. The in-browser Android-x86 4.4 (v86) stays as an offline fallback. | `views/android.js`, `server/routes/android.js`, `server/compute.js`, `services/compute-node/` |
 | **Virtual machines** | In-browser (v86): templates, ISO/IMG, disks, snapshots, clone, export, Linux terminal. **Cloud PC (phase 10): server-side QEMU/KVM VMs on compute nodes** — ready-made qcow2 systems or ISOs, noVNC screen, ACPI shutdown / force off / reset, key combos, PNG screenshots, disk+memory snapshots, live CPU/RAM, hardware settings, quotas. Connected in production once a node is added. | `views/vm.js`, `views/cloudpc.js`, `services/compute-node/` |
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
@@ -365,17 +365,27 @@ so no Android emulator, and Cloud PC there would be as slow as on Fly. There is 
   Bugs fixed while testing: fast strokes left gaps; the thumbnail upload used the wrong parameters; a second video
   export would have crashed (one AudioContext per element).
 
+## 3u. What phase 20 added (v16.1.0)
+
+**Download manager** (`#/downloads`, OS app “Downloads”, `server/routes/downloads.js`): the server downloads a public
+http(s) link into the user's Drive — proxy SSRF guard re-checked on every redirect (max 5), Content-Length checked
+against the file-size limit and free quota before reading, streamed through `blobs.receive` (hash, size cap), quota
+charged, Drive item created (`source` = link), notice when done; up to 3 at a time per user; progress, cancel, retry;
+jobs kept in memory (last 50). Tested (9 checks): a PDF stored byte-exact, a page, 404, private address, non-http, a
+10 GB file refused before downloading, a 125 MB download cancelled mid-way, the 3-at-a-time limit.
+
 ## 4. Next phases (in order)
 
-Everything that can be built without the owner's purchases or keys is done (phases 1–16). What remains needs the owner:
+Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).
+What remains needs the owner:
 
 1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start
    SYS-GAME-1/2, Hetzner AX42 or an auction server) with HTTPS, set up with `services/compute-node/README.md` and added
    in Admin → Compute. No free host can do this (Fly: no KVM; Oracle Always Free: ARM only).
 2. **API keys** for IGDB (Twitch client ID/secret), the Steam Web API and Discord, if those integrations are wanted
    (keyless official APIs — FreeToGame, CheapShark — are already integrated).
-3. Optional later: server-side runtimes (Python with packages, other languages) on compute nodes, reusing the VM
-   isolation; today Python runs safely in the browser (phase 14).
+3. **A background-removal service** (e.g. a remove.bg API key) if Nebulix Photo should offer it.
+4. Optional later: server-side runtimes (Python with packages, other languages) on compute nodes.
 
 ## 5. How to verify
 
