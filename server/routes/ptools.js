@@ -12,7 +12,7 @@ const { S, hub } = require('../state');
 const { HttpError, now, rid } = require('../util');
 const guard = require('../proxy/guard');
 
-const KINDS = { habits: [200, 4000], journal: [3000, 20000], readlater: [2000, 3000], mindmaps: [200, 200000], vault: [1, 600000] }; // [max docs, max bytes per doc]
+const KINDS = { habits: [200, 4000], journal: [3000, 20000], readlater: [2000, 3000], mindmaps: [200, 200000], vault: [1, 600000], levels: [100, 200000] }; // [max docs, max bytes per doc]
 const tbl = () => S.store.table('ptools');
 const mine = (u) => { const t = tbl(); return t[u.id] || (t[u.id] = {}); };
 const coll = (u, kind) => { const m = mine(u); return m[kind] || (m[kind] = {}); };

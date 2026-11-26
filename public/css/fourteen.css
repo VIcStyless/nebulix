@@ -727,3 +727,39 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .au-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); background: #0b1220; }
 .au-wave { display: block; height: 220px; cursor: text; touch-action: none; outline: none; } .au-wave:focus-visible { box-shadow: inset 0 0 0 2px #6366f1; }
 .au-info { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; font-variant-numeric: tabular-nums; }
+
+/* Nebulix 3.0 phase 18 — Video editor */
+.ve { display: flex; flex-direction: column; gap: 10px; padding: 12px clamp(10px, 2vw, 22px); min-height: calc(100vh - 80px); }
+.ve-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .ve-title { max-width: 280px; font-weight: 700; }
+.ve-main { display: grid; grid-template-columns: 260px minmax(0, 1fr) 260px; gap: 12px; }
+.ve-left, .ve-right { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 4%, var(--bg)); border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); min-width: 0; }
+.ve-bin, .ve-props { display: flex; flex-direction: column; gap: 8px; }
+.ve-media { display: flex; gap: 6px; align-items: center; font-size: .82rem; min-width: 0; } .ve-media .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ve-preview { background: #000; border-radius: 12px; overflow: hidden; } .ve-canvas { display: block; width: 100%; aspect-ratio: 16/9; }
+.ve-transport { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; } .ve-time { font-variant-numeric: tabular-nums; font-size: .85rem; }
+.ve-prog { width: 120px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; } .ve-prog i { display: block; height: 100%; width: 0; background: #ef4444; transition: width .2s; }
+.ve-tracks { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 8px 70px; border-radius: 14px; background: color-mix(in srgb, var(--text) 4%, var(--bg)); border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); cursor: pointer; }
+.ve-ruler { position: relative; height: 16px; font-size: .65rem; color: var(--muted); } .ve-ruler span { position: absolute; transform: translateX(-50%); }
+.ve-track { position: relative; height: 38px; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.ve-tl { position: absolute; left: -62px; top: 10px; font-size: .72rem; width: 56px; }
+.ve-clip { position: absolute; top: 3px; bottom: 3px; border: 0; border-radius: 6px; background: linear-gradient(180deg, #3b82f6, #1d4ed8); color: #fff; font-size: .72rem; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; cursor: pointer; box-shadow: inset -1px 0 0 rgba(255,255,255,.3); }
+.ve-clip.txt { background: linear-gradient(180deg, #f59e0b, #b45309); } .ve-clip.mus { background: linear-gradient(180deg, #10b981, #047857); display: flex; align-items: center; } .ve-clip.on { outline: 2px solid #fff; }
+.ve-ph { position: absolute; top: 4px; bottom: 4px; width: 2px; background: #ef4444; margin-left: 70px; pointer-events: none; left: 0; }
+.ve-num { display: grid; grid-template-columns: 1fr 110px; gap: 6px; align-items: center; font-size: .8rem; }
+@media (max-width: 1000px) { .ve-main { grid-template-columns: 1fr; } }
+
+/* Nebulix 3.0 phase 19 — Game Maker */
+.gm { padding: 12px clamp(10px, 2vw, 22px); display: flex; flex-direction: column; gap: 10px; }
+.gm-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .gm-bar .input { max-width: 240px; font-weight: 700; }
+.gm-main { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; margin-top: 10px; }
+.gm-side { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 4%, var(--bg)); border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+.gm-pal { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.gm-tile { display: flex; gap: 6px; align-items: center; padding: 6px; border-radius: 8px; border: 1px solid transparent; background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); cursor: pointer; font-size: .8rem; }
+.gm-tile i { width: 16px; height: 16px; border-radius: 4px; flex: none; } .gm-tile.on { border-color: var(--accent, #6366f1); background: color-mix(in srgb, var(--accent, #6366f1) 18%, transparent); }
+.gm-sliders { display: flex; flex-direction: column; gap: 6px; }
+.gm-scroll { overflow: auto; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); max-height: 70vh; }
+.gm-canvas { display: block; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
+.gm-test { display: flex; flex-direction: column; gap: 10px; } .gm-play { width: min(100%, 960px); aspect-ratio: 2/1; border-radius: 12px; outline: none; background: #000; align-self: center; }
+.gm-pad { width: 64px; height: 64px; border-radius: 50%; border: 0; background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); font-size: 1.4rem; touch-action: none; }
+@media (hover: hover) { .gm-pad { display: none; } } .gm-win { font-weight: 700; color: #16a34a; }
+@media (max-width: 800px) { .gm-main { grid-template-columns: 1fr; } }

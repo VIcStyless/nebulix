@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.0",
+    "date": "2026-11-25",
+    "title": { "en": "Nebulix 3.0, phases 18–19: Video editor and Game Maker", "es": "Nebulix 3.0, fases 18–19: Editor de vídeo y Creador de juegos" },
+    "changes": [
+      { "type": "new", "en": "Video editor: put clips on a timeline, trim and split them, add fades and effects, text and subtitles (also from .srt files) and a music track, and export a real WebM video or save it to Drive.", "es": "Editor de vídeo: coloca clips en una línea de tiempo, recórtalos y divídelos, añade fundidos y efectos, textos y subtítulos (también desde archivos .srt) y una pista de música, y exporta un vídeo WebM real o guárdalo en Drive." },
+      { "type": "new", "en": "Game Maker: paint a platform level with ground, bricks, spikes, coins, springs and enemies, tune gravity and jump, play-test it on the spot and publish it to Nebulix Hub as a game with a leaderboard.", "es": "Creador de juegos: pinta un nivel de plataformas con suelo, ladrillos, pinchos, monedas, muelles y enemigos, ajusta la gravedad y el salto, pruébalo al momento y publícalo en Nebulix Hub como un juego con tabla de récords." }
+    ]
+  },
+  {
     "v": "15.9",
     "date": "2026-11-25",
     "title": { "en": "Nebulix 3.0, phase 17: Nebulix Photo and Nebulix Audio", "es": "Nebulix 3.0, fase 17: Nebulix Photo y Nebulix Audio" },

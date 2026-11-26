@@ -34,12 +34,12 @@ infrastructure each pending item needs). Status words mean:
 | **Gaming — Arcade** | Implemented: 19 single-player games (Snake, 2048, Aim, Typing, Block Drop, Flap, Paddle Duel, Star Defenders, Brick Breaker, Memory, Gravity Dash, Star Stack, Nebula Ops 3D, Market Rush, **Minesweeper, Sudoku, Space Rocks, Gem Match, Reflex** — new in 3.0) + live duels (Tic-Tac-Toe, Connect Four, Rock Paper Scissors). Server-validated scores, personal bests, records, daily coin cap. | `views/arcade*.js`, `server/routes/arcade.js` |
 | Gaming — Arena (Royale with building, Ops 5v5, 1v1, ranked), Nebula Worlds (3D obby/hangouts + builder), Casino 3D, Nebula Dash, Nebula Fusion, Boss raids, Tournaments, Leagues, Clans, Squads, Season pass | Implemented | `views/arena.js`, `worlds.js`, … |
 | Game library (Hub games + Vault store + reviews, collections, saves) | Implemented | `views/hub.js`, `vault.js`, `library.js` |
-| Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix), Game API (scores, achievements, multiplayer rooms — phases 2–4), creator guide + starter template (phase 5). Pending: visual level editor. |
+| Game engine / editor for users | Partial: Nebulix Code + Hub publishing (upload a folder, versions, remix), Game API (scores, achievements, multiplayer rooms — phases 2–4), creator guide + starter template (phase 5). Visual level editor: Nebulix Game Maker (phase 19). |
 | External game APIs | **Implemented (phase 15)** with keyless official public APIs: FreeToGame (free-to-play catalogue) and CheapShark (deals across official stores) in `#/discover`. Pending: IGDB / Steam Web API / Discord (need keys from the owner). |
 | **Hub / App Store** | Implemented: uploads (file/zip/folder), sandboxed run modes, releases, reviews, discussions, media, collections, remix, official apps (6), showcase home. Install/uninstall into Nebulix OS with update badges (phases 2–3) and a manifest permission system (phase 4). |
 | **Office** — Docs, Sheets, Slides, Notes, Drive | Implemented. Docs: Word export, comments, real-time co-editing (phase 8). Sheets and Slides: real-time co-editing (phase 12). Same-spot edits are merged (phase 13). | `views/docs.js`, `sheets.js`, `slides.js`, `doclive.js`, `objlive.js` |
 | Tasks / calendar / whiteboard / markdown | Implemented: Calendar & Tasks with invitations (phases 2 and 4), Flow Board (kanban), Sketch Board, Markdown Writer, Habits, Journal, Mind maps, Forms (phase 16). |
-| **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Nebulix Photo (layered image editor) and Nebulix Audio (waveform editor) in phase 17. Pending: video timeline editor. |
+| **Creative** — Nebulix Studio (code + Copilot), Pixel Forge, Beat Lab, Palette Lab, Nebula Synth (Pulse), image generation (Nova) | Implemented. Nebulix Photo (layered image editor) and Nebulix Audio (waveform editor) in phase 17. Video editor (phase 18). |
 | **Music & video** — Pulse (radio, synth, DJ), Nebulix TV/Tube, Clips, Live | Implemented (existing). |
 | **Social** — community chat, servers/channels, DMs, voice rooms (WebRTC), profiles, plaza, feed, clans, reports/moderation | Implemented (existing). |
 | **Nova AI** — chat with history, per-conversation model choice, streaming, Markdown/code, web search, images, voice, Nova Agent (PRO), Nova Agents team (OS), tutor (Study) | Implemented / Connected (provider keys in Admin → AI; free models otherwise). |
@@ -346,6 +346,24 @@ so no Android emulator, and Cloud PC there would be as slow as on Fly. There is 
   16-bit WAV encoder; download or Drive.
 * Tested in the browser (17 checks): layers, mouse drag and resize, filter + undo, crop, PNG size, Drive project;
   delete/undo, fade, normalise peak 0.891, reverse, copy/paste length, WAV header and size, Drive; no console errors.
+
+## 3t. What phases 18–19 added (v16.0.0)
+
+* **Video editor** (`#/videoed`, `public/js/views/videoed.js`): media bin (video/image/audio, kept as object URLs on the
+  device), video track (clips with in/out trim, split at playhead, reorder, fade, brightness/contrast/saturation/B&W),
+  text track (position, size, colour; `.srt` import with `parseSrt`), music track (start, volume). Canvas preview at
+  1280×720; export = real-time `canvas.captureStream(30)` + Web Audio mix (one AudioContext for the editor, because a
+  media element can be routed only once) → `MediaRecorder` WebM (VP9/VP8 + Opus) → download or Drive.
+* **Game Maker** (`#/gamemaker`, `views/gamemaker.js`, engine `public/js/gamemaker-runtime.js`): tile painter (ground,
+  brick, spikes, coin, spring, enemy, start, goal; strokes interpolated), physics/colour settings, width 20–300, undo,
+  levels saved to the account (`ptools` kind `levels`), play-test with keyboard and touch pads, **Publish to Hub**: one
+  `index.html` with the level JSON and `runGame.toString()` (the same engine), zipped with `zipwrite.js`, uploaded as a
+  Hub game with a thumbnail (`kind=game&thumb=1`); a win calls `Nebulix.submitScore` for the leaderboard.
+* Tested in the browser: video (7 checks: import a generated WebM, trim/two clips, SRT, preview frame, export decoded as
+  1280×720 with the right length and a non-blank frame, second export to Drive) and Game Maker (9 checks: painting,
+  reaching the goal, spikes, enemy, save, publish with thumbnail and engine, the published HTML winnable standalone).
+  Bugs fixed while testing: fast strokes left gaps; the thumbnail upload used the wrong parameters; a second video
+  export would have crashed (one AudioContext per element).
 
 ## 4. Next phases (in order)
 
