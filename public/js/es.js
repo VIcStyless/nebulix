@@ -7019,4 +7019,5 @@ export default {
   "Not enough gems": "No tienes suficientes gemas",
   "That player has the most gems possible": "Ese jugador ya tiene el máximo de gemas posible",
   "Give gems to a friend or donate them to a booth. Up to 200 at a time and 500 a day.": "Regala gemas a un amigo o dónalas a un puesto. Hasta 200 cada vez y 500 al día.",
+  "Max 100,000 per donation · no daily limit.": "Máximo 100.000 por donación · sin límite diario.",
 };

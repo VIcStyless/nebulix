@@ -24,13 +24,14 @@ function transfer(u, body) {
   if ((to.blocked || []).includes(u.id) || (u.blocked || []).includes(to.id)) throw new HttpError(403, 'blocked', 'You cannot send coins to this player');
   const note = String(body.note || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 80);
   const day = (u.txDay = u.txDay && u.txDay.d === dayKey() ? u.txDay : { d: dayKey(), sent: 0 });
-  if (day.sent + amount > TX_DAY) throw new HttpError(429, 'daily_cap', 'Daily transfer limit reached (' + TX_DAY.toLocaleString('en-US') + ' coins)');
+  // donations (Plaza booths) have no daily cap; plain transfers keep it
+  if (!body.donation && day.sent + amount > TX_DAY) throw new HttpError(429, 'daily_cap', 'Daily transfer limit reached (' + TX_DAY.toLocaleString('en-US') + ' coins)');
   if (amount > u.coins) throw new HttpError(402, 'no_funds', 'Not enough coins');
   if (to.coins + amount > econ.MAX_COINS) throw new HttpError(400, 'full', 'That wallet is full');
   // Node runs this synchronously: debit and credit happen together, nothing can interleave.
   if (!econ.adjust(u, -amount, 'transfer:to:@' + to.username)) throw new HttpError(402, 'no_funds', 'Not enough coins');
   econ.adjust(to, amount, 'transfer:from:@' + u.username);
-  day.sent += amount;
+  if (!body.donation) day.sent += amount;
   const rec = { id: rid(6), t: now(), from: u.id, to: to.id, amount, note };
   S.meta.transfers = S.meta.transfers || []; S.meta.transfers.unshift(rec); if (S.meta.transfers.length > 2000) S.meta.transfers.length = 2000;
   S.store.touch('meta'); S.store.touch('users');

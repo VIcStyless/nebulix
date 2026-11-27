@@ -74,7 +74,7 @@ export default {
       const set = (v) => {
         cur = v; const G = v === 'gems'; lab.textContent = G ? t('Gems') : t('Coins');
         amt.placeholder = G ? '5, 20, 100' : '500, 10k'; amt.value = G ? Math.min(10, S.me.gems || 0) || 1 : 500;
-        hint.textContent = G ? t('You have {n} gems. Max {m} per donation and {d} per day.', { n: fmt.num(S.me.gems || 0), m: gl.max, d: gl.day }) : t('Max 100,000 per donation and 250,000 per day.');
+        hint.textContent = G ? t('You have {n} gems. Max {m} per donation and {d} per day.', { n: fmt.num(S.me.gems || 0), m: gl.max, d: gl.day }) : t('Max 100,000 per donation · no daily limit.');
       };
       const seg = segEl([['coins', '🪙 ' + t('Coins')], ['gems', '💎 ' + t('Gems')]], cur, set); set(cur);
       const ok = await modal({ title: t('Donate to @{u}', { u: username }), cls: 'narrow', body: h('div.col.gap', seg, h('div.field', lab, amt, hint), field(t('Message'), note)), actions: [{ label: t('Cancel'), value: false }, { label: t('Donate'), kind: 'primary', value: true }] });
