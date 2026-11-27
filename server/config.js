@@ -27,7 +27,7 @@ const bool = (k, d) => (env[k] === undefined || env[k] === '' ? d : /^(1|true|ye
 
 const cfg = {
   ROOT,
-  VERSION: '16.8.0',
+  VERSION: '16.9.0',
   brand: str('BRAND_NAME', 'Nebulix'),
   creator: 'VicStyles',
   host: str('HOST', '127.0.0.1'),

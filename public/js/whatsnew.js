@@ -7,6 +7,9 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['clock', 'Playtime', 'Your time in Nebulix games is measured automatically; see it in Game library and share it on your profile.', 'library'],
+  ['box3d', '3D viewer', 'Open GLB, glTF, STL and OBJ models from your device or your Drive.', 'model3d'],
+  ['monitor', 'Screensaver and custom pointer', 'Five screensavers and three pointer styles in Settings → Appearance.', 'settings/appearance'],
   ['chart', 'Match tracker', 'Log your matches and practice for any game and see your win rate, K/D, streaks and trends.', 'matches'],
   ['calendar', 'Scrims in Recruitment', 'Post a date and time and find an opponent team for a scrim.', 'recruit'],
   ['bell', 'Timers', 'Stopwatch, countdown timer and a break reminder that keep running while you use Nebulix.', 'ref/timer'],

@@ -80,6 +80,7 @@ export default {
       else if (ty.startsWith('video/')) pv = h('video.dv-pv', { src: it.url, controls: true, autoplay: true });
       else if (ty.startsWith('audio/')) pv = h('audio', { src: it.url, controls: true, autoplay: true });
       else if (ty === 'application/pdf') pv = h('iframe.dv-pdf', { src: it.url, title: it.name });
+      else if (/\.(glb|gltf|stl|obj)$/i.test(it.name || '')) return ctx.go('model3d', { src: it.url, name: it.name });
       else { window.open(it.url + '?dl=1', '_blank', 'noopener'); return; }
       modal({ title: it.name, cls: 'wide', body: h('div.dv-pvwrap', pv), actions: [{ label: t('Download'), onClick: () => { window.open(it.url + '?dl=1', '_blank', 'noopener'); return false; } }, { label: t('Close'), kind: 'primary', value: true }] });
     }

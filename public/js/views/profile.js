@@ -28,7 +28,7 @@ export default {
       return () => {};
     }
     const u = data.user; const me = u.id === S.me.id;
-    const [prog, defs, pcard] = await Promise.all([api.get('/api/users/' + u.id + '/progress', { quiet: true }).catch(() => null), progressDefs(), api.get('/api/players/' + u.id + '/card', { quiet: true }).catch(() => null)]);
+    const [prog, defs, pcard, ptime] = await Promise.all([api.get('/api/users/' + u.id + '/progress', { quiet: true }).catch(() => null), progressDefs(), api.get('/api/players/' + u.id + '/card', { quiet: true }).catch(() => null), api.get('/api/playtime/u/' + u.id, { quiet: true }).catch(() => null)]);
 
     let stage = null;
     function paint() {
@@ -57,7 +57,7 @@ export default {
         lv ? h('div.card.tight.pf-lvl', h('span.lvl-ring', { style: `--p:${Math.round(lv.into / Math.max(1, lv.need) * 100)}` }, h('b', String(lv.level))), h('div.grow', h('b', t('Level {n}', { n: lv.level })), h('div.xpbar.sm', h('i', { style: `width:${Math.round(lv.into / Math.max(1, lv.need) * 100)}%` }))), h('span.tiny.muted', t('{n} achievements', { n: (prog.achievements || []).length }))) : null,
         (u.groles || []).length || SITE_ROLES[u.role] ? h('div.row.wrap.gap-s', SITE_ROLES[u.role] ? roleChip(SITE_ROLES[u.role], { title: t('Staff role') }) : null, (u.groles || []).map((g) => roleChip(g, { title: t('Community role') }))) : null,
         show.length ? h('div.pf-show', show.map((a) => h('div.pf-ach', { style: `--rc:${RARITY[a.rarity] || RARITY.common}`, title: t(a.desc) }, h('span', badgeGlyph(a.icon)), h('b.small', t(a.name))))) : null,
-        gamesCard(data.games));
+        gamesCard(data.games), playedCard(ptime));
       // their 3D avatar (the character they use in the 3D casino)
       const av3card = u.av3 ? h('div.card.tight.pf-av3', (stage = avatarStage(u.av3, { size: 220 })), h('div.tiny.muted', t('3D avatar · drag to turn'))) : me ? h('div.card.tight.pf-av3', h('p.small.muted', t('You do not have a 3D avatar yet.')), h('button.btn.sm.primary', { onClick: () => go('avatar') }, t('Create my 3D avatar'))) : null;
       if (av3card) extra.prepend(av3card);
@@ -72,6 +72,13 @@ export default {
         g.playing.length ? h('div.col', { style: 'gap:6px' }, h('div.eyebrow', t('Playing now')), g.playing.map((x) => row(x, 'play'))) : null,
         g.favorites.length ? h('div.col', { style: 'gap:6px;margin-top:10px' }, h('div.eyebrow', t('Favorites')), g.favorites.map((x) => row(x, 'star'))) : null,
         h('div.tiny.muted', { style: 'margin-top:10px' }, t('{a} games · {b} finished · {c} h played', { a: g.total, b: g.done, c: g.hours })));
+    }
+    // recently played Nebulix games, measured automatically (only shown when they turned it on in Game library)
+    function playedCard(p) {
+      if (!p || !p.games || !p.games.length || (!p.show && !me)) return null;
+      return h('div.card.tight', h('div.card-head', { style: 'margin-bottom:8px' }, h('h3', icon('clock', 15), t('Recently played'))),
+        h('div.col', { style: 'gap:6px' }, p.games.map((g) => h('div.row', { style: 'gap:8px' }, h('span.muted', icon('gamepad', 14)), h('span.grow.ellipsis', g.title || g.key), h('span.tiny.muted', fmt.dur(g.sec) + ' · ' + fmt.rel(g.last))))),
+        me && !p.show ? h('div.tiny.muted', { style: 'margin-top:8px' }, t('Only you can see this. Turn on “Show on my profile” in Game library to share it.')) : null);
     }
     // player card: league, clan, level and the big numbers from the 6.0+ features
     function playerCard(c) {

@@ -37,7 +37,7 @@ const REC_TTL = 30 * 86400000;
 const recView = (p, me) => ({ id: p.id, kind: p.kind, game: p.game, gameName: p.gameName || '', title: p.title, text: p.text, roles: p.roles, rank: p.rank, region: p.region, platform: p.platform, lang: p.lang, mic: !!p.mic, age: p.age || '', when: p.when || 0, created: p.created, expires: p.expires, mine: !!me && p.owner === me.id, by: publicUser(S.users[p.owner]), interested: (p.interested || []).length, imIn: !!me && (p.interested || []).includes(me.id) });
 
 // ---------- external reference APIs ----------
-const UA = 'Nebulix/16.8 (+https://nebulix.fly.dev)';
+const UA = 'Nebulix/16.9 (+https://nebulix.fly.dev)';
 const cache = new Map();
 function getJson(url, ttl) {
   const hit = cache.get(url); if (hit && Date.now() - hit.at < ttl) return Promise.resolve(hit.data);

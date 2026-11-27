@@ -88,8 +88,10 @@ module.exports = function register(r) {
   // 3.0: live metrics, growth and health for the Overview tab
   r.get('/api/admin/metrics', { auth: true, role: 'staff', limit: [120, 60000, 'user'] }, async (c) => {
     const m = metrics.snapshot(Math.min(1440, Math.max(30, Number(c.query.minutes) || 180)));
-    return Object.assign(m, { errors: ['owner', 'admin'].includes(c.user.role) ? metrics.errors().slice(0, 50) : [] });
+    const adm = ['owner', 'admin'].includes(c.user.role);
+    return Object.assign(m, { errors: adm ? metrics.errors().slice(0, 50) : [], clientErrors: adm ? metrics.clientErrors().slice(0, 60) : [] });
   });
+  r.post('/api/admin/metrics/client-errors/clear', { auth: true, role: 'admin' }, async (c) => { metrics.clearClientErrors(); audit('client_errors_clear', c.user.id, ''); return { ok: true }; });
   r.post('/api/admin/metrics/errors/clear', { auth: true, role: 'admin' }, async (c) => { metrics.clearErrors(); audit('errors_clear', c.user.id, ''); return { ok: true }; });
   r.get('/api/admin/insights', { auth: true, role: 'staff', limit: [60, 60000, 'user'] }, async () => {
     const DAY = 86400000; const today = Math.floor(now() / DAY) * DAY; const users = Object.values(S.users).filter((u) => !u.deleted); const seen = lastSeenMap();

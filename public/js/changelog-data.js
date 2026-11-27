@@ -2,6 +2,41 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.9",
+    "date": "2026-11-27",
+    "title": {
+      "en": "Playtime, a 3D viewer and a screensaver",
+      "es": "Tiempo de juego, visor 3D y salvapantallas"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Playtime: your active time in Nebulix games (Arcade, Arena, Fusion, Retro, Worlds, Casino and more) is measured automatically. Game library shows what you played recently, the time per game and the last 14 days; you can share “Recently played” on your profile.",
+        "es": "Tiempo de juego: tu tiempo activo en los juegos de Nebulix (Arcade, Arena, Fusion, Retro, Worlds, Casino y más) se mide automáticamente. La Biblioteca de juegos muestra lo que has jugado hace poco, el tiempo por juego y los últimos 14 días; puedes compartir «Jugado recientemente» en tu perfil."
+      },
+      {
+        "type": "new",
+        "en": "3D viewer: open GLB, glTF, STL and OBJ models from your device or Drive, with orbit controls, wireframe, lighting and background options, glTF animations, model statistics and screenshots.",
+        "es": "Visor 3D: abre modelos GLB, glTF, STL y OBJ desde tu dispositivo o tu Drive, con controles de órbita, malla, opciones de luz y fondo, animaciones glTF, estadísticas del modelo y capturas."
+      },
+      {
+        "type": "new",
+        "en": "Screensaver (off by default): starfield, clock, matrix rain, aurora or bouncing logo after 1–60 idle minutes. It never starts during games, videos, streams, remote machines or full screen.",
+        "es": "Salvapantallas (desactivado de serie): campo de estrellas, reloj, lluvia Matrix, aurora o logo rebotando tras 1–60 minutos sin actividad. Nunca se activa durante juegos, vídeos, directos, máquinas remotas ni en pantalla completa."
+      },
+      {
+        "type": "improved",
+        "en": "Settings → Appearance: large, neon or crosshair mouse pointer.",
+        "es": "Ajustes → Apariencia: puntero del ratón grande, neón o de mira."
+      },
+      {
+        "type": "improved",
+        "en": "Admins now see JavaScript errors from players’ browsers, grouped, with no personal data, so problems get fixed faster.",
+        "es": "Los administradores ven ahora los errores de JavaScript de los navegadores de los jugadores, agrupados y sin datos personales, para corregir los fallos antes."
+      }
+    ]
+  },
+  {
     "v": "16.8",
     "date": "2026-11-27",
     "title": {

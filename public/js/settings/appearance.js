@@ -8,6 +8,7 @@ import { LAYOUTS, setLayout, DESIGNS, setDesign, designNow } from '../app.js';
 import { toast, toastErr, settingRow, switchEl, segEl } from '../ui.js';
 import * as theme from '../theme.js';
 import { sfx, MSG_SOUNDS, msgSound, msgVol, playMsg } from '../sfx.js';
+import { settings as SS, STYLES as SS_STYLES } from '../screensaver.js';
 
 export default {
   mount(host, ctx) {
@@ -59,6 +60,11 @@ export default {
           h('select.input', { 'aria-label': t('Message sound'), style: 'width:auto', onChange: (e) => { ls('sound.msg', e.target.value); playMsg(e.target.value); } }, MSG_SOUNDS.map(([k, l]) => h('option', { value: k, selected: k === msgSound() }, t(l)))),
           h('input', { type: 'range', min: 0, max: 1.5, step: 0.1, value: msgVol(), 'aria-label': t('Volume'), onChange: (e) => { ls('sound.vol', Number(e.target.value)); playMsg(msgSound()); } }),
           h('button.btn.sm', { type: 'button', onClick: () => playMsg(msgSound()) }, icon('volume', 14), t('Test')))),
+        settingRow(t('Screensaver'), t('Starts after you have been idle for a while. Never during games, videos, streams, remote machines or full screen. Saved on this device.'), (() => { const ss = SS(); const row = h('div.row', { style: 'gap:6px;flex-wrap:wrap;align-items:center' });
+          const after = h('select.input', { 'aria-label': t('Screensaver delay'), style: 'width:auto', onChange: (e) => import('../screensaver.js').then((m) => m.save({ after: Number(e.target.value) })) }, [[0, t('Off')], [1, '1 min'], [2, '2 min'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [30, '30 min'], [60, '1 h']].map(([v, l]) => h('option', { value: v, selected: v === ss.after }, l)));
+          const style = h('select.input', { 'aria-label': t('Screensaver style'), style: 'width:auto', onChange: (e) => import('../screensaver.js').then((m) => m.save({ style: e.target.value })) }, SS_STYLES.map(([k, l]) => h('option', { value: k, selected: k === ss.style }, t(l))));
+          row.append(after, style, h('button.btn.sm', { type: 'button', onClick: () => import('../screensaver.js').then((m) => m.show(style.value)) }, icon('eye', 14), t('Preview'))); return row; })()),
+        settingRow(t('Mouse pointer'), t('A bigger or more visible pointer. Text fields keep the normal text cursor. Saved on this device.'), segEl([['', t('System')], ['large', t('Large')], ['neon', t('Neon')], ['cross', t('Crosshair')]], ls('cursor') || '', (v) => { ls('cursor', v || null); if (v) document.documentElement.dataset.cursor = v; else delete document.documentElement.dataset.cursor; })),
         settingRow(t('Reduce motion'), t('Calms the animated background and transitions. Great for weaker PCs.'), tog('reduceMotion')),
         settingRow(t('Compact mode'), t('Tightens spacing so more fits on screen.'), tog('compact')),
         settingRow(t('High contrast'), t('Stronger borders and text for better readability.'), tog('highContrast')),

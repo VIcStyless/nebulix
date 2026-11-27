@@ -510,9 +510,51 @@ stopwatch / timer / "gaming timer" (utilities), an SVG editor (developer tools) 
   - Full route sweep with 0 issues.
   - The phase 21 suites (27 API and 27 browser checks) still pass.
 
+## 3zb. Playtime, 3D viewer, screensaver, custom pointer and browser error reports (v16.9.0, phase 23)
+
+Gaps from the brief that this phase fills:
+- playtime tracking and recently played (gaming center, social profiles);
+- a 3D model viewer (creative tools);
+- screensavers and a custom cursor (customization);
+- error reporting (system features).
+
+- **Playtime** (`public/js/playtime.js`, `server/routes/playtime.js`):
+  - A second counts only when all of these hold: the page is a Nebulix game route (arcade, arena, fusion, dash, retro, worlds, boss, quiz, word, play, music, casino, casino3d, ranked, vault, gamemaker), the tab is visible, and there was mouse, keyboard, touch or controller input in the last 2 minutes.
+  - Reports go out about once a minute and when the tab is hidden.
+  - The server accepts at most the wall-clock time since the previous report plus 10 s (150 s at most), and only known game routes.
+  - Game library → "Played on Nebulix" shows recently played games, time per game, the last 14 days, per-game remove and clear history.
+  - Private by default. "Show on my profile" adds a "Recently played" card to the profile, respecting blocks.
+  - Desktop (OS) mode is not measured yet.
+- **3D viewer** (`#/model3d`, `views/model3d.js`):
+  - Opens GLB, glTF (also with separate `.bin` and texture files selected together), STL and OBJ, by file picker or drag and drop.
+  - Built on three.js r170 with its official GLTFLoader, STLLoader, OBJLoader and OrbitControls, vendored in `vendor/three-addons/` (MIT).
+  - Features: auto-centring, wireframe, three lighting and three background presets, a grid, auto-rotate, glTF animation playback, statistics (meshes, vertices, triangles, materials, textures, size) and a PNG screenshot.
+  - Drive opens `.glb/.gltf/.stl/.obj` files in the viewer. Links to other sites are refused.
+- **Screensaver** (`public/js/screensaver.js`; Settings → Appearance; off by default):
+  - Styles: starfield, clock (it drifts to avoid burn-in), matrix rain, aurora and bouncing logo.
+  - It starts after 1–60 idle minutes and ends on any input.
+  - It never starts on game, stream, video-editor, remote-machine or terminal pages, while media is playing, in full screen or picture-in-picture, or while such a window is open on the desktop.
+- **Mouse pointer:** system, large, neon or crosshair, set through `html[data-cursor]`. Text fields keep the text cursor.
+- **Browser error reports** (`public/js/errors.js`, `server/routes/clienterr.js`, `metrics.clientError`):
+  - Only uncaught errors in Nebulix's own `/js/` files are reported, at most 10 per page load, ignoring known benign messages.
+  - Sent: the message, with emails and long numbers masked on both client and server; the file, line and column; up to 8 stack frames of Nebulix paths; the page name; the version; and the browser family.
+  - Reports are grouped in memory (200 groups) and shown in Admin → Overview → Browser errors, with count, distinct players, pages, versions and a Clear button.
+- **Fixed during testing:** glTF animations were dropped when a model loaded (the clip list was cleared after being read).
+- **Tests:**
+  - 13 API checks (`p23.mjs`): the playtime cap, key validation, privacy and profile sharing, and error masking, grouping, staff-only access and clear.
+  - 21 browser checks in Spanish (`cdp-p23.mjs`), with no console errors:
+    - playtime: 9 s of real active play measured, idle time not counted, and the profile card;
+    - 3D viewer: STL, OBJ and GLB with its animation, pixels actually drawn, a PNG screenshot, and other sites' links refused;
+    - pointer styles;
+    - screensaver: preview, starting by itself after 1 idle minute, closing on input, and not starting on a game page;
+    - an error reaching the Admin overview.
+  - 5 pages checked at 390 px.
+  - Full sweep with 0 issues.
+  - The phase 21 and 22 suites still pass.
+
 ## 4. Next phases (in order)
 
-Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–22).
+Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–23).
 What remains needs the owner:
 
 1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start

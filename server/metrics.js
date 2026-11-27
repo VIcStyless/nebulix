@@ -5,7 +5,7 @@
 const { monitorEventLoopDelay } = require('perf_hooks');
 
 const SLOTS = 24 * 60; const series = []; let cur = fresh();
-const errors = []; const started = Date.now();
+const errors = []; const started = Date.now(); const clientErrs = new Map();
 const lag = monitorEventLoopDelay({ resolution: 20 }); lag.enable();
 function fresh() { return { t: Math.floor(Date.now() / 60000) * 60000, req: 0, api: 0, e4: 0, e5: 0, ms: 0 }; }
 function roll(online) {
@@ -26,4 +26,14 @@ module.exports = {
     return { series: series.slice(-Math.max(1, Math.min(SLOTS, minutes))).concat([live]), since: started }; },
   errors() { return errors.slice(); },
   clearErrors() { errors.length = 0; },
+  // 16.9: errors reported by browsers (public/js/errors.js), grouped by message + file + line. Memory only, like the
+  // server errors: a restart clears them. Who reported is only counted (distinct users), never listed.
+  clientError(e, uid) {
+    const fp = e.message + '|' + e.file + '|' + e.line; let g = clientErrs.get(fp);
+    if (!g) { if (clientErrs.size >= 200) clientErrs.delete(clientErrs.keys().next().value); g = { fp, message: e.message, file: e.file, line: e.line, col: e.col, stack: e.stack, kind: e.kind, first: Date.now(), last: 0, count: 0, users: new Set(), routes: new Set(), versions: new Set(), browsers: new Set() }; clientErrs.set(fp, g); }
+    g.count++; g.last = Date.now(); if (g.users.size < 1000) g.users.add(uid); if (e.route) g.routes.add(e.route); if (e.version) g.versions.add(e.version); if (e.browser) g.browsers.add(e.browser);
+    if (g.routes.size > 8) g.routes.delete(g.routes.values().next().value);
+  },
+  clientErrors() { return [...clientErrs.values()].sort((a, b) => b.last - a.last).map((g) => ({ message: g.message, file: g.file, line: g.line, col: g.col, stack: g.stack, kind: g.kind, first: g.first, last: g.last, count: g.count, users: g.users.size, routes: [...g.routes], versions: [...g.versions], browsers: [...g.browsers] })); },
+  clearClientErrors() { clientErrs.clear(); },
 };

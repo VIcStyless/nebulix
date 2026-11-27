@@ -1,10 +1,10 @@
 // Game library: a personal backlog board. Drag games between Backlog / Playing / Finished / Dropped,
 // rate them, log hours and keep a short note. Stats on top.
 import { h, mount, fmt } from '../util.js';
-import { t } from '../i18n.js';
+import { t, locale } from '../i18n.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
-import { toastErr, modal, field, promptBox, confirmBox, openMenu, loading } from '../ui.js';
+import { toast, toastErr, modal, field, promptBox, confirmBox, openMenu, loading, switchEl } from '../ui.js';
 
 const COLS = () => [['backlog', t('Backlog'), 'inbox'], ['playing', t('Playing'), 'play'], ['done', t('Finished'), 'check'], ['dropped', t('Dropped'), 'x']];
 
@@ -12,14 +12,28 @@ export default {
   title: () => t('Game library'),
   async mount(root) {
     let games = []; let q = '';
-    const stats = h('div.kpis'); const board = h('div.lib-cols', loading());
+    const stats = h('div.kpis'); const pt = h('section.card.lib-pt'); const board = h('div.lib-cols', loading());
     const name = h('input.input', { placeholder: t('Add a game… (press Enter)'), maxlength: 60, onKeydown: (e) => { if (e.key === 'Enter') add(); } });
     const search = h('input.input', { type: 'search', placeholder: t('Search your library'), onInput: (e) => { q = e.target.value.trim().toLowerCase(); paint(); } });
     mount(root, h('div.inner', { style: 'max-width:1280px' },
       h('div.page-title', h('div', h('h2', t('Game library')), h('p', t('Track what you are playing, what is next and what you finished.')))),
-      stats, h('div.toolbar', { style: 'margin-top:16px' }, name, h('button.btn.primary', { onClick: add }, icon('plus', 16), t('Add')), search, h('button.btn', { onClick: pickForMe, title: t('Pick a random game from your backlog') }, icon('dice', 16), t('Pick for me'))), board));
+      stats, pt, h('div.toolbar', { style: 'margin-top:16px' }, name, h('button.btn.primary', { onClick: add }, icon('plus', 16), t('Add')), search, h('button.btn', { onClick: pickForMe, title: t('Pick a random game from your backlog') }, icon('dice', 16), t('Pick for me'))), board));
 
-    async function load() { try { games = (await api.get('/api/library')).games; } catch (e) { toastErr(e); } paint(); }
+    async function load() { try { games = (await api.get('/api/library')).games; } catch (e) { toastErr(e); } paint(); loadPt(); }
+    // Played on Nebulix: measured automatically (public/js/playtime.js), not typed in
+    async function loadPt() {
+      let d; try { await (await import('../playtime.js')).flush(); d = await api.get('/api/playtime'); } catch { return mount(pt); }
+      const head = h('div.card-head', h('h3', icon('clock', 16), ' ', t('Played on Nebulix')), h('span.tiny.muted', t('{t} in total', { t: fmt.dur(d.total) })));
+      const showSw = h('label.row', { style: 'gap:6px;align-items:center' }, switchEl(d.show, async (v) => { try { await api.patch('/api/playtime', { show: v }); toast(v ? t('Your recently played games now show on your profile') : t('Hidden from your profile')); } catch (e) { toastErr(e); } }), h('span.small', t('Show on my profile')));
+      if (!d.games.length) return mount(pt, head, h('p.small.muted', t('Play any Nebulix game (Arcade, Arena, Fusion, Retro, Worlds…) and your time appears here. Only active time counts: the tab must be visible and you must have played in the last two minutes.')), showSw);
+      const max = Math.max(60, ...d.days.map((x) => x.sec));
+      const bars = h('div.lib-ptbars', d.days.map((x) => h('div.lib-ptbar', { title: new Date(x.d + 'T12:00:00').toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + fmt.dur(x.sec) }, h('i', { style: 'height:' + Math.round((x.sec / max) * 100) + '%' }), h('span.tiny', new Date(x.d + 'T12:00:00').toLocaleDateString(locale(), { weekday: 'narrow' })))));
+      const row = (g) => h('div.lib-ptrow', h('a.grow.ellipsis', { href: '#/' + (g.key.startsWith('arcade/') ? 'arcade?play=' + g.key.slice(7) : g.key) }, g.title || g.key), h('span.small', fmt.dur(g.sec)), h('span.tiny.muted', fmt.rel(g.last)),
+        h('button.btn.sm.ghost', { 'aria-label': t('Remove'), onClick: async () => { try { await api.del('/api/playtime/' + encodeURIComponent(g.key)); loadPt(); } catch (e) { toastErr(e); } } }, icon('x', 12)));
+      mount(pt, head, h('div.lib-ptgrid', h('div', h('div.eyebrow', t('Recently played')), d.games.slice(0, 8).map(row)), h('div', h('div.eyebrow', t('Last 14 days')), bars)),
+        h('div.row', { style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px' }, showSw, h('span.grow'), h('button.btn.sm.ghost', { onClick: async () => { if (await confirmBox(t('Delete all your playtime history?'), { danger: true, ok: t('Delete') })) { try { await api.del('/api/playtime/all'); loadPt(); } catch (e) { toastErr(e); } } } }, t('Clear history'))),
+        h('p.tiny.muted', t('Measured automatically while you play Nebulix games: only while the tab is visible and you are active.')));
+    }
     function paintStats() {
       const k = (l, v) => h('div.kpi', h('span', l), h('b', v));
       const hrs = games.reduce((a, g) => a + (g.hours || 0), 0); const rated = games.filter((g) => g.rating); const avg = rated.length ? (rated.reduce((a, g) => a + g.rating, 0) / rated.length).toFixed(1) : '—';

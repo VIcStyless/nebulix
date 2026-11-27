@@ -52,7 +52,12 @@ async function overview(box) {
       chartCard(t('Online now'), S2.map((x) => x.online), fmt.num(last.online || 0), t('people connected'), '#14b8a6'));
     if (m.errors && isAdmin()) mount(errBox, h('section.card', h('div.row.between', h('h3', { style: 'margin:0' }, icon('alert', 18), ' ', t('Recent server errors')), m.errors.length ? h('button.btn.sm.ghost', { type: 'button', onClick: async () => { await api.post('/api/admin/metrics/errors/clear').catch(toastErr); loadLive(); } }, t('Clear')) : null),
       m.errors.length ? h('div.adm-errs', m.errors.slice(0, 20).map((e) => h('div.adm-err', h('div.row', { style: 'gap:8px' }, h('code', e.route), h('span.tiny.muted', fmt.rel(e.t))), h('div.small', e.message), e.where ? h('div.tiny.muted', e.where) : null)))
-        : h('p.small.muted', t('No server errors since the last restart. 🎉'))));
+        : h('p.small.muted', t('No server errors since the last restart. 🎉'))),
+      h('section.card', { style: 'margin-top:14px' }, h('div.row.between', h('h3', { style: 'margin:0' }, icon('monitor', 18), ' ', t('Browser errors')), (m.clientErrors || []).length ? h('button.btn.sm.ghost', { type: 'button', onClick: async () => { await api.post('/api/admin/metrics/client-errors/clear').catch(toastErr); loadLive(); } }, t('Clear')) : null),
+        h('p.tiny.muted', t('JavaScript errors in Nebulix code reported by players’ browsers, grouped. No page content or personal data is sent; a restart clears this list.')),
+        (m.clientErrors || []).length ? h('div.adm-errs', m.clientErrors.slice(0, 30).map((e) => h('div.adm-err', h('div.row', { style: 'gap:8px;flex-wrap:wrap' }, h('code', e.file + ':' + e.line + ':' + e.col), h('span.tag', '×' + e.count), h('span.tag', t('{n} players', { n: e.users })), e.routes.length ? h('span.tiny.muted', '#/' + e.routes.join(', #/')) : null, h('span.tiny.muted', fmt.rel(e.last))),
+          h('div.small', (e.kind === 'promise' ? t('Unhandled promise: ') : '') + e.message), h('div.tiny.muted', [e.versions.join(', '), e.browsers.join(', ')].filter(Boolean).join(' · ')), e.stack ? h('pre.tiny.adm-stack', e.stack) : null)))
+          : h('p.small.muted', t('No browser errors reported since the last restart.'))));
     clearTimeout(timer); if (alive) timer = setTimeout(loadLive, 30000);
   }
   const growth = ins ? h('div.nl-grid', { style: 'margin-top:14px' },
