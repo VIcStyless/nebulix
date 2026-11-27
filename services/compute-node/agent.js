@@ -290,7 +290,8 @@ const FW_PAIRS = [['/usr/share/OVMF/OVMF_CODE_4M.secboot.fd', '/usr/share/OVMF/O
   ['/usr/share/OVMF/OVMF_CODE_4M.fd', '/usr/share/OVMF/OVMF_VARS_4M.fd'], ['/usr/share/edk2/x64/OVMF_CODE.4m.fd', '/usr/share/edk2/x64/OVMF_VARS.4m.fd'], ['/usr/share/OVMF/OVMF_CODE.fd', '/usr/share/OVMF/OVMF_VARS.fd']];
 const firmware = () => { const f = FW_PAIRS.find(([c, v]) => fs.existsSync(c) && fs.existsSync(v)); return f ? { code: f[0], vars: f[1], secure: /secboot/.test(f[0]) } : null; };
 const SWTPM = (() => { for (const d of (process.env.PATH || '').split(':')) { const x = path.join(d, 'swtpm'); if (fs.existsSync(x)) return x; } return null; })();
-const winCaps = () => ({ uefi: !!firmware(), tpm: !!SWTPM, secureBoot: !!(firmware() || {}).secure, kvm: fs.existsSync('/dev/kvm'), drivers: fs.existsSync(path.join(CFG.vmImages, 'virtio-win.iso')) });
+const WIN_MIN_HOST = 6 * 1073741824; // a 4 GB Windows guest plus QEMU and the host need about 6 GB of RAM
+const winCaps = () => ({ memory: require('os').totalmem() >= WIN_MIN_HOST, uefi: !!firmware(), tpm: !!SWTPM, secureBoot: !!(firmware() || {}).secure, kvm: fs.existsSync('/dev/kvm'), drivers: fs.existsSync(path.join(CFG.vmImages, 'virtio-win.iso')) });
 async function startTpm(dir) {
   const st = path.join(dir, 'tpm'); fs.mkdirSync(st, { recursive: true }); const sock = path.join(st, 'swtpm.sock'); fs.rmSync(sock, { force: true });
   const p = spawn(SWTPM, ['socket', '--tpm2', '--tpmstate', 'dir=' + st, '--ctrl', 'type=unixio,path=' + sock, '--flags', 'startup-clear', '--terminate'], { stdio: 'ignore' });
@@ -315,6 +316,8 @@ function windowsArgs(d, dir, tpm) {
 async function vmStart(d) {
   if (live.has(d.id)) return view(d);
   const running = [...live.values()].filter((l) => l.state !== 'stopped').length; if (running >= CFG.maxRunning) throw Object.assign(new Error('This node is running as many machines as it can. Try again later.'), { status: 503, code: 'node_full' });
+  // fail with a clear message instead of QEMU's 'cannot set up guest memory'
+  const freeMb = Math.floor(require('os').freemem() / 1048576); if (d.ram > freeMb + 256) throw Object.assign(new Error(`This server does not have enough free memory right now (the machine needs ${d.ram} MB, ${freeMb} MB are free). Lower its memory or try again later.`), { status: 503, code: 'no_memory' });
   const n = freeVnc(); const dir = vmDir(d); const sock = path.join(dir, 'qmp.sock'); fs.rmSync(sock, { force: true });
   const img = d.iso ? path.join(CFG.vmImages, d.iso) : null;
   // without /dev/kvm (e.g. Fly.io Firecracker machines) QEMU emulates the CPU in software (TCG): it works, just slower
@@ -404,6 +407,7 @@ async function controlApi(req, res, url, body) {
     if (b.kind === 'vm') {
       const img = vmImages().find((i) => i.id === b.image); if (!img) return J(res, 400, { error: 'no_image', message: 'That system image is not on this node' });
       const win = img.os === 'windows'; // Windows 11 needs 4 GB RAM and 64 GB of disk; 2 cores minimum
+      if (win && require('os').totalmem() < WIN_MIN_HOST) return J(res, 400, { error: 'too_small', message: 'This server does not have enough memory for Windows (it needs at least 6 GB of RAM). Use a bigger compute node.' });
       const d = { id: b.id, kind: 'vm', os: img.os, owner: String(b.owner || ''), name: clean(b.name, 40) || img.name, image: img.id, iso: img.kind === 'iso' ? img.id : null,
         cpu: Math.max(win ? 2 : 1, Math.min(8, b.cpu | 0 || (win ? 4 : 2))), ram: Math.max(win ? 4096 : 512, Math.min(16384, b.ram | 0 || (win ? 4096 : 2048))), storage: Math.max(win ? 64 : 4, Math.min(200, b.storage | 0 || (win ? 64 : 20))), created: Date.now(), snapshots: [] };
       fs.mkdirSync(vmDir(d), { recursive: true });

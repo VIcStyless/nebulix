@@ -54,6 +54,7 @@ async function homePage(root, ctx) {
       if (cap.storage < 64 || cap.ram < 4096) return mount(winNote, h('p.an-warn', t('Windows needs 4 GB of memory and a 64 GB disk — available with PRO.')));
       ram.value = String(Math.max(4096, +ram.value)); sto.value = String(Math.max(64, +sto.value)); cpu.value = String(Math.max(2, +cpu.value));
       mount(winNote, h('div.an-win', h('b', '🪟 Windows'), h('ul.tiny', h('li', t('You need your own Windows licence; Nebulix does not include one.')),
+        h('li', (w.memory === false ? '⛔ ' + t('This server is too small for Windows (it needs at least 6 GB of RAM)') : '✅ ' + t('Enough memory on the server'))),
         h('li', (w.uefi ? '✅ ' : '⚠️ ') + t('UEFI firmware')), h('li', (w.tpm ? '✅ ' : '⚠️ ') + t('TPM 2.0 (Windows 11)') + (w.tpm ? '' : ' — ' + t('missing: Windows 11 setup will refuse; Windows 10 works'))),
         h('li', (nd.kvm ? '✅ ' + t('Hardware acceleration (KVM)') : '⚠️ ' + t('No KVM on this server: Windows will be extremely slow'))), w.drivers ? h('li', '✅ ' + t('virtio drivers disc attached')) : null))); };
     img.addEventListener('change', paintWin); setTimeout(paintWin, 0);

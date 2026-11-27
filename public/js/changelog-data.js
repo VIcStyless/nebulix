@@ -7,6 +7,7 @@ export const CHANGELOG = [
     "title": { "en": "The new Nebulix 3.0 trailer", "es": "El nuevo tráiler de Nebulix 3.0" },
     "changes": [
       { "type": "new", "en": "A new 58-second trailer in English with 3D motion, filmed from the real interface — with Spanish subtitles that switch on when Nebulix is in Spanish.", "es": "Un tráiler nuevo de 58 segundos en inglés con movimiento 3D, grabado con la interfaz real, y subtítulos en español que se activan cuando Nebulix está en español." },
+      { "type": "fixed", "en": "Cloud PC: a server without enough memory now says so clearly (and refuses Windows if it has under 6 GB of RAM) instead of failing with a technical error.", "es": "Cloud PC: un servidor sin memoria suficiente ahora lo explica con claridad (y no acepta Windows si tiene menos de 6 GB de RAM) en lugar de fallar con un error técnico." },
       { "type": "fixed", "en": "Game Maker: the “level complete” message was always in Spanish; games now use the player’s language.", "es": "Creador de juegos: el mensaje de «nivel completado» siempre salía en español; ahora los juegos usan el idioma de quien juega." }
     ]
   },

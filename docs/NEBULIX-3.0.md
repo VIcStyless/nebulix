@@ -432,6 +432,10 @@ were fixed: the Game Maker win message was hard-coded in Spanish (now follows th
 game no longer forces `lang="es"`), and leaving a document opens a "Leave site?" dialog (expected — the recorder now
 accepts it).
 
+Production check of the Windows profile on the Fly node (v16.4.1): UEFI ✓ (Secure Boot build, Microsoft keys), TPM ✓
+(swtpm), but the node has 4 GB of RAM in total, so a 4 GB Windows guest cannot fit. The agent now refuses Windows on hosts
+with under 6 GB of RAM and checks free memory before any start, with a clear message. Windows needs the KVM server.
+
 ## 4. Next phases (in order)
 
 Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).
