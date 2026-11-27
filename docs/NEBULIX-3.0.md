@@ -482,9 +482,37 @@ Squads LFG, unit converter in Study). This phase fills the gaps that need no out
   - 27 browser checks (`cdp-p21.mjs`), in Spanish, with no console errors.
   - 12 phone-width checks (`cdp-p21m.mjs`): no horizontal overflow at 390 px.
 
+## 3za. Match tracker, scrims, timers, SVG editor and message sounds (v16.8.0, phase 22)
+
+A second pass over the brief found these gaps: match tracking, scrim finder and practice schedules (competitive hub),
+stopwatch / timer / "gaming timer" (utilities), an SVG editor (developer tools) and custom notification sounds
+(customization). Everything else on the brief's lists already had a working home (see 3z and the module table).
+
+- **Match tracker** (`#/matches`, `views/matches.js`, `server/routes/matches.js`):
+  - Log matches for any game: mode (ranked, casual, scrim, tournament), result, K/D/A, score, placement, map, character, rank, duration and notes. Practice sessions record a drill and minutes.
+  - Stats: matches, W/L/D, win rate, K/D, average placement and #1s, current streak, time logged, a trend chart of the last 40 matches (result bars and a K/D line), and per-map and per-character tables.
+  - Filters by game, period and mode. Weekly practice goal (Monday start; the goal is kept on the device).
+  - CSV and JSON export; JSON import goes through the same server validation. Up to 3000 entries per player.
+  - Private: only the owner can read or change their log. Self-reported, and the page says so.
+- **Scrims** in Recruitment: a third post kind with a start time (10 min to 60 days ahead), shown in each viewer's own time zone. Scrims are listed by start time and close 3 h after the start; they cannot be renewed. "We want to play" notifies the author (localized).
+- **Reference → Timers** (`views/ref.js`, `public/js/timers.js`):
+  - Stopwatch with laps, countdown timer (presets and custom), and a break reminder every 20–90 min.
+  - State is stored as timestamps in `nbx.tm`, so the timers keep running across pages and after a reload; `app.js` re-arms them at start.
+  - Alarms play `sfx.alarm()` and show a toast, plus a system notification when the tab is hidden and notifications are allowed. They cannot ring with no Nebulix tab open, and the page says so.
+- **Developer Toolbox → SVG editor**:
+  - Live preview through an `<img>` data URL, so scripts, event handlers and external loads in the SVG never run; it warns when they are present.
+  - Parse errors, size and element count; checker, light and dark backgrounds; zoom; minify; download as SVG, or as PNG at 1–8×.
+- **Message sound** (Settings → Appearance): seven synthesized sounds, including silent, and a volume slider, stored on the device (`nbx.sound.*`, so Settings → Backup carries them). Do not disturb and the interface-sounds switch still apply.
+- **Tests:**
+  - 22 API checks (`p22.mjs`): validation and clamping, privacy, edit and delete, import, scrim rules and 401 without login.
+  - 28 browser checks in Spanish (`cdp-p22.mjs`), with no console errors. These include: the stats maths, the trend chart and breakdowns, the scrim modal and card, the stopwatch running across pages, a countdown ringing on another page, the break reminder, SVG scripts not running, PNG export, and the sound picker.
+  - 5 pages checked at 390 px with no overflow.
+  - Full route sweep with 0 issues.
+  - The phase 21 suites (27 API and 27 browser checks) still pass.
+
 ## 4. Next phases (in order)
 
-Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–21).
+Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–22).
 What remains needs the owner:
 
 1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start

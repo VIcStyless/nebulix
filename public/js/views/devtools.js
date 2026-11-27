@@ -1,14 +1,14 @@
 // Nebulix Developer Toolbox (Nebulix 3.0): everyday developer utilities that run entirely in the browser.
 // JSON · Regex · Encoders · UUID & random · Timestamps · Cron · Colours & gradients · Diff · Markdown · Text tools.
 // #/devtools/<tool>. Nothing is sent to the server.
-import { h, mount, ls } from '../util.js';
+import { h, mount, ls, fmt } from '../util.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from '../ui.js';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 
-const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['text', 'Text tools', 'edit'], ['qr', 'QR codes', 'grid'], ['http', 'HTTP requests', 'globe'], ['sql', 'SQL playground', 'layers'], ['python', 'Python', 'terminal']];
+const TOOLS = [['json', 'JSON', 'terminal'], ['regex', 'Regex tester', 'search'], ['encode', 'Encode / decode', 'lock'], ['uuid', 'UUID & random', 'dice'], ['time', 'Timestamps', 'clock'], ['cron', 'Cron explainer', 'calendar'], ['color', 'Colours & gradients', 'palette'], ['diff', 'Text diff', 'layers'], ['md', 'Markdown preview', 'note'], ['svg', 'SVG editor', 'image'], ['text', 'Text tools', 'edit'], ['qr', 'QR codes', 'grid'], ['http', 'HTTP requests', 'globe'], ['sql', 'SQL playground', 'layers'], ['python', 'Python', 'terminal']];
 const area = (val, rows = 10, attrs = {}) => { const ta = h('textarea.input.dt-area', Object.assign({ rows, spellcheck: 'false' }, attrs)); ta.value = val || ''; return ta; };
 const copyBtn = (get) => h('button.btn.sm', { onClick: () => navigator.clipboard.writeText(get()).then(() => toast(t('Copied!'), 'good', 1200)).catch(() => {}) }, icon('copy', 13), t('Copy'));
 const out = () => h('pre.dt-out');
@@ -89,6 +89,32 @@ const tools = {
     const inp = area(saved('md', '# Nebulix 3.0\n\n**Markdown** with `code`, lists and tables:\n\n- One\n- Two\n\n| App | Status |\n|---|---|\n| OS | ✓ |\n'), 14); const prev = h('div.dt-md.md');
     const run = () => { ls('dt.md', inp.value); mount(prev, renderMarkdown(inp.value)); }; inp.addEventListener('input', run); setTimeout(run);
     return [h('div.dt-two', inp, prev), copyBtn(() => inp.value)];
+  },
+  svg() { // preview through <img src="data:…">: scripts and external loads inside the SVG never run
+    const SAMPLE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">\n  <defs>\n    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">\n      <stop offset="0" stop-color="#7c3aed"/>\n      <stop offset="1" stop-color="#06b6d4"/>\n    </linearGradient>\n  </defs>\n  <circle cx="100" cy="100" r="80" fill="url(#g)"/>\n  <path d="M70 60 L140 100 L70 140 Z" fill="#fff"/>\n</svg>\n';
+    const inp = area(saved('svg', SAMPLE), 16); const st = h('div.dt-status'); const img = h('img.dt-svgimg', { alt: t('Preview') }); let bg = ls('dt.svgbg') || 'check'; let zoom = 1;
+    const stage = h('div.dt-svgstage.' + bg, img);
+    const scale = h('select.input', { style: 'width:auto', 'aria-label': t('PNG size') }, [1, 2, 4, 8].map((n) => h('option', { value: n }, n + '×')));
+    let url = ''; let dims = [0, 0];
+    const run = () => {
+      ls('dt.svg', inp.value); const doc = new DOMParser().parseFromString(inp.value, 'image/svg+xml'); const err = doc.querySelector('parsererror'); const root = doc.documentElement;
+      if (err || !root || root.nodeName.toLowerCase() !== 'svg') { mount(st, h('span.dt-bad', '✗ ' + (err ? err.textContent.split('\n')[0].slice(0, 160) : t('The root element must be <svg>')))); return; }
+      if (!root.getAttribute('xmlns')) root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const vb = (root.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number); dims = [parseFloat(root.getAttribute('width')) || vb[2] || 300, parseFloat(root.getAttribute('height')) || vb[3] || 150];
+      const txt = new XMLSerializer().serializeToString(root); url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt); img.src = url; img.style.width = dims[0] * zoom + 'px';
+      const n = root.querySelectorAll('*').length; const risky = root.querySelector('script, foreignObject') || /\son\w+\s*=/.test(inp.value);
+      mount(st, h('span.dt-ok', '✓ ' + t('Valid SVG')), h('span', Math.round(dims[0]) + ' × ' + Math.round(dims[1])), h('span', t('{n} elements', { n })), h('span', fmt.bytes(new Blob([inp.value]).size)), risky ? h('span.dt-bad', t('Contains scripts or event handlers: they are not run here, but be careful where you use this file.')) : null);
+    };
+    const minify = () => { inp.value = inp.value.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim(); run(); };
+    const dl = (href, name) => { const a = h('a', { href, download: name }); document.body.append(a); a.click(); a.remove(); };
+    const png = () => { if (!url) return; const k = Number(scale.value) || 1; const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(dims[0] * k)); c.height = Math.max(1, Math.round(dims[1] * k)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); c.toBlob((b) => { const u = URL.createObjectURL(b); dl(u, 'image.png'); setTimeout(() => URL.revokeObjectURL(u), 4000); }, 'image/png'); }; im.onerror = () => toast(t('Could not render this SVG'), 'error'); im.src = url; };
+    const bgSeg = h('div.seg', [['check', t('Checker')], ['light', t('Light')], ['dark', t('Dark')]].map(([k, l]) => h('button' + (k === bg ? '.on' : ''), { type: 'button', onClick: (e) => { bg = k; ls('dt.svgbg', k); stage.className = 'dt-svgstage ' + k; [...e.currentTarget.parentNode.children].forEach((b) => b.classList.toggle('on', b === e.currentTarget)); } }, l)));
+    const zoomBtn = (d, ic) => h('button.btn.sm', { 'aria-label': ic === 'zoomin' ? t('Zoom in') : t('Zoom out'), onClick: () => { zoom = Math.max(0.25, Math.min(8, zoom * d)); img.style.width = dims[0] * zoom + 'px'; } }, icon(ic, 13));
+    inp.addEventListener('input', () => { clearTimeout(inp._t); inp._t = setTimeout(run, 150); }); setTimeout(run);
+    return [h('div.dt-two', inp, h('div.col', { style: 'gap:6px;min-width:0' }, h('div.dt-row', bgSeg, zoomBtn(1 / 1.25, 'zoomout'), zoomBtn(1.25, 'zoomin')), stage)), st,
+      h('div.dt-row', h('button.btn.sm', { onClick: minify }, t('Minify')), h('button.btn.sm', { onClick: () => { inp.value = SAMPLE; run(); } }, t('Example')), copyBtn(() => inp.value),
+        h('button.btn.sm', { onClick: () => { const u = URL.createObjectURL(new Blob([inp.value], { type: 'image/svg+xml' })); dl(u, 'image.svg'); setTimeout(() => URL.revokeObjectURL(u), 4000); } }, icon('download', 13), t('Download SVG')),
+        scale, h('button.btn.sm', { onClick: png }, icon('image', 13), t('Export PNG')))];
   },
   text() {
     const inp = area(saved('txt', 'Nebulix is a whole digital world in your browser.'), 8); const st = h('div.dt-status');

@@ -2,6 +2,41 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.8",
+    "date": "2026-11-27",
+    "title": {
+      "en": "Match tracker, scrims, timers and an SVG editor",
+      "es": "Registro de partidas, scrims, temporizadores y editor SVG"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Match tracker: log your matches and practice for any game — result, K/D/A, placement, map, character, rank and notes — and see your win rate, K/D, streaks, a trend chart, per-map and per-character breakdowns and a weekly practice goal. Private to you, with CSV/JSON export and JSON import.",
+        "es": "Registro de partidas: apunta tus partidas y entrenamientos de cualquier juego (resultado, K/D/A, posición, mapa, personaje, rango y notas) y mira tu porcentaje de victorias, K/D, rachas, un gráfico de evolución, desgloses por mapa y personaje y un objetivo semanal de entrenamiento. Solo lo ves tú, y puedes exportarlo en CSV/JSON e importar JSON."
+      },
+      {
+        "type": "new",
+        "en": "Recruitment: scrims. Post a date and time and find an opponent team; players see it in their own time zone and “We want to play” notifies you.",
+        "es": "Reclutamiento: scrims. Publica una fecha y hora y encuentra un equipo rival; cada jugador lo ve en su zona horaria y «Queremos jugar» te avisa."
+      },
+      {
+        "type": "new",
+        "en": "Reference → Timers: stopwatch with laps, countdown timer with presets and a break reminder. They keep running while you use the rest of Nebulix and after a reload.",
+        "es": "Consulta → Temporizadores: cronómetro con vueltas, temporizador con tiempos rápidos y recordatorio de descanso. Siguen contando mientras usas el resto de Nebulix y aunque recargues."
+      },
+      {
+        "type": "new",
+        "en": "Developer Toolbox: SVG editor with live preview (scripts never run), checker/light/dark backgrounds, zoom, minify, and SVG or PNG download at 1–8×.",
+        "es": "Caja de herramientas: editor SVG con vista previa en directo (los scripts nunca se ejecutan), fondo de cuadros/claro/oscuro, zoom, minificar y descarga en SVG o PNG a 1–8×."
+      },
+      {
+        "type": "improved",
+        "en": "Settings → Appearance: choose your message sound (seven options, including silent) and its volume.",
+        "es": "Ajustes → Apariencia: elige el sonido de los mensajes (siete opciones, incluido silencio) y su volumen."
+      }
+    ]
+  },
+  {
     "v": "16.7",
     "date": "2026-11-27",
     "title": {

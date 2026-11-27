@@ -7,6 +7,9 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['chart', 'Match tracker', 'Log your matches and practice for any game and see your win rate, K/D, streaks and trends.', 'matches'],
+  ['calendar', 'Scrims in Recruitment', 'Post a date and time and find an opponent team for a scrim.', 'recruit'],
+  ['bell', 'Timers', 'Stopwatch, countdown timer and a break reminder that keep running while you use Nebulix.', 'ref/timer'],
   ['gamepad', 'Gaming Tools', 'Sensitivity converter, FOV calculator, crosshair creator with a community gallery, aim trainers and input tests.', 'gtools'],
   ['users', 'Recruitment', 'Find a team or teammates for Fortnite, Valorant, Rocket League, CS2, Minecraft and more.', 'recruit'],
   ['book', 'Reference', 'Periodic table, world clock, weather, currency rates, physics formulas and a barcode reader.', 'ref'],

@@ -1,6 +1,7 @@
 // Nebulix 3.0 phase 21 — Reference & utilities. #/ref/<tool>
 //  table:   periodic table (118 elements, IUPAC standard atomic weights; [n] = mass number of the most stable isotope).
 //  clock:   world clock with your own list of time zones (Intl time-zone database).
+//  timer:   stopwatch with laps, countdown timer and a break reminder (public/js/timers.js keeps them running across pages).
 //  weather: current weather and 7-day forecast from Open-Meteo through the server (CC BY 4.0).
 //  fx:      currency converter with European Central Bank reference rates (Frankfurter), updated on working days.
 //  physics: formula solver — pick a formula, fill in all but one value.
@@ -9,9 +10,10 @@ import { h, mount, ls, copyText } from '../util.js';
 import { t, getLang, locale } from '../i18n.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
-import { toast, toastErr, loading, emptyState, field, tabsEl, modal } from '../ui.js';
+import { toast, toastErr, loading, emptyState, field, tabsEl, modal, segEl } from '../ui.js';
+import * as TM from '../timers.js';
 
-const TOOLS = [['table', 'Periodic table', 'flask'], ['clock', 'World clock', 'clock'], ['weather', 'Weather', 'sun'], ['fx', 'Currency', 'coins'], ['physics', 'Physics', 'zap'], ['scan', 'Barcode reader', 'camera']];
+const TOOLS = [['table', 'Periodic table', 'flask'], ['clock', 'World clock', 'clock'], ['timer', 'Timers', 'bell'], ['weather', 'Weather', 'sun'], ['fx', 'Currency', 'coins'], ['physics', 'Physics', 'zap'], ['scan', 'Barcode reader', 'camera']];
 const curLang = () => getLang() || 'es';
 
 export default {
@@ -25,7 +27,7 @@ export default {
       mount(body, loading());
       try { cleanup = (await FN[tool](body)) || null; } catch (e) { mount(body, emptyState('alert', t('Something went wrong'), e.message)); }
     };
-    mount(root, h('div.inner.gt', h('div.page-title', h('div', h('h2', icon('book', 22), ' ', t('Reference')), h('p', t('Periodic table, world clock, weather, currency rates, physics formulas and a barcode reader.')))),
+    mount(root, h('div.inner.gt', h('div.page-title', h('div', h('h2', icon('book', 22), ' ', t('Reference')), h('p', t('Periodic table, world clock, timers, weather, currency rates, physics formulas and a barcode reader.')))),
       tabsEl(TOOLS.map(([k, l, ic]) => [k, t(l), ic]), tool, (v) => { tool = v; show(); }), body));
     show();
     return () => { if (cleanup) try { cleanup(); } catch {} };
@@ -105,6 +107,36 @@ function clock(box) {
   mount(box, h('div', h('div.toolbar', sel, dl, h('button.btn.primary', { onClick: add }, icon('plus', 14), t('Add'))), list));
   paint(); const timer = setInterval(paint, 1000);
   return () => clearInterval(timer);
+}
+
+// ---------------- Timers ----------------
+function timer(box) {
+  const swOut = h('div.ref-big'); const laps = h('ol.ref-laps'); const swBtn = h('button.btn.primary'); const lapBtn = h('button.btn', { onClick: TM.swLap }, icon('flag', 14), t('Lap'));
+  const cdOut = h('div.ref-big'); const cdBtn = h('button.btn.primary'); const lbl = h('input.input', { maxlength: 40, placeholder: t('Label (optional)') });
+  const mm = h('input.input', { type: 'number', min: 0, max: 999, value: 5, inputmode: 'numeric', 'aria-label': t('Minutes') }); const ss = h('input.input', { type: 'number', min: 0, max: 59, value: 0, inputmode: 'numeric', 'aria-label': t('Seconds') });
+  const brInfo = h('div.small.muted');
+  const PRE = [[1, '1 min'], [3, '3 min'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [25, '25 min'], [45, '45 min'], [60, '1 h']];
+  const startCustom = () => { const ms = (Math.max(0, Number(mm.value) || 0) * 60 + Math.max(0, Math.min(59, Number(ss.value) || 0))) * 1000; if (ms < 1000) return toast(t('Set at least one second'), 'error'); TM.cdStart(ms, lbl.value.trim()); };
+  const brSeg = segEl([[0, t('Off')], [20, '20 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30']], Math.round(TM.state().br.every / 60000), (v) => TM.brSet(Number(v)));
+  const once = (el, key, fn) => { if (el._k !== key) { el._k = key; fn(); } };
+  const paint = () => {
+    const s = TM.state(); const sw = TM.swElapsed(s); swOut.textContent = TM.fmtMs(sw, true);
+    once(swBtn, s.sw.start ? 'p' : sw ? 'r' : 's', () => mount(swBtn, icon(s.sw.start ? 'pause' : 'play', 14), s.sw.start ? t('Pause') : sw ? t('Resume') : t('Start'))); swBtn.onclick = TM.swToggle; lapBtn.disabled = !sw;
+    once(laps, s.sw.laps.length + ':' + (s.sw.laps[0] || 0), () => mount(laps, s.sw.laps.map((l, i) => h('li', h('span', t('Lap {n}', { n: s.sw.laps.length - i })), h('b', TM.fmtMs(l - (s.sw.laps[i + 1] || 0), true)), h('span.muted', TM.fmtMs(l, true))))));
+    const left = TM.cdLeft(s); cdOut.textContent = TM.fmtMs(left || s.cd.dur); cdOut.classList.toggle('run', !!s.cd.end);
+    once(cdBtn, s.cd.end ? 'p' : s.cd.left ? 'r' : 's', () => mount(cdBtn, icon(s.cd.end ? 'pause' : 'play', 14), s.cd.end ? t('Pause') : s.cd.left ? t('Resume') : t('Start'))); cdBtn.onclick = () => (s.cd.end ? TM.cdPause() : s.cd.left ? TM.cdStart() : startCustom());
+    brInfo.textContent = s.br.every ? t('Next reminder in {t}', { t: TM.fmtMs(s.br.next - Date.now()) }) : t('Off. Pick an interval to get a reminder to rest your eyes and stretch.');
+  };
+  mount(box, h('div.grid.cols-2',
+    h('section.card', h('h3', icon('clock', 16), ' ', t('Stopwatch')), swOut, h('div.row', { style: 'gap:6px' }, swBtn, lapBtn, h('button.btn.ghost', { onClick: TM.swReset }, icon('refresh', 14), t('Reset'))), laps),
+    h('section.card', h('h3', icon('bell', 16), ' ', t('Timer')), cdOut,
+      h('div.row', { style: 'gap:4px;flex-wrap:wrap' }, PRE.map(([m, l]) => h('button.chip', { onClick: () => TM.cdStart(m * 60000, lbl.value.trim()) }, l))),
+      h('div.row', { style: 'gap:6px;align-items:end;flex-wrap:wrap' }, field(t('Minutes'), mm), field(t('Seconds'), ss), h('div.grow', field(t('Label'), lbl))),
+      h('div.row', { style: 'gap:6px' }, cdBtn, h('button.btn.ghost', { onClick: TM.cdReset }, icon('refresh', 14), t('Reset')))),
+    h('section.card', { style: 'grid-column:1/-1' }, h('h3', icon('eye', 16), ' ', t('Break reminder')), h('p.small.muted', t('For long gaming or study sessions: a sound and a notice every so often to rest your eyes, stretch and drink water.')), brSeg, brInfo),
+    h('p.tiny.muted', { style: 'grid-column:1/-1' }, t('Timers keep running while you use other parts of Nebulix and after a reload, but they can only ring while a Nebulix tab is open. Allow notifications to be told when the tab is in the background.'))));
+  paint(); const iv = setInterval(paint, 47); const off = TM.onChange(paint);
+  return () => { clearInterval(iv); off(); };
 }
 
 // ---------------- Weather ----------------
@@ -213,4 +245,4 @@ async function scan(box) {
   return stop;
 }
 
-const FN = { table, clock, weather, fx, physics, scan };
+const FN = { table, clock, timer, weather, fx, physics, scan };

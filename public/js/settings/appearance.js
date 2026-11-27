@@ -7,7 +7,7 @@ import { icon, LOGOS, logoMark, setLogo } from '../icons.js';
 import { LAYOUTS, setLayout, DESIGNS, setDesign, designNow } from '../app.js';
 import { toast, toastErr, settingRow, switchEl, segEl } from '../ui.js';
 import * as theme from '../theme.js';
-import { sfx } from '../sfx.js';
+import { sfx, MSG_SOUNDS, msgSound, msgVol, playMsg } from '../sfx.js';
 
 export default {
   mount(host, ctx) {
@@ -55,6 +55,10 @@ export default {
         h('div.row.wrap', { style: 'margin-top:14px' }, h('button.btn.primary', { onClick: () => ctx.go('themes') }, icon('spark', 16), t('Open Theme Studio')), h('button.btn', { onClick: () => ctx.go('themes', { tab: 'gallery' }) }, icon('globe', 16), t('Browse community themes')))),
       h('section.card', h('h3', icon('sliders', 18), t('Interface')),
         settingRow(t('Interface sounds'), t('Little clicks and coin chimes as you play.'), tog('sounds')),
+        settingRow(t('Message sound'), t('Played for new messages, mentions and invitations. Saved on this device.'), h('div.row', { style: 'gap:6px;flex-wrap:wrap;align-items:center' },
+          h('select.input', { 'aria-label': t('Message sound'), style: 'width:auto', onChange: (e) => { ls('sound.msg', e.target.value); playMsg(e.target.value); } }, MSG_SOUNDS.map(([k, l]) => h('option', { value: k, selected: k === msgSound() }, t(l)))),
+          h('input', { type: 'range', min: 0, max: 1.5, step: 0.1, value: msgVol(), 'aria-label': t('Volume'), onChange: (e) => { ls('sound.vol', Number(e.target.value)); playMsg(msgSound()); } }),
+          h('button.btn.sm', { type: 'button', onClick: () => playMsg(msgSound()) }, icon('volume', 14), t('Test')))),
         settingRow(t('Reduce motion'), t('Calms the animated background and transitions. Great for weaker PCs.'), tog('reduceMotion')),
         settingRow(t('Compact mode'), t('Tightens spacing so more fits on screen.'), tog('compact')),
         settingRow(t('High contrast'), t('Stronger borders and text for better readability.'), tog('highContrast')),

@@ -29,14 +29,15 @@ const xhView = (x, me) => ({ id: x.id, name: x.name, game: x.game, cfg: x.cfg, l
 
 // ---------- recruitment ----------
 const GAMES = ['fortnite', 'valorant', 'rocketleague', 'cs2', 'minecraft', 'lol', 'apex', 'overwatch', 'r6', 'nebulix', 'other'];
-const KINDS = ['team', 'player'];
+const KINDS = ['team', 'player', 'scrim']; // scrim: a team looking for an opponent at a set time
+const SCRIM_AFTER = 3 * 3600000; // a scrim post closes 3 h after its start time
 const REGIONS = ['eu', 'na', 'latam', 'br', 'asia', 'oce', 'me', 'any'];
 const PLAT = ['pc', 'console', 'mobile', 'any'];
 const REC_TTL = 30 * 86400000;
-const recView = (p, me) => ({ id: p.id, kind: p.kind, game: p.game, gameName: p.gameName || '', title: p.title, text: p.text, roles: p.roles, rank: p.rank, region: p.region, platform: p.platform, lang: p.lang, mic: !!p.mic, age: p.age || '', created: p.created, expires: p.expires, mine: !!me && p.owner === me.id, by: publicUser(S.users[p.owner]), interested: (p.interested || []).length, imIn: !!me && (p.interested || []).includes(me.id) });
+const recView = (p, me) => ({ id: p.id, kind: p.kind, game: p.game, gameName: p.gameName || '', title: p.title, text: p.text, roles: p.roles, rank: p.rank, region: p.region, platform: p.platform, lang: p.lang, mic: !!p.mic, age: p.age || '', when: p.when || 0, created: p.created, expires: p.expires, mine: !!me && p.owner === me.id, by: publicUser(S.users[p.owner]), interested: (p.interested || []).length, imIn: !!me && (p.interested || []).includes(me.id) });
 
 // ---------- external reference APIs ----------
-const UA = 'Nebulix/16.7 (+https://nebulix.fly.dev)';
+const UA = 'Nebulix/16.8 (+https://nebulix.fly.dev)';
 const cache = new Map();
 function getJson(url, ttl) {
   const hit = cache.get(url); if (hit && Date.now() - hit.at < ttl) return Promise.resolve(hit.data);
@@ -100,20 +101,25 @@ module.exports = function register(r) {
       && (!game || p.game === game) && (!kind || p.kind === kind) && (!region || p.region === region || p.region === 'any')
       && (c.query.mine !== '1' || p.owner === me.id)
       && (!q || (p.title + ' ' + p.text + ' ' + p.rank + ' ' + p.roles.join(' ') + ' ' + (p.gameName || '')).toLowerCase().includes(q)))
-      .sort((a, b) => b.created - a.created);
+      .sort((a, b) => (kind === 'scrim' ? a.when - b.when : b.created - a.created));
     const counts = {}; for (const p of Object.values(S.recruit)) if (p.expires > now()) counts[p.game] = (counts[p.game] || 0) + 1;
     return { posts: list.slice(0, 100).map((p) => recView(p, me)), total: list.length, counts, games: GAMES, regions: REGIONS };
   });
   r.post('/api/recruit', { auth: true, verified: true, limit: [10, 3600000, 'user'] }, async (c) => {
     const b = c.body; const u = c.user;
     if (!GAMES.includes(b.game)) throw new HttpError(400, 'bad_game', 'Pick a game');
-    if (!KINDS.includes(b.kind)) throw new HttpError(400, 'bad_kind', 'Is this a team looking for players or a player looking for a team?');
+    if (!KINDS.includes(b.kind)) throw new HttpError(400, 'bad_kind', 'Is this a team looking for players, a player looking for a team or a scrim?');
     const title = clean(b.title, 80); if (title.length < 4) throw new HttpError(400, 'bad_title', 'Give your post a title (4-80 characters)');
     const text = clean(b.text, 800);
     const roles = (Array.isArray(b.roles) ? b.roles : []).map((x) => clean(x, 24)).filter(Boolean).slice(0, 6);
     if (Object.values(S.recruit).filter((p) => p.owner === u.id && p.expires > now()).length >= 3) throw new HttpError(400, 'too_many', 'You can have up to 3 recruitment posts. Close one first.');
     const p = { id: rid(6), owner: u.id, kind: b.kind, game: b.game, gameName: b.game === 'other' ? clean(b.gameName, 40) : '', title, text, roles, rank: clean(b.rank, 30), region: REGIONS.includes(b.region) ? b.region : 'any', platform: PLAT.includes(b.platform) ? b.platform : 'any', lang: clean(b.lang, 20), mic: !!b.mic, age: ['13+', '16+', '18+'].includes(b.age) ? b.age : '', interested: [], created: now(), expires: now() + REC_TTL };
     if (p.game === 'other' && p.gameName.length < 2) throw new HttpError(400, 'bad_game', 'Write the name of the game');
+    if (p.kind === 'scrim') {
+      const when = Math.round(Number(b.when));
+      if (!Number.isFinite(when) || when < now() + 10 * 60000 || when > now() + 60 * 86400000) throw new HttpError(400, 'bad_when', 'Pick a scrim time between 10 minutes and 60 days from now');
+      p.when = when; p.expires = when + SCRIM_AFTER;
+    }
     S.recruit[p.id] = p; S.store.touch('recruit');
     return { post: recView(p, u) };
   });
@@ -124,7 +130,7 @@ module.exports = function register(r) {
     if ((S.users[p.owner].blocked || []).includes(u.id)) throw new HttpError(403, 'blocked', 'You cannot contact this player');
     p.interested = p.interested || []; const i = p.interested.indexOf(u.id);
     if (i >= 0) p.interested.splice(i, 1);
-    else { p.interested.push(u.id); if (p.interested.length > 200) p.interested.shift(); const es = (S.users[p.owner].lang || 'es') === 'es'; hub.push(p.owner, { t: 'notify', kind: 'recruit', text: es ? `@${u.username} está interesado en “${p.title}”` : `@${u.username} is interested in “${p.title}”`, link: 'recruit', at: now() }); }
+    else { p.interested.push(u.id); if (p.interested.length > 200) p.interested.shift(); const es = (S.users[p.owner].lang || 'es') === 'es'; hub.push(p.owner, { t: 'notify', kind: 'recruit', text: p.kind === 'scrim' ? (es ? `@${u.username} quiere jugar tu scrim “${p.title}”` : `@${u.username} wants to play your scrim “${p.title}”`) : es ? `@${u.username} está interesado en “${p.title}”` : `@${u.username} is interested in “${p.title}”`, link: 'recruit', at: now() }); }
     S.store.touch('recruit'); return { post: recView(p, u) };
   });
   r.get('/api/recruit/:id/interested', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {
@@ -133,6 +139,7 @@ module.exports = function register(r) {
   });
   r.post('/api/recruit/:id/renew', { auth: true, verified: true, limit: [20, 3600000, 'user'] }, async (c) => {
     const p = recOf(c.params.id); if (p.owner !== c.user.id) throw new HttpError(403, 'forbidden', 'Not yours');
+    if (p.kind === 'scrim') throw new HttpError(400, 'scrim_renew', 'A scrim closes after its start time. Post a new one for another date.');
     p.expires = now() + REC_TTL; S.store.touch('recruit'); return { post: recView(p, c.user) };
   });
   r.delete('/api/recruit/:id', { auth: true, limit: [60, 60000, 'user'] }, async (c) => {
