@@ -2,6 +2,14 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.6",
+    "date": "2026-11-27",
+    "title": { "en": "A new, faster trailer", "es": "Un tráiler nuevo y más rápido" },
+    "changes": [
+      { "type": "new", "en": "The Nebulix 3.0 trailer is now a 48-second edit: an original phonk-style beat, cuts and zooms that hit on every drum, kinetic titles and a rapid-fire montage. Spanish subtitles switch on when Nebulix is in Spanish.", "es": "El tráiler de Nebulix 3.0 ahora es un edit de 48 segundos: un ritmo original de estilo phonk, cortes y zooms que caen en cada golpe, títulos animados y un montaje a toda velocidad. Los subtítulos en español se activan cuando Nebulix está en español." }
+    ]
+  },
+  {
     "v": "16.5",
     "date": "2026-11-27",
     "title": { "en": "Donate and send gems", "es": "Dona y envía gemas" },

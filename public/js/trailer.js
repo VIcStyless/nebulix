@@ -5,7 +5,7 @@ import { t } from './i18n.js';
 import { icon } from './icons.js';
 import { modal } from './ui.js';
 
-export const TRAILER = { src: '/media/nebulix-3.0-trailer-en.mp4', poster: '/media/nebulix-3.0-trailer-en.jpg', subs: '/media/nebulix-3.0-trailer.es.vtt', duration: '0:58' };
+export const TRAILER = { src: '/media/nebulix-3.0-trailer-edit.mp4', poster: '/media/nebulix-3.0-trailer-edit.jpg', subs: '/media/nebulix-3.0-trailer-edit.es.vtt', duration: '0:48' };
 export function trailerVideo(autoplay = false) {
   // the trailer is in English; Spanish subtitles of the on-screen text are on by default when the interface is in Spanish
   const es = (document.documentElement.lang || '').startsWith('es');
