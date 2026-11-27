@@ -14,7 +14,8 @@ const banned = (u) => !!(u.banned && (!u.banned.until || u.banned.until > now())
 function transfer(u, body) {
   const amount = Math.trunc(Number(body.amount));
   if (!Number.isFinite(amount) || amount < 1) throw new HttpError(400, 'bad_amount', 'Enter an amount of at least 1 coin');
-  if (amount > TX_MAX) throw new HttpError(400, 'bad_amount', 'Up to ' + TX_MAX.toLocaleString('en-US') + ' coins per transfer');
+  if (amount > econ.MAX_COINS) throw new HttpError(400, 'bad_amount', 'That amount is too large');
+  if (!body.donation && amount > TX_MAX) throw new HttpError(400, 'bad_amount', 'Up to ' + TX_MAX.toLocaleString('en-US') + ' coins per transfer');
   if (u.infinite) throw new HttpError(403, 'infinite', 'Transfers are disabled for accounts with an unlimited wallet');
   const name = String(body.to || '').trim().replace(/^@/, '').toLowerCase();
   const id = S.byName.get(name); const to = id && S.users[id];

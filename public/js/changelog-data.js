@@ -9,7 +9,7 @@ export const CHANGELOG = [
       { "type": "new", "en": "Gems can now be sent and donated: Wallet → Send has a Coins/Gems switch, and every Plaza booth has a 💎 button. Up to 200 gems at a time and 500 a day.", "es": "Ahora se pueden enviar y donar gemas: en Cartera → Enviar hay un selector Monedas/Gemas y cada puesto de la Plaza tiene un botón 💎. Hasta 200 gemas cada vez y 500 al día." },
       { "type": "improved", "en": "Plaza: the donation feed, booths and top donors show gem donations too.", "es": "Plaza: el historial de donaciones, los puestos y los mejores donantes también muestran las gemas." },
       { "type": "fixed", "en": "The ∞ symbol now appears only on wallets that are really unlimited. A balance of a billion coins or more shows the real amount (for example 2b).", "es": "El símbolo ∞ ahora solo aparece en monederos realmente ilimitados. Un saldo de mil millones de monedas o más muestra la cantidad real (por ejemplo 2b)." },
-      { "type": "improved", "en": "Coin donations to Plaza booths no longer have a daily limit (still up to 100,000 per donation).", "es": "Las donaciones de monedas a los puestos de la Plaza ya no tienen límite diario (sigue habiendo un máximo de 100.000 por donación)." },
+      { "type": "improved", "en": "Coin donations to Plaza booths have no limits: no daily cap and no maximum per donation.", "es": "Las donaciones de monedas a los puestos de la Plaza no tienen límites: ni diario ni máximo por donación." },
       { "type": "fixed", "en": "A donation no longer shows two notices to the person who receives it.", "es": "Una donación ya no muestra dos avisos a quien la recibe." }
     ]
   },
