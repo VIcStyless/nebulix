@@ -7,6 +7,8 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['dice', 'Four new casino tables', 'Dragon Tiger, Sic Bo, Craps and Tower — play money, provably fair.', 'casino'],
+  ['monitor', 'Windows on Cloud PC', 'Run Windows from your own licensed ISO, with UEFI and TPM 2.0.', 'cloudpc'],
   ['play', 'The Nebulix 3.0 trailer', 'A one-minute tour of everything new, with original music.', 'trailer'],
   ['download', 'Download manager', 'Paste a link and Nebulix downloads the file straight into your Drive.', 'downloads'],
   ['video', 'Video editor and Game Maker', 'Edit videos with fades, text and subtitles, and build platform games you can publish to the Hub.', 'gamemaker'],

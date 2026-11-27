@@ -6,6 +6,7 @@ import { t } from '../i18n.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, modal, field } from '../ui.js';
+import { imgkit } from '../native/imgkit.js';
 
 const TEMPLATES = [['YouTube thumbnail', 1280, 720], ['Channel banner', 2560, 1440], ['Twitter / X header', 1500, 500], ['Square post', 1080, 1080], ['Story', 1080, 1920], ['Poster (A4)', 1240, 1754], ['Logo', 1000, 1000], ['Full HD', 1920, 1080]];
 const BLENDS = ['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'];
@@ -90,6 +91,14 @@ export default {
     function add(l) { commit(); l.id = nid(); l.visible = true; l.opacity = 100; l.blend = 'source-over'; l.rot = 0; l.filters = {}; doc.layers.push(l); sel = l.id; tool = 'move'; paintTools(); paintPanels(); draw(); }
     const addText = () => add({ type: 'text', name: t('Text'), text: t('Your title'), x: doc.w * 0.1, y: doc.h * 0.4, w: doc.w * 0.8, h: Math.round(doc.h * 0.2), size: Math.round(doc.h / 8), color: '#ffffff', font: 'system-ui', weight: 800, align: 'center', strokeW: 0, stroke: '#000000', shadow: true });
     const addShape = (type) => add({ type, name: type === 'rect' ? t('Rectangle') : t('Ellipse'), x: doc.w * 0.35, y: doc.h * 0.3, w: doc.w * 0.3, h: doc.h * 0.4, fill: '#6366f1', stroke: '#ffffff', strokeW: 0, radius: 24 });
+    // Sharpen / Auto-enhance: pixel work done by the C++ → WebAssembly kernels (imgkit), baked into the layer, undoable
+    async function bake(l, op) {
+      const im = imgOf(l.src); if (!im.complete || !im.naturalWidth) return toast(t('The image is still loading'), 'err');
+      const k = await imgkit(); const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+      const data = g.getImageData(0, 0, c.width, c.height); const t0 = performance.now(); if (op === 'sharpen') k.sharpen(data, 80); else k.autoEnhance(data); const ms = Math.round(performance.now() - t0);
+      g.putImageData(data, 0, 0); const src = c.toDataURL(/png/.test(l.src.slice(0, 30)) ? 'image/png' : 'image/jpeg', 0.92); commit(); imgs.set(src, (() => { const x = new Image(); x.onload = () => draw(); x.src = src; return x; })()); l.src = src; draw(); paintPanels();
+      toast((op === 'sharpen' ? t('Sharpened') : t('Enhanced')) + ' · ' + ms + ' ms · ' + (k.engine === 'wasm' ? 'C++/WebAssembly' : 'JavaScript'), 'good');
+    }
     function addImageFile(file) {
       if (!/^image\/(png|jpeg|gif|webp|svg\+xml)$/.test(file.type)) return toast(t('Choose a PNG, JPEG, GIF, WebP or SVG image'), 'err'); if (file.size > 20 * 1048576) return toast(t('Images up to 20 MB'), 'err');
       const r = new FileReader(); r.onload = () => { const im = new Image(); im.onload = () => { imgs.set(r.result, im); const sc = Math.min(1, (doc.w * 0.9) / im.naturalWidth, (doc.h * 0.9) / im.naturalHeight); const w = Math.round(im.naturalWidth * sc), hh = Math.round(im.naturalHeight * sc); add({ type: 'image', name: file.name.slice(0, 40), src: r.result, x: Math.round((doc.w - w) / 2), y: Math.round((doc.h - hh) / 2), w, h: hh }); }; im.src = r.result; }; r.readAsDataURL(file);
@@ -97,6 +106,11 @@ export default {
     const pickImage = () => { const i = h('input', { type: 'file', accept: 'image/*', onChange: () => i.files[0] && addImageFile(i.files[0]) }); i.click(); };
     function duplicate(l) { commit(); const c = JSON.parse(JSON.stringify(l)); c.id = nid(); c.x += 20; c.y += 20; c.name = (l.name || '') + ' ' + t('copy'); doc.layers.splice(doc.layers.indexOf(l) + 1, 0, c); sel = c.id; paintPanels(); draw(); }
     function move(l, d) { const i = doc.layers.indexOf(l); const j = i + d; if (j < 0 || j >= doc.layers.length) return; commit(); [doc.layers[i], doc.layers[j]] = [doc.layers[j], doc.layers[i]]; paintPanels(); draw(); }
+    // undo/redo work anywhere in the editor (e.g. right after clicking a panel button), not only when the canvas has focus
+    // (document level: a panel button that re-renders after its click drops focus to <body>, outside this view)
+    const onKey = (e) => { if (!root.isConnected || e.target === canvas || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable || document.querySelector('.modal')) return; const mod = e.ctrlKey || e.metaKey; const k = (e.key || '').toLowerCase();
+      if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); } else if (mod && k === 'y') { e.preventDefault(); doRedo(); } };
+    document.addEventListener('keydown', onKey);
     function doUndo() { if (!undo.length) return; redo.push(snap()); doc = JSON.parse(undo.pop()); if (!layer()) sel = null; paintPanels(); draw(); }
     function doRedo() { if (!redo.length) return; undo.push(snap()); doc = JSON.parse(redo.pop()); paintPanels(); draw(); }
     function applyCrop() { if (!crop || crop.w < 8 || crop.h < 8) { crop = null; tool = 'move'; paintTools(); draw(); return; } commit(); for (const l of doc.layers) { l.x -= Math.round(crop.x); l.y -= Math.round(crop.y); } doc.w = Math.round(crop.w); doc.h = Math.round(crop.h); crop = null; tool = 'move'; paintTools(); paintPanels(); draw(); }
@@ -151,6 +165,7 @@ export default {
       if (l.type === 'rect' || l.type === 'ellipse') parts.push(h('div.eyebrow', t('Shape')), h('div.ph-grid2', field(t('Fill'), h('input', { type: 'color', value: l.fill, onInput: (e) => { l.fill = e.target.value; draw(); }, onPointerdown: commit })), field(t('Border colour'), h('input', { type: 'color', value: l.stroke || '#ffffff', onInput: (e) => { l.stroke = e.target.value; draw(); }, onPointerdown: commit })), num(t('Border'), 'strokeW', 0, 200), l.type === 'rect' ? num(t('Corners'), 'radius', 0, 2000) : null));
       parts.push(h('div.eyebrow', t('Filters')), FILTERS.map(([k, label, min, max, def, unit]) => rng(t(label), () => (l.filters || {})[k] ?? def, (v) => { (l.filters = l.filters || {})[k] = v; }, min, max, unit)),
         h('button.btn.sm', { onClick: () => { commit(); l.filters = {}; paintPanels(); draw(); } }, t('Reset filters')),
+        l.type === 'image' ? h('div.row', { style: 'gap:6px;margin-top:8px;flex-wrap:wrap' }, h('button.btn.sm', { onClick: () => bake(l, 'sharpen') }, icon('spark', 13), t('Sharpen')), h('button.btn.sm', { onClick: () => bake(l, 'auto') }, icon('palette', 13), t('Auto-enhance'))) : null,
         h('div.row', { style: 'gap:6px;margin-top:8px' }, h('button.btn.sm', { onClick: () => duplicate(l) }, icon('copy', 13), t('Duplicate')), h('button.btn.sm', { onClick: () => { commit(); l.locked = !l.locked; paintPanels(); } }, icon('lock', 13), l.locked ? t('Unlock') : t('Lock')), h('button.btn.sm.danger', { onClick: () => { commit(); doc.layers = doc.layers.filter((x) => x !== l); sel = null; paintPanels(); draw(); } }, icon('trash', 13), t('Delete'))));
       mount(propsEl, parts);
     }
@@ -164,6 +179,6 @@ export default {
     mount(root, h('div.ph', bar, h('div.ph-main', toolsEl, h('div.ph-center', stageWrap), h('aside.ph-side', layersEl, propsEl))));
     mount(stageWrap, canvas); paintTools(); paintPanels(); draw();
     window.__nbxPhoto = { get doc() { return doc; }, exportImg }; // used by tests
-    return () => { document.removeEventListener('paste', onPaste); delete window.__nbxPhoto; };
+    return () => { document.removeEventListener('paste', onPaste); document.removeEventListener('keydown', onKey); delete window.__nbxPhoto; };
   },
 };

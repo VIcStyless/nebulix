@@ -64,12 +64,16 @@ html[data-design="seven"] .shell[data-layout="nexus"] .topbar { height: 58px; ma
 
 /* phones: bottom tab bar + bottom sheet */
 @media (max-width: 760px) {
-  .shell[data-layout="nexus"], .shell[data-layout="nexus"][data-side="mini"] { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .shell[data-layout="nexus"], .shell[data-layout="nexus"][data-side="mini"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .shell[data-layout="nexus"] > .nexus, .shell[data-layout="nexus"] > .main { min-width: 0; }
   .shell[data-layout="nexus"] > .nexus { order: 2; height: auto; }
   .nx-bar, html[data-design="seven"] .nx-bar { width: 100%; height: auto; margin: 0; border-radius: 0; flex-direction: row; justify-content: space-around; padding: 4px 4px max(4px, env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); }
   .nx-cats { flex-direction: row; gap: 0; flex: 4; justify-content: space-around; }
   .nx-brand, .nx-sep, .nx-bar > .grow, .nx-search, .nx-bar > .nx-cat:not([data-cat]) { display: none; }
-  .nx-cat { width: 50px; height: 52px; border-radius: 14px; } .nx-cl { font-size: .58rem; max-width: 52px; } .nx-ci { width: 34px; }
+  /* the buttons share the row: 7 buttons + avatar no longer push a 390 px phone screen sideways */
+  .nx-cats { min-width: 0; } .nx-bar { min-width: 0; box-sizing: border-box; }
+  .nx-cat { width: auto; flex: 1 1 0; min-width: 0; max-width: 56px; height: 52px; border-radius: 14px; } .nx-cl { font-size: .58rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .nx-ci { width: 34px; }
+  .nx-me { flex: 0 0 auto; }
   .nx-me { margin: 0; align-self: center; }
   .nx-drawer, html[data-design="seven"] .nx-drawer, .nexus.pinned .nx-drawer, html[data-design="seven"] .nexus.pinned .nx-drawer { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(66px + env(safe-area-inset-bottom)); width: auto; height: auto; max-height: 70dvh; margin: 0; border-radius: 22px; border: 1px solid var(--line); transform: translateY(16px); box-shadow: 0 -20px 60px -20px rgba(0, 0, 0, .7); }
   .nexus.drawer-open .nx-drawer { transform: none; }

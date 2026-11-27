@@ -8,6 +8,7 @@ const path = require('path');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const net = require('net');
+const metrics = require('./metrics');
 const cfg = require('./config');
 const { Router, dispatch } = require('./router');
 const { HttpError, sendJson, clientIp, now } = require('./util');
@@ -18,10 +19,10 @@ const uploads = require('./uploads');
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.gif': 'image/gif', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.webm': 'video/webm', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.webm': 'video/webm', '.txt': 'text/plain; charset=utf-8', '.vtt': 'text/vtt; charset=utf-8', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
   '.wasm': 'application/wasm', '.zip': 'application/zip', '.iso': 'application/octet-stream', '.img': 'application/octet-stream', '.bin': 'application/octet-stream',
 };
-const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.webmanifest', '.txt', '.wasm', '.img', '.bin']);
+const COMPRESSIBLE = new Set(['.vtt', '.html', '.js', '.mjs', '.css', '.json', '.svg', '.webmanifest', '.txt', '.wasm', '.img', '.bin']);
 
 let router = null; let engine = null; let authMod = null; let chatMod = null;
 
@@ -141,6 +142,7 @@ function notFound(res) {
 function onRequest(req, res) {
   const host = String(req.headers.host || '').toLowerCase();
   const t0 = now();
+  metrics.track(req, res);
   if (process.env.LOG_REQUESTS) res.on('finish', () => console.log(`${req.method} ${host}${req.url} -> ${res.statusCode} ${now() - t0}ms`));
   if (host === cfg.proxyHost) {
     Promise.resolve(engine.handle(req, res)).catch((e) => {

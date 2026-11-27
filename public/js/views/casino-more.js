@@ -12,7 +12,8 @@ import { sfx } from '../sfx.js';
 import { horses } from '../casino-fx3d.js';
 import { wheel, keno, limbo } from './casino-new.js';
 import { baccarat, videopoker, hilo } from './casino-cards.js';
-export const EXTRA = new Set(['crash', 'plinko', 'mines', 'blackjack', 'jackpot', 'horses', 'wheel', 'keno', 'limbo', 'baccarat', 'videopoker', 'hilo']);
+import { dragontiger, sicbo, craps, tower } from './casino-tables.js';
+export const EXTRA = new Set(['crash', 'plinko', 'mines', 'blackjack', 'jackpot', 'horses', 'wheel', 'keno', 'limbo', 'baccarat', 'videopoker', 'hilo', 'dragontiger', 'sicbo', 'craps', 'tower']);
 const mx = (m) => '×' + (Math.round(m * 100) / 100).toFixed(2);
 const css = (k, d) => getComputedStyle(document.documentElement).getPropertyValue(k).trim() || d;
 
@@ -31,7 +32,7 @@ export const goBtn = (label, onClick, disabled, extra) => h('button.btn.primary.
 export const coin = (n) => h('span.coin', fmt.coins(n));
 
 export function mountExtra(game, env) {
-  return ({ crash, plinko, mines, blackjack, jackpot, horses, wheel, keno, limbo, baccarat, videopoker, hilo })[game](env);
+  return ({ crash, plinko, mines, blackjack, jackpot, horses, wheel, keno, limbo, baccarat, videopoker, hilo, dragontiger, sicbo, craps, tower })[game](env);
 }
 
 // ================= CRASH =================

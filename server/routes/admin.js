@@ -10,6 +10,8 @@ const mail = require('../mail');
 const sessions = require('../proxy/sessions');
 const engine = require('../proxy/engine');
 const { HttpError, now, V, rid } = require('../util');
+const metrics = require('../metrics');
+metrics.setOnline(() => hub.count());
 
 const started = now();
 const ROLES = ['user', 'mod', 'admin'];
@@ -61,12 +63,50 @@ module.exports = function register(r) {
     };
   });
 
+  // 3.0: filters, sorting, paging and CSV export. Last-seen comes from one pass over the sessions (not one per user).
+  const lastSeenMap = () => { const m = new Map(); for (const ss of Object.values(S.sessions)) if ((ss.last || 0) > (m.get(ss.uid) || 0)) m.set(ss.uid, ss.last); return m; };
+  const FILTERS = { all: () => true, pro: (u) => isPro(u), verified: (u) => !!u.verified, unverified: (u) => !u.verified, banned: (u) => u.banned && (!u.banned.until || u.banned.until > now()), muted: (u) => u.mutedUntil > now(), staff: (u) => ['owner', 'admin', 'mod'].includes(u.role), online: (u) => hub.online(u.id), warned: (u) => (u.warnings || []).length > 0 };
   r.get('/api/admin/users', { auth: true, role: 'staff', limit: [120, 60000, 'user'] }, async (c) => {
-    const q = String(c.query.q || '').toLowerCase().slice(0, 60);
-    let list = Object.values(S.users).filter((u) => !u.deleted);
-    if (q) list = list.filter((u) => u.usernameLower.includes(q) || u.emailLower.includes(q) || u.id === q);
-    list.sort((a, b) => b.created - a.created);
-    return { total: list.length, users: list.slice(0, 50).map(adminView) };
+    const q = String(c.query.q || '').toLowerCase().slice(0, 60); const filter = FILTERS[c.query.filter] ? c.query.filter : 'all'; const sort = String(c.query.sort || 'new');
+    const per = Math.min(200, Math.max(10, Number(c.query.per) || 50)); const page = Math.max(0, Number(c.query.page) || 0); const seen = lastSeenMap();
+    let list = Object.values(S.users).filter((u) => !u.deleted && FILTERS[filter](u));
+    if (q) list = list.filter((u) => u.usernameLower.includes(q) || u.emailLower.includes(q) || u.id === q || String(u.displayName || '').toLowerCase().includes(q));
+    const cmp = { new: (a, b) => b.created - a.created, old: (a, b) => a.created - b.created, coins: (a, b) => (b.coins || 0) - (a.coins || 0), seen: (a, b) => (seen.get(b.id) || 0) - (seen.get(a.id) || 0), name: (a, b) => a.usernameLower.localeCompare(b.usernameLower) }[sort] || ((a, b) => b.created - a.created);
+    list.sort(cmp);
+    if (c.query.csv === '1') { // staff export; only fields staff can already see in the panel
+      if (!['owner', 'admin'].includes(c.user.role)) throw new HttpError(403, 'forbidden', 'Admins only');
+      const esc = (v) => { const x = String(v === undefined || v === null ? '' : v); return /[",\n;]/.test(x) || /^[=+\-@]/.test(x) ? '"' + (/^[=+\-@]/.test(x) ? "'" : '') + x.replace(/"/g, '""') + '"' : x; }; // also defuses spreadsheet formulas
+      const rows = [['id', 'username', 'display_name', 'email', 'role', 'verified', 'pro', 'coins', 'banned', 'created', 'last_seen']].concat(list.map((u) => [u.id, u.username, u.displayName || '', u.email || '', u.role || 'user', !!u.verified, isPro(u), u.coins || 0, !!FILTERS.banned(u), new Date(u.created).toISOString(), seen.get(u.id) ? new Date(seen.get(u.id)).toISOString() : '']));
+      audit('users_export', c.user.id, filter + (q ? ' q=' + q : '') + ' · ' + list.length);
+      c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="nebulix-users.csv"', 'Cache-Control': 'no-store' });
+      c.res.end('﻿' + rows.map((r) => r.map(esc).join(',')).join('\r\n')); return;
+    }
+    const counts = Object.fromEntries(Object.keys(FILTERS).map((k) => [k, 0])); for (const u of Object.values(S.users)) if (!u.deleted) for (const k in FILTERS) if (FILTERS[k](u)) counts[k]++;
+    return { total: list.length, page, per, pages: Math.ceil(list.length / per), counts, users: list.slice(page * per, page * per + per).map((u) => Object.assign(adminView(u), { lastSeen: seen.get(u.id) || 0 })) };
+  });
+
+  // 3.0: live metrics, growth and health for the Overview tab
+  r.get('/api/admin/metrics', { auth: true, role: 'staff', limit: [120, 60000, 'user'] }, async (c) => {
+    const m = metrics.snapshot(Math.min(1440, Math.max(30, Number(c.query.minutes) || 180)));
+    return Object.assign(m, { errors: ['owner', 'admin'].includes(c.user.role) ? metrics.errors().slice(0, 50) : [] });
+  });
+  r.post('/api/admin/metrics/errors/clear', { auth: true, role: 'admin' }, async (c) => { metrics.clearErrors(); audit('errors_clear', c.user.id, ''); return { ok: true }; });
+  r.get('/api/admin/insights', { auth: true, role: 'staff', limit: [60, 60000, 'user'] }, async () => {
+    const DAY = 86400000; const today = Math.floor(now() / DAY) * DAY; const users = Object.values(S.users).filter((u) => !u.deleted); const seen = lastSeenMap();
+    const signups = Array.from({ length: 30 }, (_, i) => ({ day: today - (29 - i) * DAY, n: 0 })); for (const u of users) { const k = Math.floor((u.created - (today - 29 * DAY)) / DAY); if (k >= 0 && k < 30) signups[k].n++; }
+    const active = (d) => users.filter((u) => (seen.get(u.id) || 0) > now() - d * DAY).length;
+    const tables = []; try { for (const f of fs.readdirSync(cfg.dataDir)) if (f.endsWith('.json')) { try { tables.push({ name: f.replace(/\.json$/, ''), bytes: fs.statSync(path.join(cfg.dataDir, f)).size }); } catch {} } } catch {}
+    tables.sort((a, b) => b.bytes - a.bytes);
+    let disk = null; try { const st = fs.statfsSync(cfg.dataDir); disk = { total: st.blocks * st.bsize, free: st.bavail * st.bsize }; } catch {}
+    let compute = []; try { const C = require('../compute'); compute = await Promise.all(C.allNodes().map(async (n) => { const h = await C.check(n).catch(() => null); return { name: n.name, ok: !!(h && h.ok), kvm: !!(h && h.kvm), env: !!n.env }; })); } catch {}
+    const checks = [
+      { name: 'Data volume', ok: !disk || disk.free / disk.total > 0.1, detail: disk ? Math.round(disk.free / 1048576) + ' MB free of ' + Math.round(disk.total / 1048576) + ' MB' : 'unknown' },
+      { name: 'Email', ok: mail.mode() !== 'off', detail: mail.mode() },
+      { name: 'Memory', ok: process.memoryUsage().rss < 900 * 1048576, detail: Math.round(process.memoryUsage().rss / 1048576) + ' MB' },
+      { name: 'Compute nodes', ok: compute.some((n) => n.ok), detail: compute.length ? compute.filter((n) => n.ok).length + ' / ' + compute.length + ' online' + (compute.some((n) => n.ok && n.kvm) ? ' · KVM' : ' · no KVM (Android unavailable)') : 'none connected' },
+      { name: 'Server errors (last hour)', ok: !metrics.errors().some((e) => e.t > now() - 3600000), detail: metrics.errors().filter((e) => e.t > now() - 3600000).length + ' in the last hour' },
+    ];
+    return { signups, active: { d1: active(1), d7: active(7), d30: active(30), total: users.length }, tables: tables.slice(0, 12), disk, compute, checks };
   });
 
   // 13.6: donations up to a trillion coins at once; the person gets a notice

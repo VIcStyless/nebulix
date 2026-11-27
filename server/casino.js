@@ -291,7 +291,7 @@ function playLimbo(u, params) {
   return { game: 'limbo', bet, mult, payout, net, result: { point, target }, nonce, balance: u.coins };
 }
 // big wins go to Nebulix Live (and the casino's live ticker)
-const GNAME = { baccarat: ['Baccarat', 'Bacará'], videopoker: ['Video Poker', 'Video póker'], hilo: ['Hi-Lo', 'Hi-Lo'], wheel: ['Wheel', 'Rueda'], keno: ['Keno', 'Keno'], limbo: ['Limbo', 'Limbo'], crash: ['Crash', 'Crash'], plinko: ['Plinko', 'Plinko'], slots: ['Slots', 'Tragaperras'], roulette: ['Roulette', 'Ruleta'], mines: ['Mines', 'Minas'], dice: ['Dice', 'Dados'], horses: ['Horse racing', 'Carreras de caballos'], blackjack: ['Blackjack', 'Blackjack'], coinflip: ['Coin Flip', 'Cara o cruz'] };
+const GNAME = { dragontiger: ['Dragon Tiger', 'Dragón y Tigre'], sicbo: ['Sic Bo', 'Sic Bo'], craps: ['Craps', 'Dados (Craps)'], tower: ['Tower', 'Torre'], baccarat: ['Baccarat', 'Bacará'], videopoker: ['Video Poker', 'Video póker'], hilo: ['Hi-Lo', 'Hi-Lo'], wheel: ['Wheel', 'Rueda'], keno: ['Keno', 'Keno'], limbo: ['Limbo', 'Limbo'], crash: ['Crash', 'Crash'], plinko: ['Plinko', 'Plinko'], slots: ['Slots', 'Tragaperras'], roulette: ['Roulette', 'Ruleta'], mines: ['Mines', 'Minas'], dice: ['Dice', 'Dados'], horses: ['Horse racing', 'Carreras de caballos'], blackjack: ['Blackjack', 'Blackjack'], coinflip: ['Coin Flip', 'Cara o cruz'] };
 const lastBig = new Map();
 function bigWin(u, game, bet, mult, payout) {
   try {
@@ -311,7 +311,84 @@ function dailySpin(u) {
 }
 const dailyState = (u) => ({ prizes: DAILY_PRIZES, used: !!(u.casinoDaily && u.casinoDaily.day === dayKey()) });
 
-const EXTRA_SINGLE = { baccarat: (u, p) => playBaccarat(u, p), crash: playCrash, plinko: playPlinko, horses: playHorses, wheel: playWheel, keno: playKeno, limbo: playLimbo };
+// ---- Nebulix 3.0 tables: Dragon Tiger, Sic Bo, Craps (one request each) and Tower (multi-step, like Mines) ----
+// Outcomes come from the same provably fair floats as every other game; payouts are set from exact odds.
+const DT_RANK = (c) => RANKS.indexOf(c.r) + 1; // A low … K high
+function playDragonTiger(u, params) {
+  const side = String(params.side || ''); if (!['dragon', 'tiger', 'tie'].includes(side)) throw new HttpError(400, 'bad_side', 'Bet on Dragon, Tiger or Tie');
+  const bet = checkBet(u, params.bet, { gap: 300 }); const { fl, nonce } = nextFloats(u, 2);
+  const dragon = cardOf(fl[0]), tiger = cardOf(fl[1]); const d = DT_RANK(dragon), tt = DT_RANK(tiger); const win = d > tt ? 'dragon' : tt > d ? 'tiger' : 'tie';
+  const mult = win === 'tie' ? (side === 'tie' ? 12 : 0.5) : side === win ? 2 : 0; const payout = Math.floor(bet * mult);
+  econ.adjust(u, payout - bet, 'casino:dragontiger'); const net = record(u, bet, payout, mult); bigWin(u, 'dragontiger', bet, mult, payout);
+  return { game: 'dragontiger', bet, mult, payout, net, result: { dragon, tiger, win, side }, nonce, balance: u.coins };
+}
+const SB_WAYS = (() => { const w = {}; for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) for (let c = 1; c <= 6; c++) w[a + b + c] = (w[a + b + c] || 0) + 1; return w; })();
+const SB_EDGE = 0.97;
+const SB_PAY = { small: 2, big: 2, odd: 2, even: 2, triple: Math.floor((SB_EDGE * 216 / 6) * 10) / 10, total: Object.fromEntries(Object.entries(SB_WAYS).filter(([k]) => k >= 4 && k <= 17).map(([k, w]) => [k, Math.floor((SB_EDGE * 216 / w) * 10) / 10])) };
+function sicboWins(dice, bet, pick) {
+  const sum = dice[0] + dice[1] + dice[2]; const triple = dice[0] === dice[1] && dice[1] === dice[2];
+  if (bet === 'small') return !triple && sum >= 4 && sum <= 10; if (bet === 'big') return !triple && sum >= 11 && sum <= 17;
+  if (bet === 'odd') return !triple && sum % 2 === 1; if (bet === 'even') return !triple && sum % 2 === 0;
+  if (bet === 'triple') return triple; if (bet === 'total') return sum === pick; return false;
+}
+function playSicBo(u, params) {
+  const kind = String(params.kind || ''); const pick = Math.trunc(Number(params.total));
+  if (!['small', 'big', 'odd', 'even', 'triple', 'total'].includes(kind)) throw new HttpError(400, 'bad_bet', 'Choose a Sic Bo bet');
+  if (kind === 'total' && !(pick >= 4 && pick <= 17)) throw new HttpError(400, 'bad_total', 'Pick a total from 4 to 17');
+  const bet = checkBet(u, params.bet, { gap: 300 }); const { fl, nonce } = nextFloats(u, 3); const dice = fl.map((f) => 1 + Math.floor(f * 6));
+  const m = kind === 'total' ? SB_PAY.total[pick] : SB_PAY[kind]; const mult = sicboWins(dice, kind, pick) ? m : 0; const payout = Math.floor(bet * mult);
+  econ.adjust(u, payout - bet, 'casino:sicbo'); const net = record(u, bet, payout, mult); bigWin(u, 'sicbo', bet, mult, payout);
+  return { game: 'sicbo', bet, mult, payout, net, result: { dice, sum: dice[0] + dice[1] + dice[2], kind, total: kind === 'total' ? pick : null }, nonce, balance: u.coins };
+}
+// Craps: Pass / Don't Pass are settled in one go (every roll is returned for the animation); Field is one roll.
+function crapsRolls(fl, line) {
+  const rolls = []; let i = 0; const roll = () => { const r = [1 + Math.floor(fl[i++] * 6), 1 + Math.floor(fl[i++] * 6)]; rolls.push(r); return r[0] + r[1]; };
+  if (line === 'field') { const s = roll(); return { rolls, mult: s === 2 ? 3 : s === 12 ? 4 : [3, 4, 9, 10, 11].includes(s) ? 2 : 0, point: null }; }
+  const first = roll(); const pass = line === 'pass';
+  if ([7, 11].includes(first)) return { rolls, mult: pass ? 2 : 0, point: null };
+  if ([2, 3].includes(first)) return { rolls, mult: pass ? 0 : 2, point: null };
+  if (first === 12) return { rolls, mult: pass ? 0 : 1, point: null }; // don't pass: bar 12 (push)
+  while (i + 2 <= fl.length) { const s = roll(); if (s === first) return { rolls, mult: pass ? 2 : 0, point: first }; if (s === 7) return { rolls, mult: pass ? 0 : 2, point: first }; }
+  return { rolls, mult: 1, point: first }; // practically impossible (300 rolls without a decision): stake returned
+}
+function playCraps(u, params) {
+  const line = String(params.line || ''); if (!['pass', 'dontpass', 'field'].includes(line)) throw new HttpError(400, 'bad_bet', 'Choose Pass, Don’t Pass or Field');
+  const bet = checkBet(u, params.bet, { gap: 300 }); const { fl, nonce } = nextFloats(u, 600); const r = crapsRolls(fl, line);
+  const payout = Math.floor(bet * r.mult); econ.adjust(u, payout - bet, 'casino:craps'); const net = record(u, bet, payout, r.mult); bigWin(u, 'craps', bet, r.mult, payout);
+  return { game: 'craps', bet, mult: r.mult, payout, net, result: { line, rolls: r.rolls, point: r.point }, nonce, balance: u.coins };
+}
+// Tower: 8 floors; pick a safe tile on each floor to climb, cash out any time after the first floor.
+const TOWER = { easy: { tiles: 4, bombs: 1 }, medium: { tiles: 3, bombs: 1 }, hard: { tiles: 2, bombs: 1 }, expert: { tiles: 3, bombs: 2 } };
+const TOWER_FLOORS = 8, TOWER_EDGE = 0.98;
+function towerMult(mode, floors) { const m = TOWER[mode]; return Math.floor(TOWER_EDGE * Math.pow(m.tiles / (m.tiles - m.bombs), floors) * 100) / 100; }
+function towerLayout(fl, mode) { const m = TOWER[mode]; const out = []; let k = 0; for (let f = 0; f < TOWER_FLOORS; f++) { const cells = [...Array(m.tiles).keys()]; for (let i = m.tiles - 1; i > 0; i--) { const j = Math.floor(fl[k++] * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; } out.push(cells.slice(0, m.bombs).sort()); } return out; }
+function towerView(r, reveal) { return { bet: r.bet, mode: r.mode, picks: r.picks, floor: r.picks.length, mult: r.picks.length ? towerMult(r.mode, r.picks.length) : 1, next: r.picks.length < TOWER_FLOORS ? towerMult(r.mode, r.picks.length + 1) : null, nonce: r.nonce, layout: reveal ? r.layout : undefined, over: !!reveal }; }
+function towerStart(u, params) {
+  if (u.round && u.round.tower) throw new HttpError(409, 'in_round', 'Finish your current Tower round first');
+  const mode = String(params.mode || 'medium'); if (!TOWER[mode]) throw new HttpError(400, 'bad_mode', 'Choose a difficulty');
+  const bet = checkBet(u, params.bet); const { fl, nonce } = nextFloats(u, TOWER_FLOORS * 4);
+  if (!econ.adjust(u, -bet, 'casino:tower')) throw new HttpError(402, 'no_funds', 'Not enough coins');
+  u.round = Object.assign(u.round || {}, { tower: { bet, mode, layout: towerLayout(fl, mode), picks: [], nonce, t: now() } }); S.store.touch('users');
+  return { round: towerView(u.round.tower, false), balance: u.coins };
+}
+function towerEnd(u, r, payout) { delete u.round.tower; if (payout > 0) econ.adjust(u, payout, 'casino:tower'); const mult = payout / r.bet; const net = record(u, r.bet, payout, mult); bigWin(u, 'tower', r.bet, mult, payout); return { payout, net, mult }; }
+function towerPick(u, params) {
+  const r = u.round && u.round.tower; if (!r) throw new HttpError(409, 'no_round', 'Start a Tower round first');
+  const tile = Math.trunc(Number(params.tile)); if (!(tile >= 0 && tile < TOWER[r.mode].tiles)) throw new HttpError(400, 'bad_tile', 'Pick a tile');
+  const floor = r.picks.length;
+  if (r.layout[floor].includes(tile)) { const end = towerEnd(u, r, 0); return Object.assign({ boom: { floor, tile }, round: towerView(r, true), balance: u.coins }, end); }
+  r.picks.push(tile); S.store.touch('users');
+  if (r.picks.length === TOWER_FLOORS) return towerCashout(u);
+  return { round: towerView(r, false), balance: u.coins };
+}
+function towerCashout(u) {
+  const r = u.round && u.round.tower; if (!r) throw new HttpError(409, 'no_round', 'No Tower round in progress');
+  if (!r.picks.length) throw new HttpError(400, 'no_picks', 'Climb at least one floor first');
+  const payout = Math.floor(r.bet * towerMult(r.mode, r.picks.length)); const end = towerEnd(u, r, payout);
+  return Object.assign({ cashed: true, round: towerView(r, true), balance: u.coins }, end);
+}
+
+const EXTRA_SINGLE = { baccarat: (u, p) => playBaccarat(u, p), crash: playCrash, plinko: playPlinko, horses: playHorses, wheel: playWheel, keno: playKeno, limbo: playLimbo, dragontiger: playDragonTiger, sicbo: playSicBo, craps: playCraps };
 
 // ---- Mines: 5×5 grid. Bet is taken at the start; cash out any time after a safe pick. ----
 const MINES_EDGE = 0.98;
@@ -489,7 +566,7 @@ function hlCashout(u) {
   const end = hlEnd(u, r, Math.floor(r.bet * Math.min(10000, r.mult))); return Object.assign({ cashed: true, round: hlView(r), balance: u.coins }, end);
 }
 
-function roundsOf(u) { const r = u.round || {}; return { mines: r.mines ? minesView(r.mines, false) : null, bj: r.bj ? bjView(r.bj, false) : null, vp: r.vp ? vpView(r.vp, false) : null, hl: r.hl ? hlView(r.hl) : null }; }
+function roundsOf(u) { const r = u.round || {}; return { mines: r.mines ? minesView(r.mines, false) : null, bj: r.bj ? bjView(r.bj, false) : null, vp: r.vp ? vpView(r.vp, false) : null, hl: r.hl ? hlView(r.hl) : null, tower: r.tower ? towerView(r.tower, false) : null }; }
 
 // ---- Jackpot: shared pot. Everyone deposits; one ticket per coin; the winner is drawn from a committed seed. ----
 const JP_WINDOW = 45000; const JP_SOLO_TIMEOUT = 10 * 60000; const JP_FEE = 0.02; const JP_MAX_DEPOSIT = 1_000_000_000_000_000;
@@ -546,6 +623,6 @@ function jpSettle() {
 let jpTimer = null;
 function startJackpot() { if (jpTimer) return; jpState(); jpTimer = setInterval(() => { try { jpSettle(); } catch (e) { console.error('[jackpot]', e && e.message); } }, 1000); jpTimer.unref && jpTimer.unref(); }
 
-const EXTRA_CFG = { wheel: WHEEL, keno: KENO, limboMax: LIMBO_MAX, horses: HORSES, crashMax: CRASH_MAX, plinko: PLINKO, minesEdge: MINES_EDGE, jackpot: { fee: JP_FEE, window: JP_WINDOW, max: JP_MAX_DEPOSIT } };
+const EXTRA_CFG = { tower: { modes: TOWER, floors: TOWER_FLOORS }, sicbo: SB_PAY, wheel: WHEEL, keno: KENO, limboMax: LIMBO_MAX, horses: HORSES, crashMax: CRASH_MAX, plinko: PLINKO, minesEdge: MINES_EDGE, jackpot: { fee: JP_FEE, window: JP_WINDOW, max: JP_MAX_DEPOSIT } };
 
-module.exports = { vpDeal, vpDraw, vpHand, VP_PAY, hlStart, hlGuess, hlCashout, baccaratDeal, BAC_PAY, dailySpin, dailyState, WHEEL, KENO, kenoDraw, bigWin, HORSES, horseRace, minesStart, minesPick, minesCashout, bjStart, bjAction, roundsOf, jpPublic, jpDeposit, startJackpot, crashPoint, plinkoPath, minesLayout, minesMult, cardOf, handValue, EXTRA_CFG, PLINKO, play, setLimits, fairPublic, setClientSeed, rotate, leaderboard, floatsFrom, slotSymbol, slotsPayMult, rouletteWin, diceMult, SLOT_SYMBOLS, SLOT_PAY, COIN_MULT, TWO_CHERRY, MIN_BET, MAX_BET };
+module.exports = { towerStart, towerPick, towerCashout, towerMult, towerLayout, crapsRolls, sicboWins, SB_PAY, TOWER, vpDeal, vpDraw, vpHand, VP_PAY, hlStart, hlGuess, hlCashout, baccaratDeal, BAC_PAY, dailySpin, dailyState, WHEEL, KENO, kenoDraw, bigWin, HORSES, horseRace, minesStart, minesPick, minesCashout, bjStart, bjAction, roundsOf, jpPublic, jpDeposit, startJackpot, crashPoint, plinkoPath, minesLayout, minesMult, cardOf, handValue, EXTRA_CFG, PLINKO, play, setLimits, fairPublic, setClientSeed, rotate, leaderboard, floatsFrom, slotSymbol, slotsPayMult, rouletteWin, diceMult, SLOT_SYMBOLS, SLOT_PAY, COIN_MULT, TWO_CHERRY, MIN_BET, MAX_BET };

@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { api } from '../api.js';
 import { S, isAdmin, isStaff } from '../state.js';
 import { icon } from '../icons.js';
-import { toast, toastErr, tabsEl, promptBox, confirmBox, copyBtn, loading, modal, busy, switchEl, emojiPicker, field, settingRow } from '../ui.js';
+import { segEl, toast, toastErr, tabsEl, promptBox, confirmBox, copyBtn, loading, modal, busy, switchEl, emojiPicker, field, settingRow } from '../ui.js';
 import { roleChip } from '../roles.js';
 import { avatarEl } from '../cosmetics.js';
 
@@ -35,30 +35,82 @@ export default {
 };
 
 async function overview(box) {
-  const s = await api.get('/api/admin/stats');
+  const [s, ins] = await Promise.all([api.get('/api/admin/stats'), api.get('/api/admin/insights').catch(() => null)]);
   const tile = (label, v, ic) => h('div.adm-stat', h('div.adm-stat-ic', icon(ic, 18)), h('div', h('b', fmt.num(v)), h('div.tiny.muted', label)));
+  const live = h('div.adm-charts'); const errBox = h('div'); let range = 180; let timer = 0; let alive = true;
+  const rangeSeg = segEl([[60, '1 h'], [180, '3 h'], [720, '12 h'], [1440, '24 h']], range, (v) => { range = v; loadLive(); });
+  async function loadLive() {
+    let m; try { m = await api.get('/api/admin/metrics?minutes=' + range, { quiet: true }); } catch (e) { mount(live, h('span.error', e.message)); return; }
+    const S2 = m.series; const last = S2[S2.length - 1] || {}; const full = S2.filter((x) => !x.partial);
+    const sum = (k) => full.reduce((a, x) => a + (x[k] || 0), 0);
+    mount(live,
+      chartCard(t('Requests per minute'), S2.map((x) => x.req), fmt.num(last.req || 0), t('{n} in range', { n: fmt.num(sum('req')) }), '#38bdf8'),
+      chartCard(t('Server errors per minute'), S2.map((x) => x.e5), String(last.e5 || 0), t('{n} in range · {c} client errors', { n: fmt.num(sum('e5')), c: fmt.num(sum('e4')) }), '#f43f5e'),
+      chartCard(t('API response time'), S2.map((x) => x.avgMs), (last.avgMs || 0) + ' ms', t('average per minute'), '#a78bfa'),
+      chartCard(t('Memory'), S2.map((x) => x.rss), (last.rss || 0) + ' MB', t('heap {n} MB', { n: last.heap || 0 }), '#22c55e'),
+      chartCard(t('Event-loop delay'), S2.map((x) => x.lag), (last.lag || 0) + ' ms', t('worst {n} ms this minute', { n: last.lagMax || 0 }), '#f59e0b'),
+      chartCard(t('Online now'), S2.map((x) => x.online), fmt.num(last.online || 0), t('people connected'), '#14b8a6'));
+    if (m.errors && isAdmin()) mount(errBox, h('section.card', h('div.row.between', h('h3', { style: 'margin:0' }, icon('alert', 18), ' ', t('Recent server errors')), m.errors.length ? h('button.btn.sm.ghost', { type: 'button', onClick: async () => { await api.post('/api/admin/metrics/errors/clear').catch(toastErr); loadLive(); } }, t('Clear')) : null),
+      m.errors.length ? h('div.adm-errs', m.errors.slice(0, 20).map((e) => h('div.adm-err', h('div.row', { style: 'gap:8px' }, h('code', e.route), h('span.tiny.muted', fmt.rel(e.t))), h('div.small', e.message), e.where ? h('div.tiny.muted', e.where) : null)))
+        : h('p.small.muted', t('No server errors since the last restart. 🎉'))));
+    clearTimeout(timer); if (alive) timer = setTimeout(loadLive, 30000);
+  }
+  const growth = ins ? h('div.nl-grid', { style: 'margin-top:14px' },
+    h('section.card.nl-card', h('h3', icon('users', 18), t('Sign-ups, last 30 days')), barChart(ins.signups.map((d) => d.n), ins.signups.map((d) => fmt.date(d.day))), h('div.tiny.muted', t('{n} new accounts', { n: fmt.num(ins.signups.reduce((a, d) => a + d.n, 0)) }))),
+    h('section.card.nl-card', h('h3', icon('activity', 18), t('Active people')), kv(t('Last 24 hours'), fmt.num(ins.active.d1)), kv(t('Last 7 days'), fmt.num(ins.active.d7)), kv(t('Last 30 days'), fmt.num(ins.active.d30)), kv(t('All accounts'), fmt.num(ins.active.total)),
+      h('div.adm-meter', h('i', { style: { width: Math.round(ins.active.d30 / Math.max(1, ins.active.total) * 100) + '%' } })), h('div.tiny.muted', t('{p}% of accounts active this month', { p: Math.round(ins.active.d30 / Math.max(1, ins.active.total) * 100) }))),
+    h('section.card.nl-card', h('h3', icon('shield', 18), t('Health checks')), ins.checks.map((c) => h('div.adm-check' + (c.ok ? '.ok' : '.bad'), h('span.adm-dot'), h('div.grow', h('b', t(c.name)), h('div.tiny.muted', c.detail))))),
+    h('section.card.nl-card', h('h3', icon('layers', 18), t('Largest data tables')), ins.tables.map((x) => kv(x.name, fmt.bytes(x.bytes))), ins.disk ? h('div.tiny.muted', { style: 'margin-top:6px' }, t('Disk: {f} free of {t}', { f: fmt.bytes(ins.disk.free), t: fmt.bytes(ins.disk.total) })) : null)) : null;
   mount(box,
     h('div.adm-stats',
       tile(t('Members'), s.users, 'users'), tile(t('Verified'), s.verified, 'check'), tile(t('PRO'), s.pro, 'crown'), tile(t('Online now'), s.online, 'wifi'),
       tile(t('Banned'), s.banned, 'shield'), tile(t('Servers'), s.servers, 'server'), tile(t('Themes'), s.themes, 'palette'), tile(t('Open reports'), s.openReports, 'flag'),
       tile(t('Coins in circulation'), s.coinsInCirculation, 'coins'), tile(t('Proxy sessions'), s.proxy.sessions, 'globe')),
+    h('div.row.between', { style: 'margin:18px 0 8px;align-items:center;gap:8px;flex-wrap:wrap' }, h('h3', { style: 'margin:0' }, icon('activity', 18), ' ', t('Live server metrics')), rangeSeg),
+    live, growth, h('div', { style: 'margin-top:14px' }, errBox),
     h('div.nl-grid', { style: 'margin-top:14px' },
       h('section.card.nl-card', h('h3', icon('server', 18), t('Server')),
         kv('Nebulix', 'v' + s.version), kv('Node.js', s.node), kv(t('Uptime'), fmt.dur(s.uptime)), kv(t('Memory'), s.memMB + ' MB'), kv(t('Data on disk'), s.dataMB + ' MB'), kv(t('Email mode'), s.mail), kv(t('Public link'), s.public ? t('On') : t('Off'))),
       h('section.card.nl-card', h('h3', icon('globe', 18), t('Proxy')),
         kv(t('Active sessions'), fmt.num(s.proxy.sessions)), kv(t('Requests served'), fmt.num(s.proxy.requests || 0)), kv(t('Data proxied'), fmt.bytes(s.proxy.bytes || 0)), kv(t('Cache entries'), fmt.num((s.proxy.cache || {}).entries || 0)), kv(t('Cache size'), fmt.bytes((s.proxy.cache || {}).bytes || 0)))));
+  loadLive();
+  return () => { alive = false; clearTimeout(timer); };
+}
+// small dependency-free SVG charts (area sparkline + bars); hover shows the value
+function chartCard(title, values, now, sub, color) {
+  return h('section.card.adm-chart', h('div.row.between', h('span.small.muted', title), h('b', now)), sparkline(values, color), h('div.tiny.muted', sub));
+}
+function sparkline(values, color) {
+  const W = 300, H = 64, n = values.length; const max = Math.max(1, ...values.map((v) => v || 0));
+  const pts = values.map((v, i) => [n > 1 ? (i / (n - 1)) * W : W, H - 4 - ((v || 0) / max) * (H - 10)]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('class', 'adm-spark'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'max ' + max);
+  svg.innerHTML = `<path d="${line} L${W} ${H} L0 ${H} Z" fill="${color}" opacity=".16"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+  return svg;
+}
+function barChart(values, labels) {
+  const max = Math.max(1, ...values);
+  return h('div.adm-bars', values.map((v, i) => h('div.adm-bar', { title: labels[i] + ': ' + v }, h('i', { style: { height: Math.max(2, (v / max) * 100) + '%' } }))));
 }
 const kv = (k, v) => h('div.nl-kv', h('span', k), h('b', v === undefined || v === null || v === '' ? '—' : v));
 
 async function users(box, ctx) {
   const search = h('input.input', { type: 'search', placeholder: t('Search by name, email or ID'), 'aria-label': t('Search users') });
   const listBox = h('div.col', { style: 'gap:8px' }, loading());
+  const st = { q: '', filter: 'all', sort: 'new', page: 0 }; const chips = h('div.adm-chips'); const tools = h('div.row', { style: 'gap:8px;flex-wrap:wrap;align-items:center' });
+  const FILTERS = [['all', 'All'], ['online', 'Online'], ['pro', 'PRO'], ['verified', 'Verified'], ['unverified', 'Unverified'], ['staff', 'Staff'], ['warned', 'Warned'], ['muted', 'Muted'], ['banned', 'Banned']];
+  const qs = (extra) => '?' + new URLSearchParams(Object.assign({ q: st.q, filter: st.filter, sort: st.sort, page: st.page }, extra || {})).toString();
   async function run(q) {
-    try { const r = await api.get('/api/admin/users' + (q ? '?q=' + encodeURIComponent(q) : '')); paint(r); } catch (e) { mount(listBox, h('span.error', e.message)); }
+    if (q !== undefined) { st.q = q; st.page = 0; }
+    try { const r = await api.get('/api/admin/users' + qs()); paint(r); } catch (e) { mount(listBox, h('span.error', e.message)); }
   }
   function paint(r) {
+    mount(chips, FILTERS.map(([k, l]) => h('button.adm-chip' + (st.filter === k ? '.on' : ''), { type: 'button', onClick: () => { st.filter = k; st.page = 0; run(); } }, t(l), h('span', fmt.num(r.counts[k] || 0)))));
+    const sortSel = h('select.select', { 'aria-label': t('Sort'), onChange: (e) => { st.sort = e.target.value; st.page = 0; run(); } }, [['new', 'Newest first'], ['old', 'Oldest first'], ['seen', 'Recently active'], ['coins', 'Most coins'], ['name', 'Name A–Z']].map(([v, l]) => h('option', { value: v, selected: v === st.sort }, t(l))));
+    const pager = r.pages > 1 ? h('div.row', { style: 'gap:6px;align-items:center' }, h('button.btn.sm', { type: 'button', disabled: st.page <= 0, onClick: () => { st.page--; run(); } }, '‹'), h('span.small', t('Page {a} of {b}', { a: st.page + 1, b: r.pages })), h('button.btn.sm', { type: 'button', disabled: st.page >= r.pages - 1, onClick: () => { st.page++; run(); } }, '›')) : null;
+    mount(tools, h('span.tiny.muted.grow', t('{n} people', { n: fmt.num(r.total) })), sortSel, isAdmin() ? h('a.btn.sm', { href: '/api/admin/users' + qs({ csv: '1' }), download: 'nebulix-users.csv' }, icon('download', 14), 'CSV') : null, pager);
     if (!r.users.length) return mount(listBox, h('div.empty', { style: 'padding:20px' }, h('p', t('No users found.'))));
-    mount(listBox, h('div.tiny.muted', t('{a} shown of {b}', { a: r.users.length, b: r.total })), r.users.map(rowFor));
+    mount(listBox, r.users.map(rowFor));
   }
   function rowFor(u) {
     const banned = u.banned && (!u.banned.until || u.banned.until > Date.now());
@@ -105,7 +157,7 @@ async function users(box, ctx) {
     });
   }
   search.oninput = debounce(() => run(search.value.trim()), 350);
-  mount(box, h('div.row', { style: 'margin-bottom:12px' }, search), listBox); run('');
+  mount(box, h('div.row', { style: 'margin-bottom:10px' }, search), chips, tools, listBox); run('');
 }
 
 async function reports(box, ctx) {
@@ -349,8 +401,26 @@ async function computeTab(box) {
       hh.ok ? h('div.small', { style: 'margin-top:6px' }, [t('Agent {v}', { v: hh.version }), (hh.accel === 'tcg' ? t('software emulation (no KVM)') : 'KVM ✓'), hh.cpus + ' CPU', gb(hh.memFree) + ' / ' + gb(hh.memTotal) + ' RAM', t('{a} of {b} running', { a: hh.running, b: hh.maxRunning }), t('Android {v}', { v: (hh.images || []).map((i) => i.android).join(', ') || '—' })].join(' · ')) : h('div.small.error', hh.error || ''),
       n.env ? h('p.tiny.muted', { style: 'margin-top:6px' }, t('Configured on the server (NX_COMPUTE_NODES) — change it with Fly secrets.')) : owner() ? h('div.row', { style: 'gap:6px;margin-top:8px' },
         h('button.btn.sm', { onClick: async () => { try { await api.put('/api/admin/compute/' + n.id, { enabled: !n.enabled }); load(); } catch (e) { toastErr(e); } } }, n.enabled ? t('Pause') : t('Resume')),
-        h('button.btn.sm.danger', { onClick: async () => { if (!await confirmBox(t('Remove this node? Its devices stop being reachable from Nebulix.'), { danger: true })) return; try { await api.del('/api/admin/compute/' + n.id); load(); } catch (e) { toastErr(e); } } }, t('Remove'))) : null); })
+        h('button.btn.sm.danger', { onClick: async () => { if (!await confirmBox(t('Remove this node? Its devices stop being reachable from Nebulix.'), { danger: true })) return; try { await api.del('/api/admin/compute/' + n.id); load(); } catch (e) { toastErr(e); } } }, t('Remove'))) : null,
+      hh.ok ? nodeExtras(n, hh) : null); })
       : h('p.muted', t('No compute nodes yet. Nebulix Android needs at least one.')));
+  }
+  // 3.0: system images on this node (Linux / Windows) + Windows readiness; the owner adds images from a download link
+  function nodeExtras(n, hh) {
+    const w = hh.windows || {}; const imgs = hh.vmImages || []; const jobsEl = h('div.col', { style: 'gap:4px' }); let timer = 0;
+    const tick = async () => { if (!owner() || !document.body.contains(jobsEl)) return; try { const r = await api.get('/api/admin/compute/' + n.id + '/images', { quiet: true });
+      mount(jobsEl, r.jobs.slice(0, 5).map((j) => h('div.tiny', (j.state === 'done' ? '✅ ' : j.state === 'error' ? '⚠️ ' : '⬇️ ') + j.label + ' · ' + (j.state === 'downloading' ? (j.total ? Math.round(j.bytes / j.total * 100) + '%' : fmt.bytes(j.bytes)) : j.state === 'error' ? j.error : fmt.bytes(j.bytes)))));
+      if (r.jobs.some((j) => j.state === 'downloading')) timer = setTimeout(tick, 2000); } catch {} };
+    const iu = h('input', { placeholder: 'https://…/Win11_Spanish_x64.iso' }); const iname = h('input', { placeholder: t('Windows 11 (my licence)') }); const ifile = h('input', { placeholder: 'win11.iso' });
+    const ios = h('select', h('option', { value: 'linux' }, 'Linux'), h('option', { value: 'windows' }, 'Windows'));
+    setTimeout(tick, 50);
+    return h('details.cn-extra', { style: 'margin-top:10px' }, h('summary.small', t('System images ({n})', { n: imgs.length }) + ' · Windows: ' + [w.uefi ? 'UEFI ✓' : 'UEFI ✗', w.tpm ? 'TPM ✓' : 'TPM ✗', hh.kvm ? 'KVM ✓' : 'KVM ✗'].join(' · ')),
+      h('ul.tiny', imgs.map((i) => h('li', (i.os === 'windows' ? '🪟 ' : '🐧 ') + i.name + ' · ' + i.id + ' · ' + fmt.bytes(i.size || 0)))),
+      !hh.kvm ? h('p.an-warn.tiny', t('This node has no KVM: Windows works but is extremely slow. Use a KVM server for Windows.')) : null,
+      owner() ? h('div.col', { style: 'gap:8px;margin-top:8px' }, h('b.small', t('Add a system image from a link')),
+        h('p.tiny.muted', t('An .iso or .qcow2 the node downloads directly (https only). For Windows, use an ISO you are licensed to use — for example the one Microsoft gives you for your licence or the free evaluation.')),
+        h('div.an-hw', field(t('Download link'), iu), field(t('Name shown to people'), iname)), h('div.an-hw', field(t('File name'), ifile), field(t('System'), ios)),
+        h('button.btn.sm.primary', { onClick: async () => { try { await api.post('/api/admin/compute/' + n.id + '/images', { url: iu.value.trim(), name: iname.value.trim(), file: ifile.value.trim(), os: ios.value }); toast(t('Download started on the node'), 'good'); iu.value = ''; clearTimeout(timer); tick(); } catch (e) { toastErr(e); } } }, icon('download', 14), t('Add image')), jobsEl) : null);
   }
   const name = h('input', { placeholder: 'node-1' }); const url = h('input', { placeholder: 'https://node1.example.com' }); const secret = h('input', { type: 'password', placeholder: 'NX_NODE_SECRET', autocomplete: 'off' });
   const add = owner() ? h('div.card', { style: 'padding:14px' }, h('h3', t('Connect a compute node')),

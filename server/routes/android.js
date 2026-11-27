@@ -35,7 +35,7 @@ const KINDS = {
     defaults: { cpu: 2, ram: 2048, storage: 20 }, min: { cpu: 1, ram: 512, storage: 4 },
     fits: (h, b) => (h.data.vmImages || []).some((i) => i.id === String(b.image)),
     body: (b) => ({ kind: 'vm', image: String(b.image || '') }),
-    record: (j) => ({ kind: 'vm', image: j.device.image }),
+    record: (j) => ({ kind: 'vm', image: j.device.image, os: j.device.os || 'linux' }),
     subs: { info: 'info', snapshots: 'snapshots' },
     ops: { start: 'start', stop: 'stop', restart: 'restart', config: 'config', keys: 'keys', 'snapshot-save': 'snapshots/save', 'snapshot-load': 'snapshots/load', 'snapshot-delete': 'snapshots/delete' },
     scopes: ['ctl', 'shot'], wsPath: '/v1/vnc',
@@ -43,7 +43,7 @@ const KINDS = {
   },
 };
 
-const view = (d, live) => ({ id: d.id, kind: kindOf(d), name: d.name, api: d.api, android: live ? live.android : null, image: d.image || null, profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
+const view = (d, live) => ({ id: d.id, kind: kindOf(d), os: d.os || (live && live.os) || (kindOf(d) === 'vm' ? 'linux' : 'android'), name: d.name, api: d.api, android: live ? live.android : null, image: d.image || null, profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
   node: (nodeOf(d) || {}).name || '?', state: live ? live.state : 'unreachable', since: live ? live.since : null, snapshots: live ? live.snapshots : [], recording: live ? live.recording : false, iso: live ? live.iso : null });
 
 function mount(r, kind) {
@@ -70,7 +70,10 @@ function mount(r, kind) {
     for (const n of C.enabled()) { const h = await C.check(n); if (h.ok && (h.data.kvm || !K.needsKvm) && K.fits(h, b)) cands.push([n, h]); }
     if (!cands.length) throw new HttpError(503, 'no_node', C.enabled().length ? K.noFit : K.none);
     cands.sort((a, x) => (x[1].data.kvm ? 1 : 0) - (a[1].data.kvm ? 1 : 0) || (a[1].data.running / a[1].data.maxRunning) - (x[1].data.running / x[1].data.maxRunning)); // KVM nodes first
-    const [node] = cands[0]; const id = crypto.randomBytes(6).toString('hex'); const hw = clampHw(u, b);
+    const [node, nh] = cands[0]; const id = crypto.randomBytes(6).toString('hex'); const hw = clampHw(u, b);
+    // Windows (3.0): the system is the owner's licensed ISO; it needs 2 cores, 4 GB RAM and a 64 GB disk
+    const vimg = b.image ? (nh.data.vmImages || []).find((i) => i.id === String(b.image)) : null;
+    if (vimg && vimg.os === 'windows') { const cap = K.caps(u); if (cap.storage < 64 || cap.ram < 4096) throw new HttpError(403, 'win_caps', 'Windows needs 4 GB of memory and a 64 GB disk — available with PRO'); hw.cpu = Math.max(2, hw.cpu); hw.ram = Math.max(4096, hw.ram); hw.storage = Math.max(64, hw.storage); }
     const j = await C.call(node, 'POST', '/v1/devices', { id, owner: u.id, name: String(b.name || '').slice(0, 40), ...K.body(b), ...hw }, 120000);
     const d = { id, owner: u.id, node: node.id, name: j.device.name, ...K.record(j, b), cpu: j.device.cpu, ram: j.device.ram, storage: j.device.storage, created: now() };
     devs()[id] = d; touch(); return { device: view(d, j.device) };
@@ -103,7 +106,7 @@ module.exports = function register(r) {
   mount(r, 'android'); mount(r, 'vm');
 
   // ---- admin: compute nodes ----
-  const adminView = (n, h) => ({ id: n.id, name: n.name, url: n.url, enabled: n.enabled !== false, added: n.added, env: !!n.env, health: h ? { ok: h.ok, error: h.error || null, at: h.at, ...(h.ok ? { version: h.data.version, kvm: h.data.kvm, images: h.data.images, vmImages: h.data.vmImages || [], accel: h.data.accel || (h.data.kvm ? 'kvm' : 'tcg'), running: h.data.running, maxRunning: h.data.maxRunning, devices: h.data.devices, cpus: h.data.cpus, memFree: h.data.memFree, memTotal: h.data.memTotal, load: h.data.load } : {}) } : null,
+  const adminView = (n, h) => ({ id: n.id, name: n.name, url: n.url, enabled: n.enabled !== false, added: n.added, env: !!n.env, health: h ? { ok: h.ok, error: h.error || null, at: h.at, ...(h.ok ? { version: h.data.version, windows: h.data.windows || null, kvm: h.data.kvm, images: h.data.images, vmImages: h.data.vmImages || [], accel: h.data.accel || (h.data.kvm ? 'kvm' : 'tcg'), running: h.data.running, maxRunning: h.data.maxRunning, devices: h.data.devices, cpus: h.data.cpus, memFree: h.data.memFree, memTotal: h.data.memTotal, load: h.data.load } : {}) } : null,
     devices: Object.values(devs()).filter((d) => d.node === n.id).length });
   r.get('/api/admin/compute', { auth: true, role: 'admin' }, async () => { const list = C.allNodes(); const hs = await Promise.all(list.map((n) => C.check(n, true))); return { nodes: list.map((n, i) => adminView(n, hs[i])) }; });
   r.post('/api/admin/compute', { auth: true, role: 'owner', limit: [20, 60000, 'user'] }, async (c) => {
@@ -116,5 +119,12 @@ module.exports = function register(r) {
     C.nodes().push(n); S.store.touch('meta'); require('../state').audit('compute_node_add', c.user.id, n.name + ' ' + n.url); return { node: adminView(n, h) };
   });
   r.put('/api/admin/compute/:id', { auth: true, role: 'owner' }, async (c) => { const n = C.nodes().find((x) => x.id === c.params.id); if (!n) throw new HttpError(404, 'no_node', 'Not found'); if (c.body.enabled !== undefined) n.enabled = !!c.body.enabled; if (c.body.name) n.name = String(c.body.name).slice(0, 40); S.store.touch('meta'); return { node: adminView(n, await C.check(n, true)) }; });
+  // 3.0: system images (e.g. the owner's Windows ISO) are added to a node from a download link; owner only
+  r.get('/api/admin/compute/:id/images', { auth: true, role: 'owner' }, async (c) => { const n = C.allNodes().find((x) => x.id === c.params.id); if (!n) throw new HttpError(404, 'no_node', 'Not found'); return C.call(n, 'GET', '/v1/vm-images'); });
+  r.post('/api/admin/compute/:id/images', { auth: true, role: 'owner', limit: [10, 600000, 'user'] }, async (c) => {
+    const n = C.allNodes().find((x) => x.id === c.params.id); if (!n) throw new HttpError(404, 'no_node', 'Not found'); const b = c.body || {};
+    const r2 = await C.call(n, 'POST', '/v1/vm-images', { url: String(b.url || '').slice(0, 2000), file: String(b.file || '').slice(0, 80), name: String(b.name || '').slice(0, 60), os: b.os === 'windows' ? 'windows' : 'linux' });
+    require('../state').audit('compute_image_add', c.user.id, n.name + ' ' + r2.job.file); return r2;
+  });
   r.delete('/api/admin/compute/:id', { auth: true, role: 'owner' }, async (c) => { const list = C.nodes(); const i = list.findIndex((x) => x.id === c.params.id); if (i < 0) throw new HttpError(404, 'no_node', 'Not found'); const [n] = list.splice(i, 1); C.health.delete(n.id); S.store.touch('meta'); require('../state').audit('compute_node_remove', c.user.id, n.name); return { ok: true }; });
 };

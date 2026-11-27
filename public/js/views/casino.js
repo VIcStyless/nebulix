@@ -10,8 +10,8 @@ import { sfx } from '../sfx.js';
 import { EXTRA, mountExtra } from './casino-more.js';
 import { makeFx, fx3dOn } from '../casino-fx3d.js';
 
-const GAMES = [['horses', 'Horse racing', 'trophy'], ['coinflip', 'Coin Flip', 'coins'], ['dice', 'Dice', 'cube'], ['slots', 'Slots', 'star'], ['roulette', 'Roulette', 'dice'], ['blackjack', 'Blackjack', 'layers'], ['baccarat', 'Baccarat', 'layers'], ['videopoker', 'Video Poker', 'grid'], ['hilo', 'Hi-Lo', 'up'], ['crash', 'Crash', 'zap'], ['mines', 'Mines', 'target'], ['plinko', 'Plinko', 'activity'], ['wheel', 'Wheel', 'refresh'], ['keno', 'Keno', 'hash'], ['limbo', 'Limbo', 'zap'], ['jackpot', 'Jackpot', 'trophy']];
-const NEW_GAMES = new Set(['wheel', 'keno', 'limbo']);
+const GAMES = [['horses', 'Horse racing', 'trophy'], ['coinflip', 'Coin Flip', 'coins'], ['dice', 'Dice', 'cube'], ['slots', 'Slots', 'star'], ['roulette', 'Roulette', 'dice'], ['blackjack', 'Blackjack', 'layers'], ['baccarat', 'Baccarat', 'layers'], ['videopoker', 'Video Poker', 'grid'], ['hilo', 'Hi-Lo', 'up'], ['crash', 'Crash', 'zap'], ['mines', 'Mines', 'target'], ['plinko', 'Plinko', 'activity'], ['wheel', 'Wheel', 'refresh'], ['keno', 'Keno', 'hash'], ['limbo', 'Limbo', 'zap'], ['dragontiger', 'Dragon Tiger', 'layers'], ['sicbo', 'Sic Bo', 'cube'], ['craps', 'Craps', 'dice'], ['tower', 'Tower', 'up'], ['jackpot', 'Jackpot', 'trophy']];
+const NEW_GAMES = new Set(['dragontiger', 'sicbo', 'craps', 'tower']);
 // games the in-browser verifier can recompute (jackpot shows its own seed in its history)
 const VERIFY = ['coinflip', 'dice', 'slots', 'roulette', 'crash', 'plinko', 'mines', 'blackjack'];
 
@@ -378,7 +378,7 @@ export default {
       if (!alive) return;
       if (typeof r.balance === 'number') patchMe({ coins: r.balance }); paintBal();
       if (typeof r.nonce === 'number' && r.game !== 'jackpot') st.fair.nonce = Math.max(st.fair.nonce, r.nonce + 1);
-      if (st.rounds) { if (r.game === 'mines') st.rounds.mines = null; if (r.game === 'blackjack') st.rounds.bj = null; }
+      if (st.rounds) { if (r.game === 'mines') st.rounds.mines = null; if (r.game === 'tower') st.rounds.tower = null; if (r.game === 'blackjack') st.rounds.bj = null; }
       st.stats = Object.assign({}, st.stats, { bets: (st.stats.bets || 0) + 1, wagered: (st.stats.wagered || 0) + r.bet, won: (st.stats.won || 0) + r.payout, biggest: Math.max(st.stats.biggest || 0, r.net) });
       const rg = st.fair.rg; rg.lost = r.net < 0 ? rg.lost - r.net : Math.max(0, rg.lost - r.net);
       hist.unshift(r); if (hist.length > 14) hist.pop();

@@ -43,12 +43,21 @@ async function homePage(root, ctx) {
   async function del(d) { if (!await confirmBox(t('Delete “{n}” and its disk? This cannot be undone.', { n: d.name }), { danger: true, ok: t('Delete') })) return; try { await api.del(B + '/devices/' + d.id); toast(t('Machine deleted'), 'good'); load(); } catch (e) { toastErr(e); } }
   function create(imgs) {
     const cap = st.caps; const name = h('input', { placeholder: t('My Linux PC'), maxLength: 40 });
-    const img = h('select', imgs.map((i) => h('option', { value: i.id }, i.name + (i.kind === 'iso' ? ' — ' + t('installer / live (ISO)') : ''))));
+    const img = h('select', imgs.map((i) => h('option', { value: i.id }, (i.os === 'windows' ? '🪟 ' : '🐧 ') + i.name + (i.kind === 'iso' ? ' — ' + t('installer / live (ISO)') : ''))));
+    const winNote = h('div');
     const opts = (vals, def, fmt) => vals.map((v) => h('option', { value: v, selected: v === def }, fmt(v)));
     const cpu = h('select', opts([1, 2, 4, 6, 8].filter((v) => v <= cap.cpu), 2, (v) => v + ' CPU'));
     const ram = h('select', opts([1024, 2048, 4096, 8192, 16384].filter((v) => v <= cap.ram), 2048, gb));
-    const sto = h('select', opts([10, 20, 30, 50, 100, 200].filter((v) => v <= cap.storage), 20, (v) => v + ' GB'));
-    modal({ title: t('New machine'), body: h('div.col', { style: 'gap:12px' }, field(t('Name'), name), field(t('System'), img), h('div.an-hw', field(t('Processor'), cpu), field(t('Memory'), ram), field(t('Disk'), sto)),
+    const sto = h('select', opts([10, 20, 30, 50, 64, 100, 200].sort((a, b) => a - b).filter((v) => v <= cap.storage), 20, (v) => v + ' GB'));
+    const paintWin = () => { const sel = imgs.find((i) => i.id === img.value) || {}; const nd = st.nodes.find((n) => n.online && n.vmImages.some((x) => x.id === img.value)) || {}; const w = nd.windows || {};
+      if (sel.os !== 'windows') return mount(winNote);
+      if (cap.storage < 64 || cap.ram < 4096) return mount(winNote, h('p.an-warn', t('Windows needs 4 GB of memory and a 64 GB disk — available with PRO.')));
+      ram.value = String(Math.max(4096, +ram.value)); sto.value = String(Math.max(64, +sto.value)); cpu.value = String(Math.max(2, +cpu.value));
+      mount(winNote, h('div.an-win', h('b', '🪟 Windows'), h('ul.tiny', h('li', t('You need your own Windows licence; Nebulix does not include one.')),
+        h('li', (w.uefi ? '✅ ' : '⚠️ ') + t('UEFI firmware')), h('li', (w.tpm ? '✅ ' : '⚠️ ') + t('TPM 2.0 (Windows 11)') + (w.tpm ? '' : ' — ' + t('missing: Windows 11 setup will refuse; Windows 10 works'))),
+        h('li', (nd.kvm ? '✅ ' + t('Hardware acceleration (KVM)') : '⚠️ ' + t('No KVM on this server: Windows will be extremely slow'))), w.drivers ? h('li', '✅ ' + t('virtio drivers disc attached')) : null))); };
+    img.addEventListener('change', paintWin); setTimeout(paintWin, 0);
+    modal({ title: t('New machine'), body: h('div.col', { style: 'gap:12px' }, field(t('Name'), name), field(t('System'), img), winNote, h('div.an-hw', field(t('Processor'), cpu), field(t('Memory'), ram), field(t('Disk'), sto)),
       h('p.tiny.muted', t('Ready-made systems start with a fresh copy of that system. ISO machines get an empty disk: install the system from the ISO or use it live.'))),
       actions: [{ label: t('Cancel'), value: false }, { label: t('Create'), kind: 'primary', onClick: async () => { try { const r = await api.post(B + '/devices', { name: name.value, image: img.value, cpu: +cpu.value, ram: +ram.value, storage: +sto.value }); toast(t('Machine created'), 'good'); ctx.go('cloudpc/' + r.device.id); } catch (e) { toastErr(e); return false; } } }] });
   }

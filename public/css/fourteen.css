@@ -784,3 +784,44 @@ html[data-design="sketch"] .rail-btn.on { background: transparent; color: var(--
 .tr-thumb:hover .tr-play, .tr-thumb:focus-visible .tr-play { transform: scale(1.08); }
 .auth-trailer { margin-top: 14px; }
 @media (max-width: 640px) { .tr-card { flex-direction: column; align-items: stretch; } .tr-thumb { width: 100%; } }
+
+/* Casino tables (Nebulix 3.0): Dragon Tiger, Sic Bo, Craps, Tower */
+.ct-felt { display: flex; align-items: center; justify-content: center; gap: 28px; flex-wrap: wrap; padding: 28px 18px; border-radius: 22px; min-height: 230px; background: radial-gradient(120% 90% at 50% 0%, #166534, #052e16); box-shadow: inset 0 0 0 6px #a16207aa, inset 0 0 60px #0008; color: #fff; position: relative; }
+.ct-felt.sb { background: radial-gradient(120% 90% at 50% 0%, #7f1d1d, #2a0a0a); } .ct-felt.cr { background: radial-gradient(120% 90% at 50% 0%, #1e3a8a, #0b1533); flex-direction: column; gap: 14px; }
+.ct-side { display: flex; flex-direction: column; align-items: center; gap: 10px; } .ct-lbl { font-weight: 800; letter-spacing: .02em; }
+.ct-vs { font-weight: 900; font-size: 26px; opacity: .7; }
+.ct-slot { border-radius: 14px; transition: box-shadow .3s; } .ct-slot.won { box-shadow: 0 0 0 4px #facc15, 0 0 30px #facc15aa; }
+.ct-card { width: 92px; height: 130px; border-radius: 12px; background: #fff; color: #111827; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 34px; line-height: 1; box-shadow: 0 8px 24px #0007; }
+.ct-card.red { color: #dc2626; } .ct-card b { font-size: 38px; } .ct-card span { font-size: 30px; margin-top: 6px; }
+.ct-card.back { background: repeating-linear-gradient(45deg, #7c3aed 0 8px, #6d28d9 8px 16px); border: 4px solid #fff; }
+.ct-card.flip { animation: ct-flip .45s ease-out; } @keyframes ct-flip { from { transform: perspective(600px) rotateY(90deg); } to { transform: perspective(600px) rotateY(0); } }
+.ct-dice { display: flex; gap: 16px; }
+.ct-die { width: 70px; height: 70px; border-radius: 14px; background: linear-gradient(145deg, #fff, #e5e7eb); box-shadow: 0 8px 20px #0007, inset 0 -4px 0 #cbd5e1; display: grid; grid-template-columns: repeat(3, 1fr); padding: 9px; gap: 3px; }
+.ct-die i { border-radius: 50%; } .ct-die i.on { background: #111827; }
+.ct-die.roll { animation: ct-roll .16s linear infinite; } @keyframes ct-roll { 50% { transform: rotate(14deg) translateY(-4px); } }
+.ct-sum { font-size: 42px; font-weight: 900; } .ct-point { font-weight: 800; font-size: 18px; padding: 6px 14px; border-radius: 999px; background: #fff2; }
+.ct-log { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 520px; } .ct-roll { min-width: 30px; text-align: center; padding: 3px 8px; border-radius: 8px; background: #fff2; font-weight: 700; font-size: 14px; }
+.ct-tower { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 22px; background: linear-gradient(180deg, #1e1b4b, #0b0a18); }
+.ct-floor { display: flex; align-items: center; gap: 8px; opacity: .55; transition: opacity .2s; } .ct-floor.active, .ct-floor.done { opacity: 1; }
+.ct-fm { width: 74px; flex: 0 0 auto; text-align: right; font-weight: 800; font-size: 13px; color: #c4b5fd; }
+.ct-tile { flex: 1; height: 46px; border-radius: 12px; border: 0; background: #312e81; color: #fff; font-size: 22px; cursor: pointer; transition: transform .12s, background .2s; }
+.ct-floor.active .ct-tile:not(:disabled) { background: #4f46e5; box-shadow: 0 0 0 2px #a5b4fc66; } .ct-floor.active .ct-tile:not(:disabled):hover { transform: translateY(-2px); }
+.ct-tile.safe { background: #16a34a; } .ct-tile.bomb { background: #7f1d1d; } .ct-tile.boom { background: #dc2626; animation: ct-shake .35s; } .ct-tile.dim { opacity: .45; } .ct-tile:disabled { cursor: default; }
+@keyframes ct-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@media (max-width: 640px) { .ct-card { width: 70px; height: 100px; } .ct-die { width: 54px; height: 54px; } .ct-felt { gap: 16px; } }
+@media (prefers-reduced-motion: reduce) { .ct-card.flip, .ct-die.roll, .ct-tile.boom { animation: none; } }
+
+/* Admin 3.0: charts, health, filters */
+.adm-charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.adm-chart { padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; } .adm-chart b { font-size: 1.15rem; }
+.adm-spark { width: 100%; height: 64px; display: block; }
+.adm-bars { display: flex; align-items: flex-end; gap: 3px; height: 110px; margin: 8px 0; } .adm-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; } .adm-bar i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); opacity: .85; } .adm-bar:hover i { opacity: 1; }
+.adm-meter { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; margin: 8px 0 4px; } .adm-meter i { display: block; height: 100%; background: var(--accent); }
+.adm-check { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent); } .adm-check:last-child { border: 0; }
+.adm-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; background: #22c55e; box-shadow: 0 0 0 3px #22c55e33; } .adm-check.bad .adm-dot { background: #f43f5e; box-shadow: 0 0 0 3px #f43f5e33; }
+.adm-errs { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; } .adm-err { padding: 10px; border-radius: 10px; background: color-mix(in srgb, #f43f5e 8%, var(--bg)); } .adm-err code { font-size: .8rem; }
+.adm-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.adm-chip { border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); background: transparent; color: var(--text); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: .85rem; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.adm-chip span { opacity: .6; font-size: .78rem; } .adm-chip.on { background: var(--accent); color: var(--on-accent, #fff); border-color: transparent; } .adm-chip.on span { opacity: .85; }
+.an-win { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #0078d4 12%, var(--bg)); border: 1px solid color-mix(in srgb, #0078d4 35%, transparent); } .an-win ul { margin: 6px 0 0; padding-left: 18px; }
+.an-warn { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 14%, var(--bg)); margin: 0; }

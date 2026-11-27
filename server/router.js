@@ -1,6 +1,7 @@
 'use strict';
 const MUTED_PATHS = /^\/api\/(channels\/[^/]+\/messages(\/[^/]+)?|comments\/[^/]+|echo(\/[^/]+\/repost)?|forum(\/p\/[^/]+\/comment)?|lens(\/[^/]+\/comments|\/stories)?|hub(\/upload|\/[^/]+(\/version|\/cover)?)?|worlds\/ugc|squads|events|themes|code\/r\/.+\/comments)$/;
 const cfg = require('./config');
+const metrics = require('./metrics');
 const { HttpError, sendJson, readBody, Limiter, clientIp } = require('./util');
 
 class Router {
@@ -55,7 +56,7 @@ function handleError(res, e) {
 async function dispatch(router, req, res, url, getAuth) {
   const m = router.match(req.method, url.pathname);
   if (!m) return sendJson(res, 404, { error: 'not_found', message: 'Not found' });
-  const { r, params } = m; const o = r.opts;
+  const { r, params } = m; const o = r.opts; metrics.api(req);
   try {
     const ip = clientIp(req, cfg.trustProxy);
     if (!globalLimiter.hit(ip)) { const e = new HttpError(429, 'rate_limited', 'Too many requests'); e.retryAfter = globalLimiter.retryAfter(ip); throw e; }
@@ -92,7 +93,7 @@ async function dispatch(router, req, res, url, getAuth) {
     }
     const out = await r.handler(c);
     if (out !== undefined && !res.headersSent) sendJson(res, 200, out);
-  } catch (e) { handleError(res, e); }
+  } catch (e) { if (!(e instanceof HttpError)) metrics.error(r.pattern, req.method, e); handleError(res, e); }
 }
 
 module.exports = { Router, dispatch, handleError, checkOrigin };

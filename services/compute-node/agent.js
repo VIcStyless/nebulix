@@ -14,6 +14,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
+const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const { spawn, execFile } = require('child_process');
@@ -104,7 +105,7 @@ function writeAvd(d) {
     `image.sysdir.1=system-images/android-${d.api}/default/x86_64/`, 'tag.id=default', 'PlayStore.enabled=false', 'fastboot.forceColdBoot=no', '',
   ].join('\n'));
 }
-const view = (d) => { const l = live.get(d.id); return { id: d.id, kind: d.kind || 'android', image: d.image || null, iso: d.iso || null, owner: d.owner, name: d.name, api: d.api, android: d.kind === 'vm' ? null : ANDROID_NAMES[d.api] || String(d.api), profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
+const view = (d) => { const l = live.get(d.id); return { id: d.id, kind: d.kind || 'android', os: d.os || (d.kind === 'vm' ? 'linux' : 'android'), image: d.image || null, iso: d.iso || null, owner: d.owner, name: d.name, api: d.api, android: d.kind === 'vm' ? null : ANDROID_NAMES[d.api] || String(d.api), profile: d.profile, cpu: d.cpu, ram: d.ram, storage: d.storage, created: d.created,
   state: l ? l.state : 'stopped', since: l ? l.since : null, viewers: l ? l.viewers.size : 0, snapshots: d.snapshots || [], recording: !!(l && l.rec) }; };
 
 async function start(d) {
@@ -117,7 +118,7 @@ async function start(d) {
   const proc = spawn(EMU, args, { env: ENVX, stdio: ['ignore', logf, logf], detached: false });
   const l = { proc, port, serial: 'emulator-' + port, state: 'starting', since: Date.now(), viewers: new Set(), stream: null, lastSeen: Date.now() };
   live.set(d.id, l); d.pid = proc.pid; save();
-  proc.on('exit', (code) => { fs.closeSync(logf); if (live.get(d.id) === l) { stopStream(l); live.delete(d.id); d.pid = null; save(); log('device', d.id, 'exited', code); for (const v of l.viewers) v.send({ t: 'state', state: 'stopped' }); } });
+  proc.on('exit', (code) => { fs.closeSync(logf); if (l.tpm) { try { l.tpm.proc.kill(); } catch {} } if (live.get(d.id) === l) { stopStream(l); live.delete(d.id); d.pid = null; save(); log('device', d.id, 'exited', code); for (const v of l.viewers) v.send({ t: 'state', state: 'stopped' }); } });
   log('device', d.id, 'starting on', l.serial);
   (async () => { // wait for Android to finish booting
     const t0 = Date.now();
@@ -225,11 +226,25 @@ function control(l, m) { // browser input → scrcpy control messages (binary la
 // *.iso are installers / live systems (the VM gets an empty disk and boots the ISO until something is installed).
 // Optional labels in NX_VM_IMAGES/images.json: { "debian-12.qcow2": { "name": "Debian 12", "os": "linux" } }.
 const VM_DIR = path.join(CFG.data, 'vm'); fs.mkdirSync(VM_DIR, { recursive: true });
+const imageJobs = [];
+function fetchImage(job, href, hops) {
+  fs.mkdirSync(CFG.vmImages, { recursive: true }); const tmp = path.join(CFG.vmImages, '.' + job.id + '.part');
+  const fail = (m) => { job.state = 'error'; job.error = m; fs.rm(tmp, { force: true }, () => {}); log('image', job.file, 'failed', m); };
+  https.get(href, { headers: { 'user-agent': 'Nebulix-ComputeNode/' + VERSION } }, (r) => {
+    if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); if (hops > 5) return fail('Too many redirects'); const next = new URL(r.headers.location, href); if (next.protocol !== 'https:') return fail('Redirected away from https'); return fetchImage(job, next.href, hops + 1); }
+    if (r.statusCode !== 200) { r.resume(); return fail('The server answered ' + r.statusCode); }
+    job.total = Number(r.headers['content-length']) || 0; const out = fs.createWriteStream(tmp);
+    r.on('data', (c) => { job.bytes += c.length; }); r.pipe(out);
+    out.on('finish', () => { try { fs.renameSync(tmp, path.join(CFG.vmImages, job.file)); let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(CFG.vmImages, 'images.json'), 'utf8')); } catch {} meta[job.file] = { name: job.label, os: job.os }; fs.writeFileSync(path.join(CFG.vmImages, 'images.json'), JSON.stringify(meta, null, 2)); job.state = 'done'; log('image', job.file, 'added', job.bytes, 'bytes'); } catch (e) { fail(e.message); } });
+    r.on('error', (e) => fail(e.message)); out.on('error', (e) => fail(e.message));
+  }).on('error', (e) => fail(e.message));
+}
 function vmImages() {
   let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(CFG.vmImages, 'images.json'), 'utf8')); } catch {}
   const pretty = (f) => f.replace(/\.(qcow2|iso)$/i, '').replace(/[-_]+/g, ' ').replace(/\b(\w)/g, (m) => m.toUpperCase());
   return (fs.existsSync(CFG.vmImages) ? fs.readdirSync(CFG.vmImages) : []).filter((f) => /\.(qcow2|iso)$/i.test(f)).sort()
-    .map((f) => ({ id: f, name: (meta[f] && meta[f].name) || pretty(f), kind: /\.iso$/i.test(f) ? 'iso' : 'disk', size: fs.statSync(path.join(CFG.vmImages, f)).size }));
+    .filter((f) => !/^virtio-win/i.test(f)) // the Windows driver disc is attached automatically, it is not a system
+    .map((f) => ({ id: f, name: (meta[f] && meta[f].name) || pretty(f), kind: /\.iso$/i.test(f) ? 'iso' : 'disk', os: (meta[f] && meta[f].os) || (/win(dows)?[-_ ]?(1[01]|server|\d)|^win/i.test(f) ? 'windows' : 'linux'), size: fs.statSync(path.join(CFG.vmImages, f)).size }));
 }
 class Qmp { // tiny QMP client over the VM's unix socket
   constructor(sock) { this.sock = sock; this.seq = 0; this.wait = new Map(); this.events = []; }
@@ -268,25 +283,60 @@ async function createDisk(file, sizeG, backing) {
 }
 const vmDir = (d) => path.join(VM_DIR, d.id);
 function freeVnc() { const used = new Set([...live.values()].filter((l) => l.vnc != null).map((l) => l.vnc)); for (let n = 10; n < 110; n++) if (!used.has(n)) return n; return null; }
+// ---- Windows guests (3.0): UEFI (OVMF, Secure Boot build when present) + TPM 2.0 (swtpm) are what Windows 11 setup
+// checks for; SATA disk and Intel e1000e NIC work in Windows Setup without extra drivers; Hyper-V enlightenments make it
+// usable under KVM. Windows itself is never shipped: the node owner adds an ISO they are licensed to use.
+const FW_PAIRS = [['/usr/share/OVMF/OVMF_CODE_4M.secboot.fd', '/usr/share/OVMF/OVMF_VARS_4M.ms.fd'], ['/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd', '/usr/share/edk2/x64/OVMF_VARS.4m.fd'], ['/usr/share/edk2-ovmf/x64/OVMF_CODE.secboot.4m.fd', '/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd'],
+  ['/usr/share/OVMF/OVMF_CODE_4M.fd', '/usr/share/OVMF/OVMF_VARS_4M.fd'], ['/usr/share/edk2/x64/OVMF_CODE.4m.fd', '/usr/share/edk2/x64/OVMF_VARS.4m.fd'], ['/usr/share/OVMF/OVMF_CODE.fd', '/usr/share/OVMF/OVMF_VARS.fd']];
+const firmware = () => { const f = FW_PAIRS.find(([c, v]) => fs.existsSync(c) && fs.existsSync(v)); return f ? { code: f[0], vars: f[1], secure: /secboot/.test(f[0]) } : null; };
+const SWTPM = (() => { for (const d of (process.env.PATH || '').split(':')) { const x = path.join(d, 'swtpm'); if (fs.existsSync(x)) return x; } return null; })();
+const winCaps = () => ({ uefi: !!firmware(), tpm: !!SWTPM, secureBoot: !!(firmware() || {}).secure, kvm: fs.existsSync('/dev/kvm'), drivers: fs.existsSync(path.join(CFG.vmImages, 'virtio-win.iso')) });
+async function startTpm(dir) {
+  const st = path.join(dir, 'tpm'); fs.mkdirSync(st, { recursive: true }); const sock = path.join(st, 'swtpm.sock'); fs.rmSync(sock, { force: true });
+  const p = spawn(SWTPM, ['socket', '--tpm2', '--tpmstate', 'dir=' + st, '--ctrl', 'type=unixio,path=' + sock, '--flags', 'startup-clear', '--terminate'], { stdio: 'ignore' });
+  for (let i = 0; i < 50 && !fs.existsSync(sock); i++) await sleep(100);
+  if (!fs.existsSync(sock)) { try { p.kill(); } catch {} throw new Error('TPM emulator did not start'); }
+  return { proc: p, sock };
+}
+function windowsArgs(d, dir, tpm) {
+  const fw = firmware(); const out = []; const vars = path.join(dir, 'OVMF_VARS.fd');
+  if (fw) { if (!fs.existsSync(vars)) fs.copyFileSync(fw.vars, vars);
+    if (fw.secure) out.push('-global', 'driver=cfi.pflash01,property=secure,value=on');
+    out.push('-drive', 'if=pflash,format=raw,unit=0,readonly=on,file=' + fw.code, '-drive', 'if=pflash,format=raw,unit=1,file=' + vars); }
+  if (tpm) out.push('-chardev', 'socket,id=chrtpm,path=' + tpm.sock, '-tpmdev', 'emulator,id=tpm0,chardev=chrtpm', '-device', 'tpm-tis,tpmdev=tpm0');
+  out.push('-device', 'ahci,id=ahci', '-drive', 'if=none,id=d0,file=' + path.join(dir, 'disk.qcow2') + ',format=qcow2,cache=writeback,discard=unmap', '-device', 'ide-hd,drive=d0,bus=ahci.0,bootindex=1');
+  const iso = d.iso ? path.join(CFG.vmImages, d.iso) : null;
+  if (iso && fs.existsSync(iso)) out.push('-drive', 'if=none,id=cd0,media=cdrom,readonly=on,file=' + iso, '-device', 'ide-cd,drive=cd0,bus=ahci.1,bootindex=0');
+  const drv = path.join(CFG.vmImages, 'virtio-win.iso'); if (fs.existsSync(drv)) out.push('-drive', 'if=none,id=cd1,media=cdrom,readonly=on,file=' + drv, '-device', 'ide-cd,drive=cd1,bus=ahci.2');
+  out.push('-netdev', 'user,id=n0', '-device', 'e1000e,netdev=n0', '-rtc', 'base=localtime,clock=host');
+  return out;
+}
+
 async function vmStart(d) {
   if (live.has(d.id)) return view(d);
   const running = [...live.values()].filter((l) => l.state !== 'stopped').length; if (running >= CFG.maxRunning) throw Object.assign(new Error('This node is running as many machines as it can. Try again later.'), { status: 503, code: 'node_full' });
   const n = freeVnc(); const dir = vmDir(d); const sock = path.join(dir, 'qmp.sock'); fs.rmSync(sock, { force: true });
   const img = d.iso ? path.join(CFG.vmImages, d.iso) : null;
   // without /dev/kvm (e.g. Fly.io Firecracker machines) QEMU emulates the CPU in software (TCG): it works, just slower
-  const accel = fs.existsSync('/dev/kvm') ? ['-enable-kvm', '-cpu', 'host'] : ['-accel', 'tcg,thread=multi', '-cpu', 'max'];
-  const args = ['-name', 'nx-' + d.id, ...accel, '-machine', 'q35', '-smp', String(d.cpu), '-m', String(d.ram),
-    '-drive', 'file=' + path.join(dir, 'disk.qcow2') + ',if=virtio,format=qcow2,cache=writeback',
-    ...(img && fs.existsSync(img) ? ['-drive', 'file=' + img + ',media=cdrom,readonly=on', '-boot', 'order=cd'] : []),
-    '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0', '-device', 'virtio-balloon', '-vga', 'std', '-usb', '-device', 'usb-tablet',
+  const win = d.os === 'windows'; const kvm = fs.existsSync('/dev/kvm');
+  const HV = 'hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time,hv_vpindex,hv_synic,hv_stimer,hv_frequencies';
+  const accel = kvm ? ['-enable-kvm', '-cpu', win ? 'host,' + HV : 'host'] : ['-accel', 'tcg,thread=multi', '-cpu', 'max'];
+  let tpm = null; if (win && SWTPM) { try { tpm = await startTpm(dir); } catch (e) { log('vm', d.id, 'no TPM:', e.message); } }
+  const fw = win ? firmware() : null;
+  const args = ['-name', 'nx-' + d.id, ...accel, '-machine', 'q35' + (fw && fw.secure ? ',smm=on' : ''), '-smp', String(d.cpu), '-m', String(d.ram),
+    ...(win ? windowsArgs(d, dir, tpm) : [
+      '-drive', 'file=' + path.join(dir, 'disk.qcow2') + ',if=virtio,format=qcow2,cache=writeback',
+      ...(img && fs.existsSync(img) ? ['-drive', 'file=' + img + ',media=cdrom,readonly=on', '-boot', 'order=cd'] : []),
+      '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0']),
+    '-device', 'virtio-balloon', '-vga', 'std', '-usb', '-device', 'usb-tablet',
     '-display', 'none', '-vnc', '127.0.0.1:' + n, '-qmp', 'unix:' + sock + ',server=on,wait=off'];
   const logf = fs.openSync(path.join(dir, 'qemu.log'), 'w');
   const proc = spawn(CFG.qemu, args, { stdio: ['ignore', logf, logf] });
-  const l = { proc, vnc: n, state: 'starting', since: Date.now(), viewers: new Set(), lastSeen: Date.now(), vm: true, cpu0: null };
+  const l = { proc, vnc: n, state: 'starting', since: Date.now(), viewers: new Set(), lastSeen: Date.now(), vm: true, cpu0: null, tpm };
   live.set(d.id, l); d.pid = proc.pid; save();
   proc.on('exit', (code) => { fs.closeSync(logf); if (live.get(d.id) === l) { try { l.qmp && l.qmp.close(); } catch {} live.delete(d.id); d.pid = null; save(); log('vm', d.id, 'exited', code); for (const v of l.viewers) v.close(1000); } });
   try { l.qmp = await new Qmp(sock).open(30000); l.state = 'running'; l.since = Date.now(); log('vm', d.id, 'running on vnc', 5900 + n); }
-  catch (e) { try { proc.kill('SIGKILL'); } catch {} let why = ''; try { why = fs.readFileSync(path.join(dir, 'qemu.log'), 'utf8').trim().split('\n').pop(); } catch {} throw Object.assign(new Error('The machine could not start: ' + (why || e.message)), { status: 500, code: 'vm_failed' }); }
+  catch (e) { try { proc.kill('SIGKILL'); } catch {} if (tpm) { try { tpm.proc.kill(); } catch {} } let why = ''; try { why = fs.readFileSync(path.join(dir, 'qemu.log'), 'utf8').trim().split('\n').pop(); } catch {} throw Object.assign(new Error('The machine could not start: ' + (why || e.message)), { status: 500, code: 'vm_failed' }); }
   return view(d);
 }
 async function vmStop(d, force) {
@@ -335,15 +385,27 @@ async function vmApi(req, res, d, op, sub, b) {
 
 async function controlApi(req, res, url, body) {
   const p = url.pathname; let m;
-  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, kvm: fs.existsSync('/dev/kvm'), accel: fs.existsSync('/dev/kvm') ? 'kvm' : 'tcg', images: images(), vmImages: vmImages(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
+  if (p === '/v1/health') return J(res, 200, { ok: true, version: VERSION, windows: winCaps(), kvm: fs.existsSync('/dev/kvm'), accel: fs.existsSync('/dev/kvm') ? 'kvm' : 'tcg', images: images(), vmImages: vmImages(), devices: Object.keys(devices).length, running: [...live.values()].length, maxRunning: CFG.maxRunning, cpus: os.cpus().length, memFree: os.freemem(), memTotal: os.totalmem(), load: os.loadavg()[0] });
   const b = body.length ? JSON.parse(body.toString()) : {};
+  // ---- add a system image from a link (the site allows this for the owner only): streamed to disk, https only ----
+  if (p === '/v1/vm-images' && req.method === 'POST') {
+    let u; try { u = new URL(String(b.url || '')); } catch { return J(res, 400, { error: 'bad_url', message: 'Paste a full https:// link' }); }
+    if (u.protocol !== 'https:') return J(res, 400, { error: 'bad_url', message: 'Only https:// links' });
+    const name = String(b.file || decodeURIComponent(u.pathname.split('/').pop() || '')).replace(/[^\w.\-]+/g, '-').slice(0, 80);
+    if (!/\.(iso|qcow2)$/i.test(name)) return J(res, 400, { error: 'bad_name', message: 'The file must be an .iso or .qcow2 (set a file name ending in .iso)' });
+    if (fs.existsSync(path.join(CFG.vmImages, name)) || imageJobs.some((j) => j.file === name && j.state === 'downloading')) return J(res, 409, { error: 'exists', message: 'An image with that name already exists' });
+    const job = { id: crypto.randomBytes(5).toString('hex'), file: name, label: clean(b.name, 60) || name, os: b.os === 'windows' ? 'windows' : 'linux', state: 'downloading', bytes: 0, total: 0, started: Date.now(), error: null };
+    imageJobs.unshift(job); if (imageJobs.length > 20) imageJobs.length = 20; fetchImage(job, u.href, 0); return J(res, 200, { job });
+  }
+  if (p === '/v1/vm-images' && req.method === 'GET') return J(res, 200, { images: vmImages(), jobs: imageJobs, windows: winCaps() });
   if (p === '/v1/devices' && req.method === 'GET') return J(res, 200, { devices: Object.values(devices).filter((d) => !url.searchParams.get('owner') || d.owner === url.searchParams.get('owner')).map(view) });
   if (p === '/v1/devices' && req.method === 'POST') {
     if (!ID.test(b.id || '') || devices[b.id]) return J(res, 400, { error: 'bad_id' }); if (Object.keys(devices).length >= CFG.maxDevices) return J(res, 503, { error: 'node_full', message: 'This node has no room for more devices' });
     if (b.kind === 'vm') {
       const img = vmImages().find((i) => i.id === b.image); if (!img) return J(res, 400, { error: 'no_image', message: 'That system image is not on this node' });
-      const d = { id: b.id, kind: 'vm', owner: String(b.owner || ''), name: clean(b.name, 40) || img.name, image: img.id, iso: img.kind === 'iso' ? img.id : null,
-        cpu: Math.max(1, Math.min(8, b.cpu | 0 || 2)), ram: Math.max(512, Math.min(16384, b.ram | 0 || 2048)), storage: Math.max(4, Math.min(200, b.storage | 0 || 20)), created: Date.now(), snapshots: [] };
+      const win = img.os === 'windows'; // Windows 11 needs 4 GB RAM and 64 GB of disk; 2 cores minimum
+      const d = { id: b.id, kind: 'vm', os: img.os, owner: String(b.owner || ''), name: clean(b.name, 40) || img.name, image: img.id, iso: img.kind === 'iso' ? img.id : null,
+        cpu: Math.max(win ? 2 : 1, Math.min(8, b.cpu | 0 || (win ? 4 : 2))), ram: Math.max(win ? 4096 : 512, Math.min(16384, b.ram | 0 || (win ? 4096 : 2048))), storage: Math.max(win ? 64 : 4, Math.min(200, b.storage | 0 || (win ? 64 : 20))), created: Date.now(), snapshots: [] };
       fs.mkdirSync(vmDir(d), { recursive: true });
       try { await createDisk(path.join(vmDir(d), 'disk.qcow2'), d.storage, img.kind === 'disk' ? path.join(CFG.vmImages, img.id) : null); } catch (e) { fs.rmSync(vmDir(d), { recursive: true, force: true }); return J(res, 500, { error: 'disk_failed', message: e.message }); }
       devices[d.id] = d; save(); return J(res, 200, { device: view(d) });

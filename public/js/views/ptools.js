@@ -1,6 +1,7 @@
 // Nebulix 3.0 phase 16 — Productivity: Habits, Journal, Read later, Mind maps, Password vault and Scanner.
 // Everything is saved to your account (server/routes/ptools.js). The vault is encrypted here, in your browser
 // (AES-256-GCM with a key derived from your master password); the server only stores ciphertext. #/ptools/<tool>
+import { imgkit } from '../native/imgkit.js';
 import { h, mount, ls } from '../util.js';
 import { t } from '../i18n.js';
 import { api } from '../api.js';
@@ -196,20 +197,18 @@ async function vault(box) {
 async function scanner(box) {
   let stream = null; const video = h('video.pt-video', { autoplay: true, playsInline: true, muted: true }); const canvas = h('canvas.pt-scan'); const pages = []; const thumbs = h('div.pt-pages');
   let mode = 'doc';
-  function enhance(src) { // grayscale + automatic levels: makes paper white and ink dark, like a scanner
-    const c = document.createElement('canvas'); const scale = Math.min(1, 1600 / Math.max(src.width, src.height)); c.width = Math.round(src.width * scale); c.height = Math.round(src.height * scale);
+  // grayscale + automatic levels (makes paper white and ink dark); B&W uses an adaptive threshold so shadows on the page
+  // do not turn black. The pixel work runs in the C++ → WebAssembly kernels (imgkit) with a JavaScript fallback.
+  async function enhance(src) {
+    const c = document.createElement('canvas'); const scale = Math.min(1, 2400 / Math.max(src.width, src.height)); c.width = Math.round(src.width * scale); c.height = Math.round(src.height * scale);
     const g = c.getContext('2d'); g.drawImage(src, 0, 0, c.width, c.height); if (mode === 'photo') return c;
-    const im = g.getImageData(0, 0, c.width, c.height); const d = im.data; const hist = new Uint32Array(256);
-    for (let i = 0; i < d.length; i += 4) { const y = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0; d[i] = y; hist[y]++; }
-    const total = d.length / 4; let lo = 0, hi = 255, acc = 0; while (lo < 255 && (acc += hist[lo]) < total * 0.02) lo++; acc = 0; while (hi > 0 && (acc += hist[hi]) < total * 0.10) hi--;
-    const span = Math.max(1, hi - lo); for (let i = 0; i < d.length; i += 4) { let v = (d[i] - lo) * 255 / span; v = v < 0 ? 0 : v > 255 ? 255 : v; if (mode === 'bw') v = v > 150 ? 255 : 0; d[i] = d[i + 1] = d[i + 2] = v; }
-    g.putImageData(im, 0, 0); return c;
+    const im = g.getImageData(0, 0, c.width, c.height); (await imgkit()).docEnhance(im, mode === 'bw' ? 'bw' : 'gray'); g.putImageData(im, 0, 0); return c;
   }
-  function addPage(src) { const c = enhance(src); pages.push(c); paintPages(); }
+  async function addPage(src) { const c = await enhance(src); pages.push(c); paintPages(); }
   function paintPages() { mount(thumbs, pages.map((c, i) => h('div.pt-page', h('img', { src: c.toDataURL('image/jpeg', 0.6), alt: t('Page {n}', { n: i + 1 }) }), h('button.btn.sm.ghost', { 'aria-label': t('Remove page'), onClick: () => { pages.splice(i, 1); paintPages(); } }, icon('trash', 12))))); pdfBtn.disabled = drvBtn.disabled = !pages.length; }
   async function camera() { try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } }); video.srcObject = stream; video.hidden = false; shot.hidden = false; } catch (e) { toast(t('The camera is not available: {e}', { e: e.message }), 'err'); } }
   const shot = h('button.btn.primary', { hidden: true, onClick: () => { canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); addPage(canvas); } }, icon('camera', 15), t('Capture page'));
-  const fileIn = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, onChange: async (e) => { for (const f of e.target.files) { const img = await createImageBitmap(f).catch(() => null); if (img) addPage(img); } } });
+  const fileIn = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, onChange: async (e) => { for (const f of e.target.files) { const img = await createImageBitmap(f).catch(() => null); if (img) await addPage(img); } } });
   const pdfBtn = h('button.btn', { disabled: true, onClick: async () => download(await makePdf()) }, icon('download', 14), 'PDF');
   const drvBtn = h('button.btn', { disabled: true, onClick: async () => { try { const blob = await makePdf(); await api.put('/api/drive/upload?name=' + encodeURIComponent('Escaneo ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + '.pdf'), blob, { type: 'application/pdf' }); toast(t('Saved to Drive'), 'good'); } catch (e) { toastErr(e); } } }, icon('upload', 14), t('Save to Drive'));
   const download = (blob) => { const a = h('a', { href: URL.createObjectURL(blob), download: 'escaneo.pdf' }); a.click(); };

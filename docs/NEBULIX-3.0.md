@@ -395,6 +395,33 @@ jobs kept in memory (last 50). Tested (9 checks): a PDF stored byte-exact, a pag
   three streams in a row, each started after the previous one stopped (30 s after its last viewer) → 3/3 live.
   The production compute node has no Android, so this ships to the KVM node when it is set up.
 
+## 3w. Casino tables, admin insights, Windows on Cloud PC, native kernels (v16.3.0)
+
+* **Casino** (`server/casino.js`, `public/js/views/casino-tables.js`): Dragon Tiger (dragon/tiger ×2, half back on a
+  tie; tie ×12), Sic Bo (small/big/odd/even ×2; any triple and exact totals priced at a 3 % edge from the exact number
+  of ways), Craps (pass / don't pass with bar-12 push / field, the whole sequence of rolls settled in one request) and
+  Tower (8 floors, 4 difficulties, cash out any time; resumable like Mines). Same provably fair floats, play money only.
+  Monte Carlo (10⁶ rounds each): RTP 96.2–98.7 %, matching the theory.
+* **Admin** (`server/metrics.js`, `/api/admin/metrics`, `/api/admin/insights`): per-minute requests, 4xx/5xx, API
+  response time, RSS/heap, event-loop delay (perf_hooks) and online users in a 24 h in-memory ring; last 100 unhandled
+  errors (route pattern + message + 2 stack frames, no bodies or query strings). Insights: sign-ups per day (30 d), active
+  1/7/30 d from sessions, largest data tables, disk free (statfs), compute nodes, health checks. Users: 9 filters with
+  counts, 5 sort orders, paging, CSV export (admins; formula-safe; audited).
+* **Windows on Cloud PC** (agent): images labelled `os: windows` (images.json or file name) start with OVMF (Secure Boot
+  build + per-VM VARS, `smm=on`), swtpm TPM 2.0 when installed, AHCI disk + CD, e1000e NIC, Hyper-V enlightenments
+  under KVM, local-time RTC, `virtio-win.iso` attached when present; minimums 2 CPU / 4 GB / 64 GB (PRO caps). Windows
+  is never shipped: the owner adds an ISO they are licensed to use with **Admin → Compute → Add a system image from a
+  link** (https only, owner only, audited). Tested with a UEFI ISO under the Windows profile (boots through Secure Boot
+  OVMF from the SATA CD); TPM needs `swtpm` on the node (added to the Fly image). Without KVM Windows is unusably slow.
+* **Native kernels** (`native/imgkit/imgkit.cpp` → `public/js/native/imgkit.wasm`, 11 KB, clang `--target=wasm32
+  -O3 -msimd128`, no Emscripten): document clean-up with an adaptive (Bradley) threshold, unsharp mask, per-channel
+  auto levels. Same algorithms in JS as fallback (`imgkit.js`). On a 12 MP image: 2.0–2.7× faster than JS with
+  byte-identical output; in a dark corner of an unevenly lit page the old fixed threshold turned 100 % black, the
+  adaptive one 0 %. Photo got Sharpen and Auto-enhance; Scanner uses it. (Photo's other filters already run natively
+  through `ctx.filter`, and the audio operations are single passes the JIT already handles at near-native speed, so
+  those were deliberately not rewritten.)
+* Fixes: phone layout overflow (grid column `minmax(0,1fr)`); Photo undo after clicking panel buttons.
+
 ## 4. Next phases (in order)
 
 Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).

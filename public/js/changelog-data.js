@@ -2,6 +2,19 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.3",
+    "date": "2026-11-27",
+    "title": { "en": "Casino tables, a smarter admin panel, Windows on Cloud PC and native speed", "es": "Mesas de casino, un panel de administración más completo, Windows en Cloud PC y velocidad nativa" },
+    "changes": [
+      { "type": "new", "en": "Casino: Dragon Tiger, Sic Bo, Craps and Tower — play money only, provably fair, with payouts set from the exact odds.", "es": "Casino: Dragón y Tigre, Sic Bo, Dados (Craps) y Torre — solo dinero de juego, verificables y con premios calculados con las probabilidades exactas." },
+      { "type": "new", "en": "Admin: live charts of requests, errors, response time, memory, event-loop delay and people online; sign-ups and active people; health checks; a log of server errors; user filters, sorting, pages and CSV export.", "es": "Administración: gráficas en directo de peticiones, errores, tiempo de respuesta, memoria, retraso del bucle de eventos y personas conectadas; registros y personas activas; comprobaciones de estado; registro de errores del servidor; filtros de usuarios, orden, páginas y exportación CSV." },
+      { "type": "new", "en": "Cloud PC: Windows machines from an ISO you are licensed to use, with UEFI, TPM 2.0, Windows-friendly hardware and the right minimums. Node owners can add system images from a link.", "es": "Cloud PC: máquinas Windows desde una ISO que tengas derecho a usar, con UEFI, TPM 2.0, hardware compatible con Windows y los mínimos adecuados. Los propietarios de nodos pueden añadir imágenes de sistema desde un enlace." },
+      { "type": "new", "en": "Native speed: image work in Photo (new Sharpen and Auto-enhance) and Scanner now runs in C++ compiled to WebAssembly — 2–2.7× faster than before, with identical results.", "es": "Velocidad nativa: el trabajo con imágenes de Foto (nuevos Enfocar y Mejora automática) y del Escáner ahora se ejecuta en C++ compilado a WebAssembly — de 2 a 2,7 veces más rápido, con resultados idénticos." },
+      { "type": "improved", "en": "Scanner black & white uses an adaptive threshold: shadows on the page no longer turn black.", "es": "El blanco y negro del Escáner usa un umbral adaptativo: las sombras de la página ya no se vuelven negras." },
+      { "type": "fixed", "en": "Phones: the bottom tab bar made pages slightly wider than the screen. Photo: Ctrl+Z did nothing right after clicking a panel button.", "es": "Móviles: la barra inferior hacía las páginas un poco más anchas que la pantalla. Foto: Ctrl+Z no hacía nada justo después de pulsar un botón del panel." }
+    ]
+  },
+  {
     "v": "16.2",
     "date": "2026-11-26",
     "title": { "en": "The Nebulix 3.0 trailer", "es": "El tráiler de Nebulix 3.0" },
