@@ -22,3 +22,15 @@ Produces `public/media/nebulix-3.0-trailer-edit.mp4` (48 s, 1080p30): a fast, be
 
 Rules for the copy: Android carries "Coming soon" and Windows is "coming soon" (both need a KVM server the public site
 does not have yet). The speed claim is the measured best case ("up to 2.7×"), and the casino is "play money only".
+
+## Vertical (TikTok / Reels / Shorts) versions
+
+Both stages have a 9:16 mode: open them with `?v` and render at 1080×1920. Text stays inside the TikTok safe area (below
+the top bar, clear of the side buttons and the caption at the bottom). Landscape footage is shown as bigger screens, and
+in the edit's rapid montage as a cropped panel over a blurred fill.
+
+- `stage.html?v`: the 48 s edit (music: `music_en.py`).
+- `stage-apple.html?v`: the earlier 58 s Apple-style trailer (v16.4), restored with its music (`music_apple.py`).
+
+Encode for TikTok: `ffmpeg -framerate 30 -i frames/%05d.jpg -i music.wav -c:v libx264 -crf 18 -preset slow -profile:v high
+-pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k -ar 44100 -shortest out.mp4`.

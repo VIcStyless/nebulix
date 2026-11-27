@@ -1,5 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=block" rel="stylesheet">
+<script>const V = /[?&]v\b/.test(location.search); if (V) document.documentElement.className = 'v';</script>
 <style>
 html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#000;font-family:Inter,sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
 #cam{position:absolute;inset:0;perspective:2200px;perspective-origin:50% 48%;overflow:hidden;transform-origin:50% 50%}
@@ -31,6 +32,19 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#000;fo
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.6) 100%)}
 #grain{position:absolute;inset:0;background-size:960px 540px;mix-blend-mode:overlay;opacity:.16;image-rendering:pixelated}
 .bars{position:absolute;left:0;right:0;height:0;background:#000}
+/* 9:16 (TikTok/Reels): 1080×1920; text stays inside the safe area (clear of the top bar, side buttons and caption) */
+html.v,html.v body{width:1080px;height:1920px}
+html.v .head{padding:230px 70px 160px}
+html.v .head .slam{font-size:100px;white-space:normal;line-height:1}
+html.v .head p{font-size:36px;margin-top:24px}
+html.v .pill{top:-12px}
+html.v .device{top:700px}
+html.v .label{left:60px;right:60px;bottom:auto;top:250px;font-size:130px;white-space:normal}
+html.v .shade{top:0;bottom:auto;height:640px;background:linear-gradient(rgba(0,0,0,.85),transparent)}
+html.v .counter{font-size:300px}
+html.v .glow{width:1200px;height:1400px;margin:-700px 0 0 -600px}
+html.v .vpanel{position:absolute;left:50%;top:50%;width:1600px;height:900px;margin:-450px 0 0 -800px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.8)}
+html.v .vpanel img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 </style></head><body><div id="cam"></div><div id="fx"><div id="vig"></div><div id="grain"></div><div id="flash"></div></div>
 <script src="scenes.js"></script><script src="hits.js"></script>
 <script>
@@ -55,6 +69,7 @@ function slamWord(w, t, at, cls = '') { if (t < at) return `<span class="w ${cls
   return `<span class="w ${cls}" style="opacity:${clamp(k * 3)};transform:scale(${1.9 - 0.9 * e}) translateY(${(1 - k) * -14}px);filter:blur(${(1 - k) * 10}px)">${w}</span>`; }
 function rgb(a) { return a > 0.4 ? `filter:drop-shadow(${a}px 0 0 rgba(255,0,90,.75)) drop-shadow(${-a}px 0 0 rgba(0,230,255,.75))` : ''; }
 function device(src, o) { // o: x y z rx ry rz s op blur
+  if (V) o = Object.assign({}, o, { s: (o.s || 1) * 0.86 });
   return `<div class="device" style="opacity:${o.op ?? 1};transform:translate3d(${o.x || 0}px,${o.y || 0}px,${o.z || 0}px) rotateX(${o.rx || 0}deg) rotateY(${o.ry || 0}deg) rotateZ(${o.rz || 0}deg) scale(${o.s || 1});${o.blur ? `filter:blur(${o.blur}px)` : ''}"><div class="bez">${img(src)}</div></div>`; }
 function head(t, s) { // kinetic headline (one word per beat) + sub + optional pill
   const words = s.h.split(' '); const step = words.length > 4 ? B * 0.5 : B;
@@ -69,15 +84,15 @@ const S = {
     L.forEach((ch, i) => { const at = HITS.blip[i]; let op = t < at ? 0 : 1; if (t >= at && t < at + 0.2 && rnd(f * 7 + i) < 0.35) op = 0.15;
       const g = t >= at && t < at + 0.25 ? (rnd(f * 3 + i) - 0.5) * 40 : 0; html += `<span class="w" style="margin:0;opacity:${op};transform:translateX(${g}px)">${ch}</span>`; });
     const k3 = clamp((t - 1.6) / 0.14); const e3 = outBack(k3); const exit = out(span(t, 3.0, 3.2));
-    const three = t < 1.6 ? '' : `<span class="w grad" style="margin-left:.25em;opacity:${clamp(k3 * 3)};transform:scale(${2.6 - 1.6 * e3});filter:blur(${(1 - k3) * 14}px)">3.0</span>`;
+    const three = t < 1.6 ? '' : `<span class="w grad" style="margin-left:${V ? 0 : '.25em'};${V ? 'font-size:1.35em;margin-top:.08em;' : ''}opacity:${clamp(k3 * 3)};transform:scale(${2.6 - 1.6 * e3});filter:blur(${(1 - k3) * 14}px)">3.0</span>`;
     const grow = 1 + 0.08 * span(t, 1.6, 3.0);
-    return `<div class="glow" style="opacity:${t < 1.6 ? 0.25 : 0.9 * (1 - exit)}"></div><div class="center" style="transform:scale(${grow + exit * 2.5});opacity:${1 - exit};filter:blur(${exit * 30}px)"><div class="slam" style="font-size:230px;${rgb(t < 1.6 ? 6 : 14 * Math.exp(-(t - 1.6) * 6))}">${html}${three}</div></div>`; },
+    return `<div class="glow" style="opacity:${t < 1.6 ? 0.25 : 0.9 * (1 - exit)}"></div><div class="center" style="transform:scale(${grow + exit * 2.5});opacity:${1 - exit};filter:blur(${exit * 30}px)"><div class="slam" style="font-size:${V ? 200 : 230}px;${rgb(t < 1.6 ? 6 : 14 * Math.exp(-(t - 1.6) * 6))}">${html}${V ? '<br>' : ''}${three}</div></div>`; },
   words(t, s) { const i = Math.min(s.w.length - 1, Math.floor((t - s.t0) / B)); const at = s.t0 + i * B; const tail = t - at;
-    return `<div class="center"><div class="slam" style="font-size:${s.size || 260}px;transform:rotate(${(rnd(i + 3) - 0.5) * 6}deg) scale(${1 + tail * 0.12});${rgb(16 * Math.exp(-tail * 9))}">${slamWord(s.w[i], t, at, i === s.w.length - 1 ? 'grad' : '')}</div></div>`; },
+    return `<div class="center"><div class="slam" style="font-size:${V ? 190 : s.size || 260}px;transform:rotate(${(rnd(i + 3) - 0.5) * 6}deg) scale(${1 + tail * 0.12});${rgb(16 * Math.exp(-tail * 9))}">${slamWord(s.w[i], t, at, i === s.w.length - 1 ? 'grad' : '')}</div></div>`; },
   glimpse(t, s) { const i = Math.floor((t - s.t0) / B); const c = s.c[Math.min(i, s.c.length - 1)]; const k = (t - s.t0 - i * B) / B;
     return `<div class="full" style="transform:scale(${1.35 - 0.2 * out(k)}) rotate(${(i % 2 ? 2 : -2) * (1 - k)}deg);filter:brightness(.6) contrast(1.35) saturate(1.4)">${img(frameAt(c[0], c[1] + k * B))}</div>`; },
   inone(t, s) { // "IN ONE" on the last build beat, "PLACE." in the silence
-    return `<div class="center"><div class="slam" style="font-size:250px">${slamWord('In', t, s.t0)}${slamWord('one', t, s.t0 + 0.2)}<br>${slamWord('place.', t, s.t0 + 0.4, 'grad')}</div></div>`; },
+    return `<div class="center"><div class="slam" style="font-size:${V ? 190 : 250}px">${slamWord('In', t, s.t0)}${slamWord('one', t, s.t0 + 0.2)}<br>${slamWord('place.', t, s.t0 + 0.4, 'grad')}</div></div>`; },
   feature(t, s) { const u = t - s.t0; const side = s.side || 1; const ct = (s.cs || 0) + u * (s.speed || 1); const src = frameAt(s.clip, ct);
     const e = out(span(t, s.t0, s.t0 + 0.32)); const kB = out(span(t, s.t0 + BAR, s.t0 + BAR + 0.28)); const ex = clamp((t - (s.t1 - 0.14)) / 0.14);
     const ry = side * (-38 * (1 - e) + 10 - 4 * u) * (1 - kB) + side * -7 * kB, x = side * 1500 * (1 - e) - side * 140 * (1 - kB) * (u >= BAR ? 1 : 0) * (1 - kB) - side * 2200 * ex * ex;
@@ -85,36 +100,40 @@ const S = {
     return head(t, s) + device(src, { x, y, z: -380 * (1 - e), rx: 8 * (1 - e) + 3, ry, rz: side * 2 * (1 - e), s: sc, blur }); },
   pair(t, s) { const u = t - s.t0; const ex = clamp((t - (s.t1 - 0.14)) / 0.14); let html = head(t, s);
     s.clips.forEach((c, i) => { const at = s.t0 + i * B; const e = out(span(t, at, at + 0.25)); const sd = i ? 1 : -1; const kB = out(span(t, s.t0 + BAR, s.t0 + BAR + 0.3));
-      if (t < at) return; html += device(frameAt(c[0], c[1] + u), { x: sd * (470 + 900 * (1 - e)) + sd * 2000 * ex * ex - sd * 60 * kB, y: 120, z: -260, ry: -sd * (22 - 10 * kB), rz: sd * 3 * (1 - e), s: 0.62 + 0.06 * kB, blur: (1 - e) * 20 + ex * 24 }); });
+      if (t < at) return;
+      if (V) html += device(frameAt(c[0], c[1] + u), { x: sd * 1300 * (1 - e) + sd * 1600 * ex * ex, y: sd * 300 + 80, z: -120, ry: sd * (16 - 8 * kB), rx: 4, rz: sd * 2 * (1 - e), s: 0.78 + 0.06 * kB, blur: (1 - e) * 20 + ex * 24 });
+      else html += device(frameAt(c[0], c[1] + u), { x: sd * (470 + 900 * (1 - e)) + sd * 2000 * ex * ex - sd * 60 * kB, y: 120, z: -260, ry: -sd * (22 - 10 * kB), rz: sd * 3 * (1 - e), s: 0.62 + 0.06 * kB, blur: (1 - e) * 20 + ex * 24 }); });
     return html; },
   speed(t, s) { const u = t - s.t0; const ramp = span(t, s.t0 + B, s.t0 + 3 * B); const n = (1 + 1.7 * Math.pow(ramp, 1.6)).toFixed(1); const done = t >= s.t0 + 3 * B;
     const pk = done ? Math.exp(-(t - s.t0 - 3 * B) * 8) : 0; const jit = done ? 0 : (rnd(Math.round(t * 30)) - 0.5) * 10 * ramp; const ex = clamp((t - (s.t1 - 0.14)) / 0.14);
     const e = out(span(t, s.t0, s.t0 + 0.3));
-    return device(frameAt(s.clip, (s.cs || 0) + u), { x: 560 + 1400 * (1 - e) + 2000 * ex * ex, y: -40, z: -500, ry: -24 + 6 * span(t, s.t0, s.t1), s: 0.72, op: 0.9, blur: (1 - e) * 20 }) +
-      `<div class="center" style="align-items:flex-start;padding-left:150px;opacity:${1 - ex}"><div class="counter ${done ? 'grad' : ''}" style="transform:translateX(${jit}px) scale(${1 + 0.18 * pk});${rgb(18 * pk + 6 * ramp * (done ? 0 : 1))}">${n}×</div>
-      <div class="slam" style="font-size:96px;margin-top:6px">${slamWord('Built', t, s.t0 + BAR)}${slamWord('for', t, s.t0 + BAR + B)}${slamWord('speed.', t, s.t0 + BAR + 2 * B, 'grad')}</div>
-      <p style="margin:18px 0 0 10px;font-size:34px;font-weight:600;color:#d4d4d8;opacity:${out(span(t, s.t0 + BAR + 2 * B, s.t0 + BAR + 2.6 * B))}">${s.s}</p></div>`; },
+    return device(frameAt(s.clip, (s.cs || 0) + u), V ? { x: 1300 * (1 - e) + 1600 * ex * ex, y: 380, z: -200, ry: -18 + 6 * span(t, s.t0, s.t1), rx: 6, s: 0.95, op: 0.95, blur: (1 - e) * 20 } : { x: 560 + 1400 * (1 - e) + 2000 * ex * ex, y: -40, z: -500, ry: -24 + 6 * span(t, s.t0, s.t1), s: 0.72, op: 0.9, blur: (1 - e) * 20 }) +
+      `<div class="center" style="${V ? 'justify-content:flex-start;padding:250px 70px 0' : 'align-items:flex-start;padding-left:150px'};opacity:${1 - ex}"><div class="counter ${done ? 'grad' : ''}" style="transform:translateX(${jit}px) scale(${1 + 0.18 * pk});${rgb(18 * pk + 6 * ramp * (done ? 0 : 1))}">${n}×</div>
+      <div class="slam" style="font-size:${V ? 104 : 96}px;margin-top:6px">${slamWord('Built', t, s.t0 + BAR)}${slamWord('for', t, s.t0 + BAR + B)}${slamWord('speed.', t, s.t0 + BAR + 2 * B, 'grad')}</div>
+      <p style="margin:18px 0 0 10px;font-size:${V ? 36 : 34}px;font-weight:600;color:#d4d4d8;opacity:${out(span(t, s.t0 + BAR + 2 * B, s.t0 + BAR + 2.6 * B))}">${s.s}</p></div>`; },
   ring(t, s) { const k = span(t, s.t0, s.t1); const e = out(span(t, s.t0, s.t0 + 0.5)); const R = 1050; const n = s.clips.length; const rot = -80 + 300 * inout(k);
     const thru = Math.pow(span(t, s.t1 - 0.8, s.t1 - 0.4), 2); const gone = t >= s.t1 - 0.4;
     const panels = s.clips.map((c, i) => `<div class="panel" style="transform:rotateY(${(i * 360) / n}deg) translateZ(${R}px)">${img(frameAt(c[0], c[1] + (t - s.t0)))}</div>`).join('');
     const wi = Math.min(s.words.length - 1, Math.floor((t - s.t0) / (2 * B))); const at = s.t0 + wi * 2 * B;
     if (gone) return '';
-    return `<div style="position:absolute;inset:0;transform-style:flat;perspective:2200px;perspective-origin:50% 50%"><div class="layer ring" style="opacity:${e};transform:translateZ(${-1900 + 600 * e + 3400 * thru}px) rotateX(-3deg) rotateY(${rot}deg)">${panels}</div></div>
-      <div class="center" style="opacity:${1 - thru};background:radial-gradient(ellipse 900px 360px at center,rgba(0,0,0,.75),transparent 70%)"><div class="slam" style="font-size:250px;text-shadow:0 20px 80px #000;${rgb(14 * Math.exp(-(t - at) * 8))}">${slamWord(s.words[wi], t, at)}</div></div>`; },
+    return `<div style="position:absolute;inset:0;transform-style:flat;perspective:2200px;perspective-origin:50% 50%"><div class="layer ring" style="opacity:${e};transform:translateZ(${-1900 + (V ? 900 : 600) * e + 3400 * thru}px) rotateX(-3deg) rotateY(${rot}deg)">${panels}</div></div>
+      <div class="center" style="opacity:${1 - thru};background:radial-gradient(ellipse 900px 360px at center,rgba(0,0,0,.75),transparent 70%)"><div class="slam" style="font-size:${V ? 190 : 250}px;text-shadow:0 20px 80px #000;${rgb(14 * Math.exp(-(t - at) * 8))}">${slamWord(s.words[wi], t, at)}</div></div>`; },
   rapid(t, s) { // one cut per beat, then per 8th on the last bar
     let at = s.t0, i = 0; for (; i < s.cuts.length - 1; i++) { const d = s.cuts[i][3] || B; if (t < at + d) break; at += d; }
     const c = s.cuts[i]; const d = c[3] || B; const k = (t - at) / d; const v = i % 4;
     const tr = [`scale(${1.08 + 0.14 * out(k)})`, `scale(${1.3 - 0.18 * out(k)}) rotate(${-3 * (1 - out(k))}deg)`, `scale(1.15) translateX(${(1 - out(k)) * 80}px)`, `perspective(1600px) rotateY(${8 - 8 * out(k)}deg) scale(1.18)`][v];
     const lab = c[2] ? `<div class="shade"></div><div class="label slam" style="${rgb(12 * Math.exp(-(t - at) * 10))}">${slamWord(c[2], t, at)}</div>` : '';
-    return `<div class="full" style="transform:${tr};filter:contrast(1.12) saturate(1.25)">${img(frameAt(c[0], c[1] + k * d * 1.5))}</div>${lab}`; },
+    const src = frameAt(c[0], c[1] + k * d * 1.5);
+    if (V) return `<div class="full" style="transform:scale(1.25);filter:blur(36px) brightness(.55) saturate(1.4)">${img(src)}</div><div class="vpanel" style="transform:${tr};filter:contrast(1.12) saturate(1.25)">${img(src)}</div>${lab}`;
+    return `<div class="full" style="transform:${tr};filter:contrast(1.12) saturate(1.25)">${img(src)}</div>${lab}`; },
   end(t, s) { const u = t - s.t0; const k = clamp(u / 0.55); const e = outBack(k); const fade = span(t, s.t1 - 1.4, s.t1); const layers = 14;
     let logo = ''; for (let i = layers - 1; i >= 0; i--) logo += `<div style="position:absolute;inset:0;transform:translateZ(${-i * 2.4}px)">${LOGO.replace('FILL', i === 0 ? '#d4ff3f' : `rgb(${150 - i * 6},${190 - i * 7},40)`)}</div>`;
     const float = Math.sin(u * 1.6) * 6; const ry = 720 * (1 - out(clamp(u / 0.9))) + Math.sin(u * 0.9) * 12;
     const shock = [0, 0.08].map((dl) => { const q = clamp((u - dl) / 0.9); return q > 0 && q < 1 ? `<div class="shock" style="width:${q * 2600}px;height:${q * 2600}px;margin:${-q * 1300}px 0 0 ${-q * 1300}px;opacity:${(1 - q) * 0.8}"></div>` : ''; }).join('');
     return `<div class="glow" style="opacity:${out(clamp(u / 0.4)) * (1 - fade)}"></div>${shock}<div class="center" style="opacity:${1 - fade}">
       <div class="logo3d" style="transform:translateY(${float}px) rotateY(${ry}deg) scale(${3.2 - 2.2 * e})">${logo}</div>
-      <div class="slam" style="font-size:170px">${slamWord('Nebulix', t, s.t0 + 2 * B)}${slamWord('3.0', t, s.t0 + 3 * B, 'grad')}</div>
-      <div style="margin-top:30px;font-size:40px;font-weight:700;color:#e4e4e7;opacity:${out(span(t, s.t0 + 5 * B, s.t0 + 5.8 * B))}">Available now. Free, in your browser.</div>
+      <div class="slam" style="font-size:${V ? 150 : 170}px">${slamWord('Nebulix', t, s.t0 + 2 * B)}${V ? '<br>' : ''}${slamWord('3.0', t, s.t0 + 3 * B, 'grad')}</div>
+      <div style="margin-top:30px;font-size:40px;font-weight:700;${V ? 'padding:0 80px;' : ''}color:#e4e4e7;opacity:${out(span(t, s.t0 + 5 * B, s.t0 + 5.8 * B))}">Available now. Free, in your browser.</div>
       <div class="grad" style="font-size:52px;font-weight:800;margin-top:12px;opacity:${out(span(t, s.t0 + 6 * B, s.t0 + 6.8 * B))};transform:scale(${1 + 0.1 * (1 - out(span(t, s.t0 + 6 * B, s.t0 + 6.5 * B)))})">nebulix.fly.dev</div></div>`; },
 };
 
