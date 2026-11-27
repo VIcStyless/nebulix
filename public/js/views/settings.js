@@ -10,6 +10,7 @@ const TABS = [
   ['privacy', 'Privacy', 'eyeoff', () => import('../settings/privacy.js')],
   ['safety', 'Safety', 'alert', () => import('../settings/panic.js')],
   ['security', 'Security', 'shield', () => import('../settings/security.js')],
+  ['backup', 'Backup', 'download', () => import('../settings/backup.js')],
   ['about', 'About', 'info', () => import('../settings/about.js')],
 ];
 

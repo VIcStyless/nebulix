@@ -444,9 +444,47 @@ with under 6 GB of RAM and checks free memory before any start, with a clear mes
 - **One notice per donation.** A donation used to push both a `transfer` and a `donation` notice; it now sends only the donation one.
 - Tests: 16 API checks (`gems.mjs`) and 12 browser checks (`cdp-gems.mjs`, `cdp-1b.mjs`), all passing.
 
+## 3z. Gaming Tools, Recruitment, Reference and settings backup (v16.7.0, phase 21)
+
+Built after auditing the "extreme feature expansion" brief against the existing code: most of it already existed
+(OS, arcade, Android / Cloud PC on compute nodes, office, social, Nova AI, Nerd Lab's input / network / system tests,
+Squads LFG, unit converter in Study). This phase fills the gaps that need no outside purchase.
+
+- **Gaming Tools** (`#/gtools`, `views/gtools.js`):
+  - Sensitivity converter: uses each engine's yaw value: CS2/Source/TF2/Apex/Quake 0.022, Valorant 0.07, Overwatch 2 and CoD 0.0066. It shows cm/360, eDPI and a DPI-change helper. Games with non-linear sensitivity (Fortnite %, Minecraft, R6) are deliberately left out.
+  - FOV converter (horizontal ⇄ vertical, Hor+ across aspect ratios) and a resolution / aspect / PPI calculator.
+  - Crosshair creator:
+    - canvas preview on four backgrounds and a full-screen preview;
+    - `NX1-…` share codes;
+    - a community gallery (`/api/crosshairs`: publish, like, delete, search; the config is clamped server-side; 30 per user).
+  - Tracking and flick aim trainers (30 s rounds; personal bests stay on the device).
+  - The Input, Network and System tabs reuse the Nerd Lab modules (`nerd/input.js`, `net.js`, `sys.js`), so nothing is duplicated.
+  - No "bottleneck %" or FPS guesses: the page explains why those would not be real measurements.
+- **Recruitment** (`#/recruit`, `views/recruit.js`, `/api/recruit`):
+  - Games: Fortnite, Valorant, Rocket League, CS2, Minecraft, LoL, Apex, OW2, R6, Nebulix Arena and "Other".
+  - Posts last 30 days and can be renewed; up to 3 per user. Roles, self-declared rank, region, platform, language, minimum age and mic.
+  - "I'm interested" notifies the author (localized), and only the author sees who is interested. Contact goes through DMs.
+  - Blocks are respected both ways, muted users cannot post, and staff can remove posts. No official game stats are claimed.
+- **Reference** (`#/ref`, `views/ref.js`):
+  - Periodic table: 118 elements, IUPAC standard atomic weights, categories, a search, and positions computed from Z.
+  - World clock: Intl time-zone database, your own list of zones.
+  - Weather and place search: Open-Meteo, keyless, CC BY 4.0, via `/api/ref/weather` and `/api/ref/geocode`.
+  - Currency: Frankfurter / ECB reference rates via `/api/ref/fx`. The server caches every upstream answer and passes on known fields only.
+  - Physics formula solver with 12 formulas.
+  - Barcode / QR reader: uses the BarcodeDetector API from the camera or an image file, with an honest message on browsers that lack it.
+- **Settings → Backup** (`settings/backup.js`):
+  - Exports account settings (`S.me.settings`) and `nbx.*` localStorage preferences to JSON.
+  - Import sends account settings through `PATCH /api/profile` (validated by `cleanSettings`) and restores device keys.
+  - Sessions, passwords, the vault, caches and the local VFS are never included.
+- **Server errors are translated**: `errMsg()` now passes server messages through `t()`.
+- **Tests:**
+  - 27 API checks (`p21.mjs`), including live Open-Meteo and Frankfurter calls.
+  - 27 browser checks (`cdp-p21.mjs`), in Spanish, with no console errors.
+  - 12 phone-width checks (`cdp-p21m.mjs`): no horizontal overflow at 390 px.
+
 ## 4. Next phases (in order)
 
-Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).
+Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–21).
 What remains needs the owner:
 
 1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start

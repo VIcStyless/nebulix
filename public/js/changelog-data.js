@@ -2,6 +2,41 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.7",
+    "date": "2026-11-27",
+    "title": {
+      "en": "Gaming Tools, Recruitment and Reference",
+      "es": "Herramientas gaming, Reclutamiento y Consulta"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Gaming Tools: convert your sensitivity between CS2, Valorant, Apex, Overwatch 2, Call of Duty and more (with cm/360 and eDPI), an FOV and resolution calculator, a crosshair creator with share codes and a community gallery, and tracking and flick aim trainers. Keyboard, mouse, controller, ping and speed tests are there too.",
+        "es": "Herramientas gaming: convierte tu sensibilidad entre CS2, Valorant, Apex, Overwatch 2, Call of Duty y más (con cm/360 y eDPI), calculadora de FOV y resolución, creador de miras con códigos para compartir y galería de la comunidad, y entrenadores de puntería de seguimiento y flicks. También están las pruebas de teclado, ratón, mando, ping y velocidad."
+      },
+      {
+        "type": "new",
+        "en": "Recruitment: teams looking for players and players looking for a team, for Fortnite, Valorant, Rocket League, CS2, Minecraft and more. Filter by game, region and role; “I’m interested” notifies the author, who can reply by message. Posts last 30 days.",
+        "es": "Reclutamiento: equipos que buscan jugadores y jugadores que buscan equipo, para Fortnite, Valorant, Rocket League, CS2, Minecraft y más. Filtra por juego, región y rol; «Me interesa» avisa al autor, que puede responderte por mensaje. Los anuncios duran 30 días."
+      },
+      {
+        "type": "new",
+        "en": "Reference: an interactive periodic table, a world clock, weather with a 7-day forecast (Open-Meteo), a currency converter with European Central Bank rates, a physics formula solver and a barcode/QR reader.",
+        "es": "Consulta: tabla periódica interactiva, reloj mundial, el tiempo con previsión a 7 días (Open-Meteo), conversor de divisas con los tipos del Banco Central Europeo, resolvedor de fórmulas de física y lector de códigos de barras y QR."
+      },
+      {
+        "type": "new",
+        "en": "Settings → Backup: export your settings and this device’s preferences to a file and import them on another device.",
+        "es": "Ajustes → Copia de seguridad: exporta tus ajustes y las preferencias de este dispositivo a un archivo e impórtalos en otro dispositivo."
+      },
+      {
+        "type": "improved",
+        "en": "Error messages from the server now appear in your language when a translation exists.",
+        "es": "Los mensajes de error del servidor ahora aparecen en tu idioma cuando hay traducción."
+      }
+    ]
+  },
+  {
     "v": "16.6",
     "date": "2026-11-27",
     "title": { "en": "A new, faster trailer", "es": "Un tráiler nuevo y más rápido" },

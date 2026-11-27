@@ -4,7 +4,7 @@ import { t } from './i18n.js';
 import { icon } from './icons.js';
 import { copyText } from './util.js';
 
-export const errMsg = (e) => (e && e.message) || t('Something went wrong');
+export const errMsg = (e) => (e && e.message ? t(e.message) : t('Something went wrong'));
 
 export function toast(msg, kind = 'info', ms = 4200) {
   const host = $('#layer-toasts'); if (!host) return;

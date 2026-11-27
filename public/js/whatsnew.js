@@ -7,6 +7,9 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['gamepad', 'Gaming Tools', 'Sensitivity converter, FOV calculator, crosshair creator with a community gallery, aim trainers and input tests.', 'gtools'],
+  ['users', 'Recruitment', 'Find a team or teammates for Fortnite, Valorant, Rocket League, CS2, Minecraft and more.', 'recruit'],
+  ['book', 'Reference', 'Periodic table, world clock, weather, currency rates, physics formulas and a barcode reader.', 'ref'],
   ['dice', 'Four new casino tables', 'Dragon Tiger, Sic Bo, Craps and Tower — play money, provably fair.', 'casino'],
   ['monitor', 'Windows on Cloud PC', 'Run Windows from your own licensed ISO, with UEFI and TPM 2.0.', 'cloudpc'],
   ['play', 'The Nebulix 3.0 trailer', 'A one-minute tour of everything new, in 3D, with original music.', 'trailer'],

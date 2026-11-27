@@ -224,7 +224,7 @@ function register() {
   registered = true;
   router = new Router();
   authMod = require('./routes/auth'); chatMod = require('./routes/chat');
-  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links', 'study', 'fusion', 'mods', 'gems', 'calendar', 'android', 'devtools', 'discover', 'ptools', 'downloads']) require('./routes/' + m)(router);
+  for (const m of ['auth', 'profile', 'economy', 'themes', 'chat', 'ai', 'pay', 'proxyapi', 'admin', 'misc', 'progress', 'arcade', 'music', 'social', 'unfurl', 'translate', 'work', 'invest', 'wallet', 'tube', 'plaza', 'search', 'apps', 'code', 'hub', 'drive', 'media', 'perks', 'life', 'social2', 'play2', 'media2', 'compete', 'security', 'vpn', 'links', 'study', 'fusion', 'mods', 'gems', 'calendar', 'android', 'devtools', 'discover', 'ptools', 'downloads', 'gtools']) require('./routes/' + m)(router);
   engine = require('./proxy/engine');
 }
 
