@@ -5,9 +5,12 @@ import { t } from './i18n.js';
 import { icon } from './icons.js';
 import { modal } from './ui.js';
 
-export const TRAILER = { src: '/media/nebulix-3.0-trailer.mp4', poster: '/media/nebulix-3.0-trailer.jpg', duration: '0:54' };
+export const TRAILER = { src: '/media/nebulix-3.0-trailer-en.mp4', poster: '/media/nebulix-3.0-trailer-en.jpg', subs: '/media/nebulix-3.0-trailer.es.vtt', duration: '0:58' };
 export function trailerVideo(autoplay = false) {
-  return h('video.tr-video', { src: TRAILER.src, poster: TRAILER.poster, controls: true, playsInline: true, preload: 'metadata', autoplay, 'aria-label': t('Nebulix 3.0 trailer') });
+  // the trailer is in English; Spanish subtitles of the on-screen text are on by default when the interface is in Spanish
+  const es = (document.documentElement.lang || '').startsWith('es');
+  return h('video.tr-video', { src: TRAILER.src, poster: TRAILER.poster, controls: true, playsInline: true, preload: 'metadata', autoplay, crossOrigin: 'anonymous', 'aria-label': t('Nebulix 3.0 trailer') },
+    h('track', { kind: 'subtitles', srclang: 'es', label: 'Español', src: TRAILER.subs, default: es }));
 }
 export function openTrailer() {
   const v = trailerVideo(true);

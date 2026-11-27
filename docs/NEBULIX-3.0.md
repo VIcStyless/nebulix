@@ -422,6 +422,16 @@ jobs kept in memory (last 50). Tested (9 checks): a PDF stored byte-exact, a pag
   those were deliberately not rewritten.)
 * Fixes: phone layout overflow (grid column `minmax(0,1fr)`); Photo undo after clicking panel buttons.
 
+## 3x. The English 3D trailer (v16.4.0)
+
+`public/media/nebulix-3.0-trailer-en.mp4` (58 s, 1080p30) replaces the first trailer on the sign-in page, Home and
+`#/trailer`; Spanish subtitles (`nebulix-3.0-trailer.es.vtt`) are on by default when the interface is in Spanish.
+Footage re-recorded with the interface in English, then composed frame by frame on a deterministic CSS-3D stage with
+an original soundtrack — tooling and method in `tools/trailer-3d/README.md`. While filming, two real bugs surfaced and
+were fixed: the Game Maker win message was hard-coded in Spanish (now follows the player's language; the published
+game no longer forces `lang="es"`), and leaving a document opens a "Leave site?" dialog (expected — the recorder now
+accepts it).
+
 ## 4. Next phases (in order)
 
 Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).

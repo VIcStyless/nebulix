@@ -2,6 +2,15 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.4",
+    "date": "2026-11-27",
+    "title": { "en": "The new Nebulix 3.0 trailer", "es": "El nuevo tráiler de Nebulix 3.0" },
+    "changes": [
+      { "type": "new", "en": "A new 58-second trailer in English with 3D motion, filmed from the real interface — with Spanish subtitles that switch on when Nebulix is in Spanish.", "es": "Un tráiler nuevo de 58 segundos en inglés con movimiento 3D, grabado con la interfaz real, y subtítulos en español que se activan cuando Nebulix está en español." },
+      { "type": "fixed", "en": "Game Maker: the “level complete” message was always in Spanish; games now use the player’s language.", "es": "Creador de juegos: el mensaje de «nivel completado» siempre salía en español; ahora los juegos usan el idioma de quien juega." }
+    ]
+  },
+  {
     "v": "16.3",
     "date": "2026-11-27",
     "title": { "en": "Casino tables, a smarter admin panel, Windows on Cloud PC and native speed", "es": "Mesas de casino, un panel de administración más completo, Windows en Cloud PC y velocidad nativa" },

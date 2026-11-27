@@ -6999,4 +6999,5 @@ export default {
   "Dragon Tiger, Sic Bo, Craps and Tower — play money, provably fair.": "Dragón y Tigre, Sic Bo, Dados y Torre — dinero de juego y verificables.",
   "Windows on Cloud PC": "Windows en Cloud PC",
   "Run Windows from your own licensed ISO, with UEFI and TPM 2.0.": "Ejecuta Windows desde tu propia ISO con licencia, con UEFI y TPM 2.0.",
+  "A one-minute tour of everything new, in 3D, with original music.": "Un recorrido de un minuto por todas las novedades, en 3D y con música original.",
 };

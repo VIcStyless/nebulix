@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#000;font-family:Inter,sans-serif;color:#f5f5f7;-webkit-font-smoothing:antialiased}
+#stage{position:absolute;inset:0;perspective:2600px;perspective-origin:50% 45%;overflow:hidden}
+.layer{position:absolute;inset:0;transform-style:preserve-3d}
+.head{position:absolute;left:0;right:0;top:92px;text-align:center;will-change:transform,opacity,filter}
+.head h1{margin:0;font-size:92px;font-weight:700;letter-spacing:-.035em;line-height:1.04}
+.head p{margin:18px 0 0;font-size:34px;font-weight:500;color:#a1a1a6;letter-spacing:-.01em}
+.grad{background:linear-gradient(90deg,#c084fc 0%,#818cf8 35%,#38bdf8 65%,#34d399 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pill{display:inline-block;margin-left:18px;font-size:26px;font-weight:700;padding:8px 18px;border-radius:999px;background:#2c2c2e;color:#f5f5f7;vertical-align:middle;position:relative;top:-14px;letter-spacing:.01em}
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.mega{font-size:220px;font-weight:800;letter-spacing:-.055em;line-height:.95}
+.small{font-size:38px;font-weight:600;color:#a1a1a6;letter-spacing:-.01em}
+.tag1{font-size:120px;font-weight:700;letter-spacing:-.045em;line-height:1.02}
+.device{position:absolute;left:50%;top:330px;width:1340px;height:754px;margin-left:-670px;transform-style:preserve-3d;will-change:transform}
+.device .bez{position:absolute;inset:0;border-radius:28px;background:#1d1d1f;box-shadow:0 0 0 2px #3a3a3c inset,0 60px 140px rgba(0,0,0,.7),0 0 120px rgba(129,140,248,.18);padding:14px}
+.device img{display:block;width:100%;height:100%;border-radius:16px;object-fit:cover;object-position:top}
+.device .gloss{position:absolute;inset:14px;border-radius:16px;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);pointer-events:none}
+.device .refl{position:absolute;left:0;right:0;top:100%;height:240px;margin-top:18px;border-radius:28px;background:#1d1d1f;transform:scaleY(-1);opacity:.18;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent 70%);overflow:hidden;padding:14px}
+.device .refl img{height:754px;object-position:bottom}
+.ring .panel{position:absolute;left:50%;top:50%;width:600px;height:338px;margin:-169px 0 0 -300px;border-radius:20px;overflow:hidden;background:#1d1d1f;padding:8px;box-shadow:0 30px 80px rgba(0,0,0,.6);backface-visibility:hidden}
+.ring .panel img{width:100%;height:100%;object-fit:cover;object-position:top;border-radius:13px;display:block}
+.word{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:200px;font-weight:800;letter-spacing:-.05em;text-shadow:0 10px 60px rgba(0,0,0,.8)}
+.logo3d{position:relative;width:220px;height:220px;transform-style:preserve-3d;margin-bottom:46px}
+.logo3d svg{position:absolute;inset:0;width:220px;height:220px}
+.glow{position:absolute;left:50%;top:50%;width:1400px;height:900px;margin:-450px 0 0 -700px;background:radial-gradient(closest-side,rgba(129,140,248,.35),rgba(56,189,248,.12) 45%,transparent 70%);filter:blur(20px)}
+.url{font-size:44px;font-weight:700;margin-top:26px}
+.counter{font-size:300px;font-weight:800;letter-spacing:-.06em;line-height:1}
+</style></head><body><div id="stage"></div>
+<script src="scenes.js"></script>
+<script>
+// Deterministic timeline: renderAt(t) builds the exact frame for time t (seconds). No CSS transitions or animations.
+const W = 1920, H = 1080;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2); // easeInOutCubic
+const out = (k) => 1 - Math.pow(1 - clamp(k), 4); // easeOutQuart
+const span = (t, a, b) => clamp((t - a) / (b - a));
+const LOGO = '<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="FILL"/><path d="M20 46V24.5a2.5 2.5 0 0 1 4.3-1.7L39.7 41.2a2.5 2.5 0 0 0 4.3-1.7V18" fill="none" stroke="#0b0c0e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="46" r="4.5" fill="#0b0c0e"/><circle cx="44" cy="18" r="4.5" fill="#0b0c0e"/></svg>';
+// footage: SC[name] = [[file, time], …]; frame at clip time `ct` (seconds from the clip start)
+function frameAt(name, ct) { const f = SC[name]; if (!f) return ''; let lo = 0, hi = f.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (f[m][1] <= ct) lo = m; else hi = m - 1; } return f[lo][0]; }
+// text that rises and un-blurs in, then fades out
+function textFx(t, a, b, rise = 40) { const i = out(span(t, a, a + 0.9)), o = span(t, b - 0.5, b); const op = i * (1 - o); return `opacity:${op};transform:translateY(${(1 - i) * rise - o * 20}px);filter:blur(${(1 - i) * 14 + o * 8}px)`; }
+const stage = document.getElementById('stage'); const pending = [];
+function img(src) { const im = new Image(); im.src = src; pending.push(im.decode().catch(() => {})); return im.outerHTML.replace('<img', '<img decoding="sync"'); }
+function device(name, ct, rx, ry, z, x = 0, y = 0, scale = 1, op = 1) {
+  const src = frameAt(name, ct);
+  return `<div class="device" style="opacity:${op};transform:translate3d(${x}px,${y}px,${z}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scale})"><div class="bez">${img(src)}<div class="gloss"></div></div><div class="refl">${img(src)}</div></div>`;
+}
+const S = {
+  intro(t) { return `<div class="center" style="${textFx(t, 0.5, 2.2)}"><div class="small" style="font-size:54px;color:#f5f5f7;font-weight:600">Introducing</div></div>`; },
+  logo(t, s) { const k = out(span(t, s.t0, s.t0 + 1.6)); const o = span(t, s.t1 - 0.5, s.t1); const shine = (span(t, s.t0 + 0.6, s.t1) * 160 - 30).toFixed(1);
+    return `<div class="glow" style="opacity:${k * (1 - o) * 0.9}"></div><div class="center" style="opacity:${k * (1 - o)};transform:translateZ(${(1 - k) * -700}px) rotateX(${(1 - k) * 28}deg)"><div class="mega"><span style="background:linear-gradient(100deg,#f5f5f7 ${shine - 20}%,#c4b5fd ${shine}%,#f5f5f7 ${+shine + 20}%);-webkit-background-clip:text;color:transparent">Nebulix</span> <span class="grad">3.0</span></div></div>`; },
+  tag(t, s) { return `<div class="center"><div class="tag1" style="${textFx(t, s.t0 + 0.1, s.t1)}">Your entire digital world.</div><div class="tag1 grad" style="${textFx(t, s.t0 + 1.4, s.t1)};margin-top:10px">In one place.</div></div>`; },
+  device(t, s) { const k = span(t, s.t0, s.t1); const e = out(span(t, s.t0, s.t0 + 1.4)); const o = span(t, s.t1 - 0.35, s.t1);
+    const m = s.motion || 'left'; const sign = m === 'right' ? -1 : 1;
+    const ry = sign * (-24 * (1 - e) - 9 + 14 * ease(k)), rx = 10 * (1 - e) + 4, z = -500 * (1 - e) + 60 * ease(k), y = 120 * (1 - e);
+    const ct = (s.clipStart || 0) + (t - s.t0) * (s.speed || 1);
+    return `<div class="head" style="${textFx(t, s.t0 + 0.15, s.t1)}"><h1>${s.h}${s.pill ? `<span class="pill">${s.pill}</span>` : ''}</h1><p>${s.s}</p></div>` + device(s.clip, ct, rx, ry, z, 0, y, 1, 1 - o); },
+  pair(t, s) { const e = out(span(t, s.t0, s.t0 + 1.4)); const o = span(t, s.t1 - 0.35, s.t1); const k = ease(span(t, s.t0, s.t1));
+    const ct = (t - s.t0); return `<div class="head" style="${textFx(t, s.t0 + 0.15, s.t1)}"><h1>${s.h}</h1><p>${s.s}</p></div>` +
+      device(s.clips[0], (s.clipStarts[0] || 0) + ct, 6, 18 - 6 * k, -520 * (1 - e) - 200, -440 - 80 * (1 - e), 120, 0.6, 1 - o) + device(s.clips[1], (s.clipStarts[1] || 0) + ct, 6, -18 + 6 * k, -520 * (1 - e) - 200, 440 + 80 * (1 - e), 120, 0.6, 1 - o); },
+  speed(t, s) { const e = out(span(t, s.t0, s.t0 + 1.2)); const o = span(t, s.t1 - 0.35, s.t1); const n = (1 + 1.7 * out(span(t, s.t0 + 0.4, s.t0 + 2.2))).toFixed(1);
+    return device(s.clip, (s.clipStart || 0) + (t - s.t0), 6, -22 + 10 * ease(span(t, s.t0, s.t1)), -700, 640, -60, 0.6, 0.85 * (1 - o)) +
+      `<div class="center" style="align-items:flex-start;padding-left:200px;opacity:${1 - o}"><div class="counter grad" style="opacity:${e};transform:translateY(${(1 - e) * 40}px)">${n}×</div><div style="${textFx(t, s.t0 + 0.6, s.t1)}"><h1 style="margin:10px 0 0;font-size:84px;font-weight:700;letter-spacing:-.035em">${s.h}</h1><p style="margin:14px 0 0;font-size:34px;color:#a1a1a6;font-weight:500">${s.s}</p></div></div>`; },
+  ring(t, s) { const k = span(t, s.t0, s.t1); const e = out(span(t, s.t0, s.t0 + 1)); const o = span(t, s.t1 - 0.3, s.t1); const R = 980; const n = s.clips.length; const rot = -40 + 75 * ease(k);
+    const panels = s.clips.map((c, i) => `<div class="panel" style="transform:rotateY(${(i * 360) / n}deg) translateZ(${R}px)">${img(frameAt(c[0], c[1] + (t - s.t0)))}</div>`).join('');
+    const wi = Math.min(s.words.length - 1, Math.floor((t - s.t0) / ((s.t1 - s.t0) / s.words.length))); const wk = ((t - s.t0) % ((s.t1 - s.t0) / s.words.length)) / ((s.t1 - s.t0) / s.words.length);
+    const wo = clamp(wk / 0.18) * (1 - clamp((wk - 0.82) / 0.18)); const ws = 1.12 - 0.12 * out(clamp(wk / 0.3));
+    return `<div class="layer ring" style="opacity:${e * (1 - o)};transform:translateZ(${-1700 + 500 * e}px) rotateX(-8deg) rotateY(${rot}deg)">${panels}</div><div class="word" style="opacity:${wo};transform:scale(${ws})">${s.words[wi]}</div>`; },
+  end(t, s) { const k = out(span(t, s.t0, s.t0 + 2.2)); const fade = span(t, s.t1 - 1.6, s.t1); const ry = 80 * (1 - k); const layers = 14;
+    let logo = ''; for (let i = layers - 1; i >= 0; i--) logo += `<div style="position:absolute;inset:0;transform:translateZ(${-i * 2.2}px)">${LOGO.replace('FILL', i === 0 ? '#d4ff3f' : `rgb(${150 - i * 6},${190 - i * 7},${40})`)}</div>`;
+    return `<div class="glow" style="opacity:${k * 0.8 * (1 - fade)}"></div><div class="center" style="opacity:${1 - fade}"><div class="logo3d" style="transform:rotateY(${ry}deg) rotateX(${8 * (1 - k)}deg) scale(${0.8 + 0.2 * k})">${logo}</div>
+      <div style="${textFx(t, s.t0 + 0.8, s.t1 + 2)}"><div class="mega" style="font-size:150px">Nebulix <span class="grad">3.0</span></div></div>
+      <div style="${textFx(t, s.t0 + 1.6, s.t1 + 2)}"><div class="small" style="margin-top:26px">Available now. Free, in your browser.</div><div class="url grad">nebulix.fly.dev</div></div></div>`; },
+};
+function renderAt(t) {
+  pending.length = 0; let html = '';
+  for (const s of TL) if (t >= s.t0 && t < s.t1) html += `<div class="layer">${S[s.kind](t, s)}</div>`;
+  stage.innerHTML = html; return Promise.all(pending).then(() => document.fonts.ready).then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+const TL = [
+  { kind: 'intro', t0: 0, t1: 2.2 },
+  { kind: 'logo', t0: 2, t1: 6.2 },
+  { kind: 'tag', t0: 6, t1: 10 },
+  { kind: 'device', t0: 10, t1: 14, clip: 'home', clipStart: 0.9, h: 'Everything starts here.', s: 'Your apps, friends and games — one home.', motion: 'left' },
+  { kind: 'device', t0: 14, t1: 18, clip: 'desktop', clipStart: 0.4, h: 'A whole desktop.', s: 'Apps, windows and workspaces. Right in your browser.', motion: 'right' },
+  { kind: 'device', t0: 18, t1: 22, clip: 'android', clipStart: 0.6, h: 'Real Android.', pill: 'Coming soon', s: 'Streamed from the cloud to any screen.', motion: 'left' },
+  { kind: 'device', t0: 22, t1: 26, clip: 'cloudpc', clipStart: 5.5, h: 'A computer in the cloud.', s: 'Linux today. Windows, coming soon.', motion: 'right' },
+  { kind: 'device', t0: 26, t1: 30, clip: 'docs', clipStart: 0, speed: 1.7, h: 'Write together. Live.', s: 'Documents, sheets and slides — co-edited in real time.', motion: 'left' },
+  { kind: 'device', t0: 30, t1: 34, clip: 'gamemaker', clipStart: 2.0, speed: 1.05, h: 'Make a game.', s: 'Paint a level, test it, share it with everyone.', motion: 'right' },
+  { kind: 'pair', t0: 34, t1: 38, clips: ['dragontiger', 'craps'], clipStarts: [0.2, 0.2], h: 'Play.', s: 'Arcade, tournaments and a casino — with play money only.' },
+  { kind: 'speed', t0: 38, t1: 42, clip: 'photo', clipStart: 0.3, h: 'Built for speed.', s: 'Up to 2.7× faster image tools.<br>C++, compiled to WebAssembly.' },
+  { kind: 'device', t0: 42, t1: 46, clip: 'admin', clipStart: 0.2, h: 'Run it all. At a glance.', s: 'Live metrics, health checks and people — for admins.', motion: 'left' },
+  { kind: 'ring', t0: 46, t1: 50, clips: [['home', 2], ['desktop', 3], ['android', 3], ['docs', 5], ['gamemaker', 4], ['hub', 2], ['admin', 2], ['craps', 2], ['photo', 3], ['cloudpc', 9]], words: ['Create.', 'Play.', 'Share.'] },
+  { kind: 'end', t0: 50, t1: 58 },
+];
+window.renderAt = renderAt; window.DURATION = 58;
+</script></body></html>

@@ -5,6 +5,8 @@
 export function runGame(canvas, level, hooks) {
   hooks = hooks || {};
   const T = 32; const g = canvas.getContext('2d'); const W = level.w, H = level.h;
+  // win text in the page language (editor) or the player's browser language (published game); Spanish or English
+  const es = /^es/i.test(level.lang || document.documentElement.getAttribute('lang') || navigator.language || ''); const TX = es ? ['¡Nivel completado!', ' puntos · R para repetir'] : ['Level complete!', ' points · R to replay'];
   const grav = (level.gravity || 10) * 0.12, jumpV = -(level.jump || 10) * 1.05, speed = (level.speed || 10) * 0.32;
   let grid, coins, enemies, p, cam, state, score, collected, time, keys = {}, raf = 0, last = 0, deaths = 0, stopped = false, steps = 0;
   const solid = (c) => c === '#' || c === 'B';
@@ -55,7 +57,7 @@ export function runGame(canvas, level, hooks) {
     if (state !== 'dead' || Math.floor(Date.now() / 100) % 2) { g.fillStyle = '#f97316'; g.fillRect(p.x, p.y, p.w, p.h); g.fillStyle = '#fff'; g.fillRect(p.x + (p.vx < 0 ? 4 : 14), p.y + 7, 6, 6); g.fillStyle = '#1e293b'; g.fillRect(p.x + (p.vx < 0 ? 5 : 16), p.y + 9, 3, 3); }
     g.restore();
     g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(8, 8, 250, 30); g.fillStyle = '#fff'; g.font = 'bold 16px system-ui, sans-serif'; g.textBaseline = 'middle'; g.fillText('★ ' + score + '   ● ' + collected + '/' + coins + '   ⏱ ' + time.toFixed(1), 18, 23);
-    if (state === 'won') { g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, vw, vh); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = 'bold 40px system-ui'; g.fillText('¡Nivel completado!', vw / 2, vh / 2 - 20); g.font = '20px system-ui'; g.fillText(score + ' puntos · R para repetir', vw / 2, vh / 2 + 24); g.textAlign = 'left'; }
+    if (state === 'won') { g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, vw, vh); g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = 'bold 40px system-ui'; g.fillText(TX[0], vw / 2, vh / 2 - 20); g.font = '20px system-ui'; g.fillText(score + TX[1], vw / 2, vh / 2 + 24); g.textAlign = 'left'; }
   }
   function loop(now) { if (stopped) return; if (!last) last = now; let acc = Math.min(100, now - last); last = now; while (acc > 0) { step(); acc -= 1000 / 60; } draw(); raf = requestAnimationFrame(loop); }
   const kd = (e) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', ' ', 'ArrowDown'].includes(e.key)) e.preventDefault(); keys[e.key] = true; if ((e.key === 'r' || e.key === 'R') && state === 'won') { reset(true); } };

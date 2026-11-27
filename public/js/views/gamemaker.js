@@ -19,7 +19,7 @@ function blank(w = 60, hh = 15) {
 }
 export function buildHtml(level) { // the published game: one HTML file with the level and the same engine as the editor
   const safe = JSON.stringify(level).replace(/</g, '\\u003c');
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(level.title).replace(/[<&]/g, '')}</title>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(level.title).replace(/[<&]/g, '')}</title>
 <style>html,body{margin:0;height:100%;background:#0f172a;display:grid;place-items:center;font-family:system-ui,sans-serif;overflow:hidden}canvas{max-width:100vw;max-height:100vh;image-rendering:pixelated;background:#000}
 .pad{position:fixed;bottom:16px;display:flex;gap:10px}.pad button{width:64px;height:64px;border-radius:50%;border:0;background:rgba(255,255,255,.22);color:#fff;font-size:26px;touch-action:none}#l{left:16px}#r{right:16px}@media(hover:hover){.pad{display:none}}</style></head>
 <body><canvas id="c" width="960" height="480"></canvas><div class="pad" id="l"><button data-k="ArrowLeft">◀</button><button data-k="ArrowRight">▶</button></div><div class="pad" id="r"><button data-k=" ">⤒</button></div>
