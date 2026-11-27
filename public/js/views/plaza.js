@@ -5,7 +5,7 @@ import { t, getLang } from '../i18n.js';
 import { api } from '../api.js';
 import { S, bus, patchMe } from '../state.js';
 import { icon } from '../icons.js';
-import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, promptBox, modal, confetti } from '../ui.js';
+import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, promptBox, modal, confetti, segEl } from '../ui.js';
 import { avatarEl, nameEl, previewItem } from '../cosmetics.js';
 import { avatarCanvas } from '../avatar3d.js';
 
@@ -18,11 +18,11 @@ const COLORS = ['#7c5cff', '#22c3e6', '#3ddc84', '#f5b84a', '#ef4444', '#ec4899'
 export default {
   title: () => t('Plaza'),
   async mount(root, ctx) {
-    let tab = ctx.query.get('tab') || ls('plaza.tab') || 'booths'; let alive = true; let timer = null;
+    let tab = ctx.query.get('tab') || ls('plaza.tab') || 'booths'; let alive = true; let timer = null; let gemLim = null;
     const inner = h('div.inner.plaza'); mount(root, inner);
     const head = h('div.page-title', h('h2', t('Plaza')), h('p.muted', t('Donate to other players, open your own booth, trade items and hire staff that earn coins for you.')));
     const bal = h('div.pz-bal');
-    const paintBal = () => mount(bal, h('div.pz-cur', icon('coins', 16), coin(S.me.coins), h('span.tiny.muted', t('coins'))), h('div.pz-cur.g', icon('gem', 16), gem(S.me.gems || 0), h('span.tiny.muted', t('gems'))));
+    const paintBal = () => mount(bal, h('div.pz-cur', icon('coins', 16), S.me.infinite ? h('span.coin', '∞') : coin(S.me.coins), h('span.tiny.muted', t('coins'))), h('div.pz-cur.g', icon('gem', 16), gem(S.me.gems || 0), h('span.tiny.muted', t('gems'))));
     const tabs = tabsEl([['booths', t('Donation booths'), 'gift'], ['market', t('Player market'), 'bag'], ['staff', t('Staff'), 'users'], ['gems', t('Gems'), 'gem']], tab, (v) => { tab = v; ls('plaza.tab', v); paint(); });
     const body = h('div.pz-body');
     mount(inner, head, h('div.row.wrap.pz-top', tabs, h('div.grow'), bal), body);
@@ -33,10 +33,10 @@ export default {
 
     // ---------------- booths ----------------
     async function paintBooths() {
-      const d = await api.get('/api/plaza');
+      const d = await api.get('/api/plaza'); gemLim = d.gemLimits || gemLim;
       const mine = d.mine;
       const myCard = h('div.card.pz-mine',
-        mine ? [h('div.row', h('span.pz-emoji', { style: '--bc:' + mine.color }, mine.emoji), h('div.grow', h('b', mine.title), h('div.small.muted', t('{a} of {b} coins raised · {n} donations', { a: fmt.coins(mine.raised), b: fmt.coins(mine.goal), n: mine.donors || 0 })))),
+        mine ? [h('div.row', h('span.pz-emoji', { style: '--bc:' + mine.color }, mine.emoji), h('div.grow', h('b', mine.title), h('div.small.muted', t('{a} of {b} coins raised · {n} donations', { a: fmt.coins(mine.raised), b: fmt.coins(mine.goal), n: mine.donors || 0 }) + (mine.raisedGems ? ' · ' + t('{n} gems', { n: fmt.num(mine.raisedGems) }) : '')))),
           h('div.pz-goal', h('i', { style: 'width:' + Math.min(100, (mine.raised / mine.goal) * 100) + '%;--bc:' + mine.color })),
           h('div.row.wrap', h('button.btn', { onClick: () => editBooth(mine) }, icon('edit', 15), t('Edit')),
             h('button.btn.primary', { onClick: () => boostBooth(d.boostPrice, mine) }, icon('bolt', 15), mine.boosted ? t('Boosted · {t} left', { t: left(mine.boosted) }) : t('Appear first')),
@@ -44,8 +44,8 @@ export default {
           : [h('h3', icon('gift', 16), t('Open your donation booth')), h('p.muted.small', t('Other players see it in the Plaza and in the 3D casino lobby, and can donate coins to you. Pay coins to appear first.')), h('button.btn.primary', { onClick: () => editBooth(null) }, icon('plus', 15), t('Open my booth'))]);
       const grid = d.booths.length ? h('div.pz-grid', d.booths.map(boothCard)) : emptyState('gift', t('No booths yet'), t('Be the first to open one!'));
       const feed = h('div.card.pz-feed', h('h3', icon('bolt', 15), t('Latest donations')),
-        d.feed.length ? d.feed.map((x) => h('div.pz-fi', avatarEl(x.from, { size: 22 }), h('span.grow.small', h('b', '@' + x.from.username), ' → ', h('b', '@' + x.to.username), x.note && x.note !== '🎁' ? h('span.muted', ' “' + x.note + '”') : null), coin(x.amount))) : h('p.muted.small', t('No donations yet.')),
-        d.top.length ? [h('h3', { style: 'margin-top:14px' }, icon('trophy', 15), t('Top donors')), d.top.map((x, i) => h('div.pz-fi', h('span.pz-rank', '#' + (i + 1)), avatarEl(x.user, { size: 22 }), h('span.grow.small', '@' + x.user.username), coin(x.donated)))] : null);
+        d.feed.length ? d.feed.map((x) => h('div.pz-fi', avatarEl(x.from, { size: 22 }), h('span.grow.small', h('b', '@' + x.from.username), ' → ', h('b', '@' + x.to.username), x.note && x.note !== '🎁' ? h('span.muted', ' “' + x.note + '”') : null), x.cur === 'gems' ? gem(x.amount) : coin(x.amount))) : h('p.muted.small', t('No donations yet.')),
+        d.top.length ? [h('h3', { style: 'margin-top:14px' }, icon('trophy', 15), t('Top donors')), d.top.map((x, i) => h('div.pz-fi', h('span.pz-rank', '#' + (i + 1)), avatarEl(x.user, { size: 22 }), h('span.grow.small', '@' + x.user.username), x.donated ? coin(x.donated) : null, x.gems ? gem(x.gems) : null))] : null);
       mount(body, h('div.pz-cols', h('div.col.gap', myCard, grid), feed));
     }
     function boothCard(b) {
@@ -56,16 +56,29 @@ export default {
         h('div.pz-btitle', h('span', b.emoji), ' ', b.title),
         h('button.pz-owner', { onClick: () => ctx.go('profile', b.user.username) }, '@' + b.user.username, b.online ? h('i.pz-on') : null),
         h('div.pz-goal', h('i', { style: 'width:' + Math.min(100, (b.raised / b.goal) * 100) + '%' })),
-        h('div.tiny.muted', t('{a} / {b} coins', { a: fmt.compact(b.raised), b: fmt.compact(b.goal) })),
-        me ? h('span.pill', t('Your booth')) : h('div.row.pz-dons', [10, 100, 1000].map((n) => h('button.btn.sm', { onClick: (e) => busy(e.currentTarget, () => doDonate(b.user.username, n)) }, fmt.compact(n))), h('button.btn.sm.primary', { onClick: () => customDonate(b.user.username) }, t('Donate'))));
+        h('div.tiny.muted', t('{a} / {b} coins', { a: fmt.compact(b.raised), b: fmt.compact(b.goal) }) + (b.raisedGems ? ' · 💎 ' + fmt.compact(b.raisedGems) : '')),
+        me ? h('span.pill', t('Your booth')) : h('div.row.pz-dons', [10, 100, 1000].map((n) => h('button.btn.sm', { onClick: (e) => busy(e.currentTarget, () => doDonate(b.user.username, n)) }, fmt.compact(n))), h('button.btn.sm', { title: t('Donate gems'), onClick: () => customDonate(b.user.username, 'gems') }, '💎'), h('button.btn.sm.primary', { onClick: () => customDonate(b.user.username) }, t('Donate'))));
     }
-    async function doDonate(username, amount, note) {
-      try { const r = await api.post('/api/donate', { to: username, amount, note }); patchMe({ coins: r.coins }); paintBal(); toast(t('You donated {n} coins to @{u}', { n: fmt.coins(amount), u: username }), 'coin'); if (amount >= 1000) confetti(); paint(); } catch (e) { toastErr(e); }
+    async function doDonate(username, amount, note, cur = 'coins') {
+      const G = cur === 'gems';
+      try {
+        const r = await api.post('/api/donate', { to: username, amount, note, currency: cur }); patchMe({ coins: r.coins, gems: r.gems }); paintBal();
+        toast(G ? t('You donated {n} gems to @{u}', { n: fmt.num(amount), u: username }) : t('You donated {n} coins to @{u}', { n: fmt.coins(amount), u: username }), 'coin');
+        if (G ? amount >= 20 : amount >= 1000) confetti(); paint();
+      } catch (e) { toastErr(e); }
     }
-    async function customDonate(username) {
-      const amt = h('input.input', { type: 'text', inputmode: 'decimal', placeholder: '500, 10k', value: 500 }); const note = h('input.input', { maxlength: 80, placeholder: t('Message (optional)') });
-      const ok = await modal({ title: t('Donate to @{u}', { u: username }), cls: 'narrow', body: h('div.col.gap', field(t('Coins'), amt, t('Max 100,000 per donation and 250,000 per day.')), field(t('Message'), note)), actions: [{ label: t('Cancel'), value: false }, { label: t('Donate'), kind: 'primary', value: true }] });
-      if (ok) doDonate(username, parseCoins(amt.value), note.value);
+    async function customDonate(username, start = 'coins') {
+      let cur = start; const gl = gemLim || { max: 200, day: 500 };
+      const amt = h('input.input', { type: 'text', inputmode: 'decimal' }); const note = h('input.input', { maxlength: 80, placeholder: t('Message (optional)') });
+      const hint = h('div.hint'); const lab = h('label');
+      const set = (v) => {
+        cur = v; const G = v === 'gems'; lab.textContent = G ? t('Gems') : t('Coins');
+        amt.placeholder = G ? '5, 20, 100' : '500, 10k'; amt.value = G ? Math.min(10, S.me.gems || 0) || 1 : 500;
+        hint.textContent = G ? t('You have {n} gems. Max {m} per donation and {d} per day.', { n: fmt.num(S.me.gems || 0), m: gl.max, d: gl.day }) : t('Max 100,000 per donation and 250,000 per day.');
+      };
+      const seg = segEl([['coins', '🪙 ' + t('Coins')], ['gems', '💎 ' + t('Gems')]], cur, set); set(cur);
+      const ok = await modal({ title: t('Donate to @{u}', { u: username }), cls: 'narrow', body: h('div.col.gap', seg, h('div.field', lab, amt, hint), field(t('Message'), note)), actions: [{ label: t('Cancel'), value: false }, { label: t('Donate'), kind: 'primary', value: true }] });
+      if (ok) doDonate(username, cur === 'gems' ? Math.trunc(Number(String(amt.value).replace(/[^0-9]/g, ''))) : parseCoins(amt.value), note.value, cur);
     }
     async function editBooth(b) {
       let color = (b && b.color) || COLORS[0];
@@ -132,6 +145,7 @@ export default {
       const cost = h('b'); const upd = () => cost.textContent = fmt.coins(Math.max(0, Number(n.value) || 0) * d.rate) + ' ' + t('coins'); n.addEventListener('input', upd); upd();
       mount(body, h('div.pz-cols',
         h('div.col.gap',
+          h('button.card.pk-banklink', { onClick: () => ctx.go('wallet', { tab: 'send', cur: 'gems' }) }, icon('send', 18), h('div.grow', h('b', t('Send gems')), h('div.small.muted', t('Give gems to a friend or donate them to a booth. Up to 200 at a time and 500 a day.'))), icon('link', 16)),
           h('div.card', h('h3', icon('gem', 16), t('What are gems?')), h('p.small', t('Gems are the second currency of Nebulix. Coins are for the casino, arcade, market, donations and staff. Gems are for premium things: 3D avatar parts and premium staff (robots and AI assistants).')),
             h('ul.small.pz-ul', h('li', t('Daily reward: +1 gem (+5 every 7-day streak, double with PRO)')), h('li', t('Every level up: +3 gems')), h('li', t('Every achievement: +2 gems')), h('li', t('Exchange coins: {r} coins = 1 gem, up to {d} per day', { r: fmt.coins(d.rate), d: d.perDay })))),
           h('div.card', h('h3', t('Exchange coins for gems')), h('div.row.wrap', field(t('Gems'), n, t('{n} left today', { n: d.left })), h('div.col', h('span.tiny.muted', t('Cost')), cost)),

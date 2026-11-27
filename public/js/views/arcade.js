@@ -208,7 +208,7 @@ export default {
         h('div.card.col', h('h3', t('Challenge someone')),
           h('div.field', h('label', t('Game')), segEl(DUELS.map(([id, n]) => [id, t(n)]), gameSel, (v) => { gameSel = v; })),
           h('div.field', h('label', t('Opponent')), h('div.row.wrap', friendSel, userIn)),
-          h('div.field', h('label', t('Wager (optional, both pay, winner takes all)')), h('div.row', wager, h('span.small.muted', t('You have {n}', { n: fmt.coins(S.me.coins) })))),
+          h('div.field', h('label', t('Wager (optional, both pay, winner takes all)')), h('div.row', wager, h('span.small.muted', t('You have {n}', { n: (S.me.infinite ? '∞' : fmt.coins(S.me.coins)) })))),
           h('button.btn.primary', { onClick: (e) => challenge(e.currentTarget) }, '', t('Send challenge')),
           h('p.tiny.muted', t('Who can challenge you is set in Settings → Privacy. Coins are held safely until the game ends; draws are refunded.'))),
         h('div.col', h('div.card', h('h3', t('Live & pending')), live.length ? h('div.col.gap-s', live.map(item)) : h('p.small.muted', t('No duels right now.'))),

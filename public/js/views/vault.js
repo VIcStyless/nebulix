@@ -52,7 +52,7 @@ export default {
   title: () => 'Nebula Vault', full: true,
   async mount(root, ctx) {
     let tab = ['library', 'sell', 'wishlist', 'app'].includes(ctx.params[0]) ? ctx.params[0] : 'store'; let appId = tab === 'app' ? ctx.params[1] : null; let q = '', tag = '', list = 'new';
-    let timer = 0; const body = h('div.vt-body'); const coinEl = h('span.coin', fmt.coins(S.me.coins));
+    let timer = 0; const body = h('div.vt-body'); const coinEl = h('span.coin', (S.me.infinite ? '∞' : fmt.coins(S.me.coins)));
     const search = h('input.vt-search', { placeholder: t('Search the store'), onKeydown: (e) => { if (e.key === 'Enter') { q = e.target.value.trim(); tab = 'store'; open(); } } });
     const nav = h('nav.vt-nav'); mount(root, h('div.vt', h('header.vt-bar', h('div.vt-brand', h('span.vt-logo', icon('layers', 18)), h('b', 'NEBULA'), h('span', 'VAULT')), nav, h('span.grow'), h('div.vt-searchw', icon('search', 15), search), coinEl), body));
     const paintNav = () => mount(nav, [['store', t('Store')], ['library', t('Library')], ['wishlist', t('Wishlist')], ['sell', t('Sell your games')]].map(([k, l]) => h('button' + (tab === k ? '.on' : ''), { onClick: () => { tab = k; q = ''; tag = ''; search.value = ''; open(); } }, l)));
@@ -61,7 +61,7 @@ export default {
     const openApp = (id) => { tab = 'app'; appId = id; open(); };
 
     async function open() {
-      clearInterval(timer); paintNav(); coinEl.textContent = fmt.coins(S.me.coins); mount(body, loading()); body.scrollTop = 0;
+      clearInterval(timer); paintNav(); coinEl.textContent = (S.me.infinite ? '∞' : fmt.coins(S.me.coins)); mount(body, loading()); body.scrollTop = 0;
       try { if (tab === 'app') await appPage(appId); else if (tab === 'store') await store(); else if (tab === 'sell') await sell(); else await library(tab === 'wishlist'); }
       catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); }
     }

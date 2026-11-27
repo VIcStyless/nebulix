@@ -65,7 +65,7 @@ export default {
     const pick = { coin: 'heads', dice: { target: 50, mode: 'under' }, rl: { type: 'red', value: 0 } };
 
     // ---------- skeleton ----------
-    const balEl = h('span.coin.cs-bal', fmt.coins(S.me.coins)); const dailyHost = h('span'); const ticker = h('div.cs-ticker.hidden');
+    const balEl = h('span.coin.cs-bal', (S.me.infinite ? '∞' : fmt.coins(S.me.coins))); const dailyHost = h('span'); const ticker = h('div.cs-ticker.hidden');
     const tabsHost = h('div'); const fxHost = h('div.cs-fxhost'); let fx = null; let fxGame = null; const stage = h('div.card.cs-stage'); const betBox = h('div.card'); const histBox = h('div.card');
     const extraSide = h('div.card.hidden'); const fairBox = h('div.card'); const rgBox = h('div.card'); const statBox = h('div.card'); const lbBox = h('div.card');
     mount(root, h('div.inner',
@@ -84,7 +84,7 @@ export default {
     const maxBet = () => Math.max(1, Math.min(cfg.max, S.me.coins));
     let shownBal = S.me.coins; let balRaf = 0;
     // the balance counts up/down to its new value and flashes green or red
-    const paintBal = () => { const to = S.me.coins; const from = shownBal; if (to === from) { balEl.textContent = fmt.coins(to); return; } cancelAnimationFrame(balRaf); balEl.classList.remove('up', 'down'); void balEl.offsetWidth; balEl.classList.add(to > from ? 'up' : 'down'); const t0 = performance.now();
+    const paintBal = () => { if (S.me.infinite) { balEl.textContent = '∞'; return; } const to = S.me.coins; const from = shownBal; if (to === from) { balEl.textContent = fmt.coins(to); return; } cancelAnimationFrame(balRaf); balEl.classList.remove('up', 'down'); void balEl.offsetWidth; balEl.classList.add(to > from ? 'up' : 'down'); const t0 = performance.now();
       const step = () => { const k = Math.min(1, (performance.now() - t0) / 700); const v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))); balEl.textContent = fmt.coins(v); shownBal = v; if (k < 1 && alive) balRaf = requestAnimationFrame(step); else shownBal = to; }; step(); };
     // big win celebration: BIG / MEGA / EPIC WIN, the prize counting up and a shower of coins
     function bigWinFx(r) {

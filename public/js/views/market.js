@@ -18,7 +18,7 @@ export default {
   title: () => t('Market'),
   async mount(root, ctx) {
     let cat = ctx.params[0] && CATS.some((c) => c[0] === ctx.params[0]) ? ctx.params[0] : 'frame'; let q = ''; let sort = 'price'; let only = 'all';
-    const grid = h('div.grid.mk-grid'); const mine = h('div.card.mk-me'); const tabsHost = h('div'); const coinEl = h('span.coin', fmt.coins(S.me.coins));
+    const grid = h('div.grid.mk-grid'); const mine = h('div.card.mk-me'); const tabsHost = h('div'); const coinEl = h('span.coin', (S.me.infinite ? '∞' : fmt.coins(S.me.coins)));
     mount(root, h('div.inner', h('div.page-title', h('div', h('h2', t('Market')), h('p', t('Spend your coins on looks that stand out. Everything here is cosmetic — and PRO never sells coins.'))),
       h('div.row', coinEl, h('button.btn', { onClick: () => ctx.go('shop') }, icon('bag', 16), t('Daily Shop')), h('button.btn', { onClick: () => ctx.go('home', { daily: 1 }) }, icon('gift', 16), t('Earn coins')))),
       h('div.mk-layout', h('div.mk-main', tabsHost, filters(), grid), h('aside', mine))));
@@ -43,7 +43,7 @@ export default {
         h('div.small.muted', { style: 'margin-top:8px' }, t('Badges ({n}/3)', { n: (eq.badges || []).length })));
     }
     function paint() {
-      paintTabs(); paintMine(); coinEl.textContent = fmt.coins(S.me.coins);
+      paintTabs(); paintMine(); coinEl.textContent = (S.me.infinite ? '∞' : fmt.coins(S.me.coins));
       let list = [...catalog.values()].filter((it) => it.cat === cat && !it.shop && (!it.reward || owned(it)));
       if (q) list = list.filter((it) => (it.n.join(' ')).toLowerCase().includes(q));
       if (only === 'owned') list = list.filter(owned); else if (only === 'buyable') list = list.filter((it) => !owned(it) && it.price <= S.me.coins);

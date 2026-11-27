@@ -436,6 +436,14 @@ Production check of the Windows profile on the Fly node (v16.4.1): UEFI ✓ (Sec
 (swtpm), but the node has 4 GB of RAM in total, so a 4 GB Windows guest cannot fit. The agent now refuses Windows on hosts
 with under 6 GB of RAM and checks free memory before any start, with a clear message. Windows needs the KVM server.
 
+## 3y. Gem donations and the real ∞ (v16.5.0)
+
+- **Send and donate gems.** `POST /api/wallet/transfer` and `POST /api/donate` take `currency: "gems"`. Limits: 200 gems per transfer, 500 a day per sender (`u.gemTxDay`), whole gems only, same checks as coins (verified recipient, not yourself, not banned or blocked). Gems are scarce (earned, or 40 a day from coins), so the small caps stop alt accounts from funnelling gems past the exchange limit. Transfers of 50+ gems are audited.
+- **Plaza.** Booths keep `raisedGems` next to `raised`; feed rows carry `cur`; top donors rank by coins + gems × `GEM_RATE`. Each booth has a 💎 button and the donate dialog has a Coins/Gems switch. The Gems tab links to Wallet → Send in gems mode.
+- **∞ only for unlimited wallets.** `/api/me` and every `coins` push carry `infinite`. The client shows ∞ only when `S.me.infinite` is true (top bar, OS desktop, control centre, wallet, casino, shop, market, vault, plaza…). Before, any balance of 1 billion or more showed ∞.
+- **One notice per donation.** A donation used to push both a `transfer` and a `donation` notice; it now sends only the donation one.
+- Tests: 16 API checks (`gems.mjs`) and 12 browser checks (`cdp-gems.mjs`, `cdp-1b.mjs`), all passing.
+
 ## 4. Next phases (in order)
 
 Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–20).

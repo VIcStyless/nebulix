@@ -35,13 +35,42 @@ function transfer(u, body) {
   S.meta.transfers = S.meta.transfers || []; S.meta.transfers.unshift(rec); if (S.meta.transfers.length > 2000) S.meta.transfers.length = 2000;
   S.store.touch('meta'); S.store.touch('users');
   if (amount >= 10000) audit('coin_transfer', u.id, { to: to.id, amount });
-  hub.push(to.id, { t: 'transfer', from: publicUser(u), amount, note });
+  if (!body.donation) hub.push(to.id, { t: 'transfer', from: publicUser(u), amount, note }); // a donation sends its own notice
   return { ok: true, transfer: rec, coins: u.coins, to: publicUser(to) };
 }
+// Gems can be sent too (3.0 phase 25). Gems are scarce (earned, or 40/day bought with coins), so the caps are small:
+// this keeps an army of alt accounts from funnelling gems past the daily exchange limit.
+const GEM_TX_MAX = 200; const GEM_TX_DAY = 500;
+function transferGems(u, body) {
+  const amount = Math.trunc(Number(body.amount));
+  if (!Number.isFinite(amount) || amount < 1) throw new HttpError(400, 'bad_amount', 'Enter an amount of at least 1 gem');
+  if (amount > GEM_TX_MAX) throw new HttpError(400, 'bad_amount', 'Up to ' + GEM_TX_MAX + ' gems per transfer');
+  const name = String(body.to || '').trim().replace(/^@/, '').toLowerCase();
+  const id = S.byName.get(name); const to = id && S.users[id];
+  if (!to || to.deleted || !to.verified) throw new HttpError(404, 'no_user', 'No player with that username');
+  if (to.id === u.id) throw new HttpError(400, 'self', 'You cannot send gems to yourself');
+  if (banned(to) || banned(u)) throw new HttpError(403, 'banned', 'This transfer is not allowed');
+  if ((to.blocked || []).includes(u.id) || (u.blocked || []).includes(to.id)) throw new HttpError(403, 'blocked', 'You cannot send gems to this player');
+  const note = String(body.note || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 80);
+  const day = (u.gemTxDay = u.gemTxDay && u.gemTxDay.d === dayKey() ? u.gemTxDay : { d: dayKey(), sent: 0 });
+  if (day.sent + amount > GEM_TX_DAY) throw new HttpError(429, 'daily_cap', 'Daily gem limit reached (' + GEM_TX_DAY + ' gems)');
+  if (amount > (u.gems || 0)) throw new HttpError(402, 'no_gems', 'Not enough gems');
+  if ((to.gems || 0) + amount > econ.MAX_GEMS) throw new HttpError(400, 'full', 'That player has the most gems possible');
+  if (!econ.adjustGems(u, -amount, 'transfer:to:@' + to.username)) throw new HttpError(402, 'no_gems', 'Not enough gems');
+  econ.adjustGems(to, amount, 'transfer:from:@' + u.username);
+  day.sent += amount;
+  const rec = { id: rid(6), t: now(), from: u.id, to: to.id, amount, note, cur: 'gems' };
+  S.meta.transfers = S.meta.transfers || []; S.meta.transfers.unshift(rec); if (S.meta.transfers.length > 2000) S.meta.transfers.length = 2000;
+  S.store.touch('meta'); S.store.touch('users');
+  if (amount >= 50) audit('gem_transfer', u.id, { to: to.id, amount });
+  if (!body.donation) hub.push(to.id, { t: 'transfer', from: publicUser(u), amount, note, cur: 'gems' });
+  return { ok: true, transfer: rec, gems: u.gems, coins: u.coins, to: publicUser(to) };
+}
+const gemLimits = (u) => ({ max: GEM_TX_MAX, day: GEM_TX_DAY, sentToday: u.gemTxDay && u.gemTxDay.d === dayKey() ? u.gemTxDay.sent : 0 });
 function transfersOf(u) {
   return (S.meta.transfers || []).filter((x) => x.from === u.id || x.to === u.id).slice(0, 30).map((x) => {
     const other = S.users[x.from === u.id ? x.to : x.from];
-    return { id: x.id, t: x.t, amount: x.amount, note: x.note, dir: x.from === u.id ? 'out' : 'in', user: other ? { id: other.id, username: other.username, displayName: other.displayName || other.username } : null };
+    return { id: x.id, t: x.t, amount: x.amount, note: x.note, cur: x.cur || 'coins', dir: x.from === u.id ? 'out' : 'in', user: other ? { id: other.id, username: other.username, displayName: other.displayName || other.username } : null };
   });
 }
 
@@ -92,12 +121,13 @@ module.exports = function register(r) {
     const inv = Object.keys(u.inv || {}); const cats = {}; for (const id of inv) { const it = econ.byId.get(id); if (it) cats[it.cat] = (cats[it.cat] || 0) + 1; }
     return {
       coins: u.coins, infinite: !!u.infinite, tx: (u.tx || []).slice(0, 40), transfers: transfersOf(u), limits: { max: TX_MAX, day: TX_DAY, sentToday: u.txDay && u.txDay.d === dayKey() ? u.txDay.sent : 0 },
+      gems: u.gems || 0, gemLimits: gemLimits(u),
       pets: { active: P.active, list: P.list.map(petView), species: SPECIES, max: MAX_PETS, feedCost: FEED_COST, bonus: petBonus(u) },
       chests: { list: CHESTS.map(({ id, n, e, price, item, rar }) => ({ id, n, e, price, item, rar })), opened: (u.chests || {}).opened || 0, log: ((u.chests || {}).log || []).slice(0, 10) },
       inventory: { total: inv.length, cats, catalog: econ.items.length },
     };
   });
-  r.post('/api/wallet/transfer', { auth: true, verified: true, limit: [15, 60000, 'user'] }, async (c) => transfer(c.user, c.body));
+  r.post('/api/wallet/transfer', { auth: true, verified: true, limit: [15, 60000, 'user'] }, async (c) => (String((c.body || {}).currency || '') === 'gems' ? transferGems : transfer)(c.user, c.body));
 
   r.post('/api/pets/adopt', { auth: true, verified: true, limit: [10, 60000, 'user'] }, async (c) => {
     const u = c.user; const P = pets(u); const sp = SP_BY.get(String(c.body.species || ''));
@@ -129,3 +159,5 @@ module.exports = function register(r) {
 };
 module.exports.petBonus = petBonus;
 module.exports.transfer = transfer;
+module.exports.transferGems = transferGems;
+module.exports.gemLimits = gemLimits;

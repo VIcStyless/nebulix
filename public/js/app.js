@@ -305,12 +305,12 @@ function wireRealtime() {
   inbox.setGo(go);
   inbox.wire((kind, id) => document.hasFocus() && ((kind === 'dm' && current === 'dm' && S.activePeer === id) || (kind === 'chat' && current === 'chat' && S.activeChannel === id)));
   rtc.wire(); vroom.wire();
-  bus.on('ws:coins', (m) => { if (S.coinHold) { S.coinPending = m.coins; return; } const from = S.me.coins; patchMe({ coins: m.coins }); const el = $('#coinbar'); if (el) { el.textContent = coinTxt(m.coins); el.title = fmt.num(m.coins); if (m.coins > from) { el.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 400 }); } } });
+  bus.on('ws:coins', (m) => { if (S.coinHold) { S.coinPending = m.coins; return; } const from = S.me.coins; patchMe(m.infinite != null ? { coins: m.coins, infinite: !!m.infinite } : { coins: m.coins }); const el = $('#coinbar'); if (el) { el.textContent = coinTxt(m.coins); el.title = fmt.num(m.coins); if (m.coins > from) { el.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 400 }); } } });
   bus.on('ws:me', (m) => { setMe(m.user); });
   bus.on('ws:gems', (m) => { patchMe({ gems: m.gems }); const el = $('#gembar'); if (el) el.textContent = fmt.compact(m.gems); });
-  bus.on('ws:donation', (m) => { if (!m.from) return; sfx.coin ? sfx.coin() : null; toast(t('🎁 @{u} donated {n} coins to your booth!', { u: m.from.username, n: fmt.coins(m.amount) }) + (m.note && m.note !== '🎁' ? ' — “' + m.note + '”' : ''), 'coin', 8000); });
+  bus.on('ws:donation', (m) => { if (!m.from) return; sfx.coin ? sfx.coin() : null; toast((m.cur === 'gems' ? t('💎 @{u} donated {n} gems to you!', { u: m.from.username, n: fmt.num(m.amount) }) : t('🎁 @{u} donated {n} coins to your booth!', { u: m.from.username, n: fmt.coins(m.amount) })) + (m.note && m.note !== '🎁' ? ' — “' + m.note + '”' : ''), 'coin', 8000); });
   bus.on('ws:sold', (m) => { toast(t('You sold an item to @{u} for {n} coins (you get {g})', { u: m.buyer ? m.buyer.username : '?', n: fmt.coins(m.price), g: fmt.coins(m.got) }), 'coin', 8000); });
-  bus.on('ws:transfer', (m) => { if (!m.from) return; sfx.coin ? sfx.coin() : null; toast(t('@{u} sent you {n} coins', { u: m.from.username, n: fmt.coins(m.amount) }) + (m.note ? ' — “' + m.note + '”' : ''), 'coin', 7000); });
+  bus.on('ws:transfer', (m) => { if (!m.from) return; sfx.coin ? sfx.coin() : null; toast((m.cur === 'gems' ? t('💎 @{u} sent you {n} gems', { u: m.from.username, n: fmt.num(m.amount) }) : t('@{u} sent you {n} coins', { u: m.from.username, n: fmt.coins(m.amount) })) + (m.note ? ' — “' + m.note + '”' : ''), 'coin', 7000); });
   bus.on('ws:announce', (m) => { S.announcements.unshift(m.a); toast(h('div', h('b', m.a.title), h('div.small.muted', m.a.body)), 'info', 9000); });
   bus.on('ws:friend', () => refreshFriends());
   // server notices (tournament prizes, clan news, league results, boss rewards…), in the user's language when the server sent both
@@ -405,7 +405,7 @@ async function start() {
 }
 
 bus.on('unauthorized', () => { if (S.me) { S.me = null; ws.close(); toast(t('Your session ended. Please log in again.'), 'err'); teardown(); start(); } });
-const coinTxt = (n) => (n >= 1e9 ? '∞' : fmt.coins(n)); // a full (bottomless) wallet shows as infinity
+const coinTxt = (n) => (S.me && S.me.infinite ? '∞' : fmt.coins(n)); // only a truly unlimited wallet shows ∞ (not a big balance)
 bus.on('me', () => { const el = $('#coinbar'); if (el && S.me) { el.textContent = coinTxt(S.me.coins); el.title = fmt.num(S.me.coins); } const a = $('#acct'); if (a && S.me && a.classList.contains('side-acct')) a.replaceWith(accountCard()); });
 // 13.8 admin lockdown, live: everyone (except staff) switches to the study page, and back when it is lifted
 bus.on('ws:lockdown', (m) => { if (S.cfg) S.cfg.lockdown = !!m.on; if (m.on && S.me && !isStaff()) showDecoy({ reason: 'lockdown' }); else if (!m.on && decoyShowing()) releaseDecoy(); });

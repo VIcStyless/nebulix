@@ -77,7 +77,7 @@ export default {
       const qIn = h('input.input', { type: 'number', min: '0.0001', step: '0.0001', value: String(qty), 'aria-label': t('Shares') });
       const est = h('div.cs-sum');
       const paintEst = () => { qty = Math.max(0, Math.round(Number(qIn.value) * 10000) / 10000); const coins = s.price ? (side === 'buy' ? Math.ceil(qty * s.price) : Math.floor(qty * s.price)) : 0;
-        mount(est, h('div', h('span.muted', t('Price')), h('b', usd(s.price))), h('div', h('span.muted', side === 'buy' ? t('Cost') : t('You receive')), h('span.coin', fmt.coins(coins))), h('div', h('span.muted', t('You own')), h('b', String(hd.q || 0))), h('div', h('span.muted', t('Coins')), h('span.coin', fmt.coins(S.me.coins)))); };
+        mount(est, h('div', h('span.muted', t('Price')), h('b', usd(s.price))), h('div', h('span.muted', side === 'buy' ? t('Cost') : t('You receive')), h('span.coin', fmt.coins(coins))), h('div', h('span.muted', t('You own')), h('b', String(hd.q || 0))), h('div', h('span.muted', t('Coins')), h('span.coin', (S.me.infinite ? '∞' : fmt.coins(S.me.coins))))); };
       qIn.addEventListener('input', paintEst);
       const maxBtn = h('button.btn.sm', { type: 'button', onClick: () => { qIn.value = String(side === 'buy' ? Math.floor((S.me.coins / s.price) * 10000) / 10000 : hd.q || 0); paintEst(); } }, t('Max'));
       mount(tradeCard, h('h3', icon('chart', 18), ' ' + t('Trade {s}', { s: short(s.sym) })),

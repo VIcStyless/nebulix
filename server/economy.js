@@ -17,7 +17,7 @@ function adjust(u, delta, reason) {
   u.tx.unshift({ t: now(), d: delta, r: reason, b: u.coins });
   if (u.tx.length > 60) u.tx.length = 60;
   S.store.touch('users');
-  hub.push(u.id, { t: 'coins', coins: u.coins });
+  hub.push(u.id, { t: 'coins', coins: u.coins, infinite: !!u.infinite });
   return true;
 }
 

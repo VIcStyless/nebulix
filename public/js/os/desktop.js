@@ -77,7 +77,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   const dwLayer = h('div.os-dwl'); const hotEl = h('div.os-hot', { onPointerenter: () => { if (os().hot && !tvEl) taskView(); } }); let curWs = 0; const WS_N = 4; const wsBar = h('div.os-wsbar');
   const wallEl = h('div.os-wall'); const winLayer = h('div.os-wins'); const iconsEl = h('div.os-icons'); const widgetsEl = h('aside.os-widgets'); const snapPrev = h('div.os-snap.hide');
   const taskApps = h('div.os-taskapps');
-  const coin = h('span.coin#coinbar', { title: t('Your coins'), style: 'cursor:pointer', onClick: () => go('wallet') }, S.me.coins >= 1e9 ? '∞' : fmt.coins(S.me.coins));
+  const coin = h('span.coin#coinbar', { title: t('Your coins'), style: 'cursor:pointer', onClick: () => go('wallet') }, S.me.infinite ? '∞' : (S.me.infinite ? '∞' : fmt.coins(S.me.coins)));
   const bell = h('button.os-tbtn', { id: 'bell', 'aria-label': t('Announcements'), onClick: (e) => announcements(e.currentTarget) }, icon('bell', 16));
   const trayBox = h('div.os-traybox', miniPlayer(go, { compact: true }), coin, bell);
   const sysIcons = () => [icon('wifi', 16), icon('volume', 16), glyph(G.battery, 17)];
@@ -502,7 +502,7 @@ export function createDesktop({ loaders: baseLoaders, cache, go, onExit, logout,
   offs.push(bus.on('ws:feed', (m) => { liveData = [m.e, ...(liveData || [])].slice(0, 4); paintWidgets(); }), bus.on('ws:boss', debounce(() => loadLive(), 1500)));
   offs.push(bus.on('pulse', debounce(() => paintWidgets(), 250)), bus.on('friends', () => paintWidgets()), bus.on('presence', debounce(() => paintWidgets(), 400)), bus.on('ws:prog', () => loadProg()), bus.on('ws:open', tickClock), bus.on('ws:close', tickClock));
   const clockT = setInterval(() => { tickClock(); if (new Date().getSeconds() < 15) paintWidgets(); }, 15000);
-  offs.push(bus.on('me', () => { coin.textContent = S.me && S.me.coins >= 1e9 ? '∞' : fmt.coins((S.me && S.me.coins) || 0); }));
+  offs.push(bus.on('me', () => { coin.textContent = S.me && S.me.infinite ? '∞' : fmt.coins((S.me && S.me.coins) || 0); }));
   const onResize = debounce(() => { root.classList.toggle('small', small()); for (const w of wins.values()) { if (w.g.max) continue; const a = area(); w.g.x = clamp(w.g.x, -w.g.w + 80, Math.max(0, a.w - 80)); w.g.y = clamp(w.g.y, 0, Math.max(0, a.h - 30)); place(w); } }, 150);
   addEventListener('resize', onResize);
   // Nebulix 3.0 App Store: games/apps installed from the Hub become desktop apps (their own window, start menu, desktop)

@@ -61,7 +61,7 @@ async function lobby(root, ctx) {
   const box = h('div.fl', h('div.fl-bg'), top, h('div.fl-mid', stage, right), bottom); mount(root, box);
   try { [on, rk] = await Promise.all([api.get('/api/arena').catch(() => on), api.get('/api/ranked').catch(() => null)]); } catch {}
   mount(top, h('div.fl-brand', h('b', 'NEBULIX'), h('span', 'ARENA')), h('nav.fl-tabs', [['arena', t('Lobby'), 'play'], ['shop/locker', t('Locker'), 'user'], ['shop', t('Shop'), 'bag'], ['shop/trade', t('Marketplace'), 'tag'], ['ranked', t('Competitive'), 'trophy']].map(([r, l, ic], i) => h('button' + (i === 0 ? '.on' : ''), { onClick: () => { if (i) { const [n, ...rest] = r.split('/'); ctx.go(n, rest.join('/') || undefined); } } }, icon(ic, 15), h('span', l)))),
-    h('span.grow'), rk ? h('div.fl-season', icon('flag', 14), ' ', t('Season {n}', { n: rk.season.n })) : null, h('div.fl-coins', icon('coins', 15), ' ', fmt.coins(S.me.coins)));
+    h('span.grow'), rk ? h('div.fl-season', icon('flag', 14), ' ', t('Season {n}', { n: rk.season.n })) : null, h('div.fl-coins', icon('coins', 15), ' ', (S.me.infinite ? '∞' : fmt.coins(S.me.coins))));
   const bfPick = () => pick === 'real' || pick === 'box';
   const buildHint = () => { const K = arCfg().keys; return PIECES.map(([p, n]) => keyName(K[p]) + ' ' + L(n)).join(' · ') + ' · ' + keyName(K.edit) + ' ' + t('edit') + ' · ' + t('P settings'); };
   function paint() {

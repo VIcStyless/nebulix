@@ -125,7 +125,7 @@ const tierOf = (u) => (u && isPro(u) ? (u.role === 'owner' ? 'ultimate' : TIERS.
 const tierRank = (u) => TIERS.indexOf(tierOf(u)) + 1; // 0 free · 1 premium · 2 pro · 3 ultimate
 function selfUser(u) {
   return Object.assign(publicUser(u), {
-    email: u.email, verified: !!u.verified, noEmail: !!u.noEmail, pendingEmail: u.pendEmail ? u.pendEmail.email : null, coins: u.coins, gems: u.gems || 0, inv: u.inv, lang: u.lang || 'en',
+    email: u.email, verified: !!u.verified, noEmail: !!u.noEmail, pendingEmail: u.pendEmail ? u.pendEmail.email : null, coins: u.coins, infinite: !!u.infinite, gems: u.gems || 0, inv: u.inv, lang: u.lang || 'en',
     proUntil: u.proUntil || 0, tier: tierOf(u), settings: u.settings || {}, hasKey: !!u.pub, hasBackup: !!u.keyBackup, tfa: !!(u.tfa && u.tfa.on),
     stats: u.stats || {}, bookmarks: u.bookmarks || [], uploadBytes: u.uploadBytes || 0, lock: u.lock ? { on: true, idle: u.lock.idle || 0, start: !!u.lock.start } : null,
   });

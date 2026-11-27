@@ -32,7 +32,7 @@ export default {
     const tab0 = ['locker', 'economy', 'trade'].includes(ctx.params[0]) ? ctx.params[0] : 'shop';
     const wrap = h('div.inner.sh'); mount(root, wrap);
     let tab = tab0; let cleanup = null; let timer = 0;
-    const coinEl = h('span.coin', fmt.coins(S.me.coins)); const tabsHost = h('div'); const body = h('div');
+    const coinEl = h('span.coin', (S.me.infinite ? '∞' : fmt.coins(S.me.coins))); const tabsHost = h('div'); const body = h('div');
     mount(wrap, h('div.page-title', h('div', h('h2', t('Shop & Locker')), h('p', t('New items every day at midnight. Exclusives come in limited numbers.'))), h('div.row', coinEl)), tabsHost, body);
     function paintTabs() { mount(tabsHost, tabsEl([['shop', t('Shop'), 'bag'], ['trade', t('Marketplace'), 'tag'], ['locker', t('Locker'), 'user'], ['economy', t('Economy'), 'chart']], tab, (v) => { tab = v; open(); })); }
     async function open() { paintTabs(); if (cleanup) { try { cleanup(); } catch {} cleanup = null; } clearInterval(timer); mount(body, loading()); try { cleanup = tab === 'shop' ? await shopTab() : tab === 'trade' ? await tradeTab() : tab === 'locker' ? await lockerTab() : await econTab(); } catch (e) { mount(body, emptyState('alert', t('Could not load this'), e.message)); } }

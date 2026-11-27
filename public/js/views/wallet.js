@@ -4,11 +4,12 @@ import { t, getLang } from '../i18n.js';
 import { api } from '../api.js';
 import { S, patchMe } from '../state.js';
 import { icon } from '../icons.js';
-import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, promptBox, modal, confetti } from '../ui.js';
+import { toast, toastErr, loading, emptyState, busy, tabsEl, field, confirmBox, promptBox, modal, confetti, segEl } from '../ui.js';
 import { sfx } from '../sfx.js';
 
 const L = (pair) => (Array.isArray(pair) ? (getLang() === 'es' ? pair[1] : pair[0]) : pair);
 const coin = (n) => h('span.coin', fmt.coins(n));
+const gem = (n) => h('span.gem', fmt.num(n));
 const meter = (v, cls) => h('div.wl-meter' + (cls || '') + (v <= 20 ? '.low' : ''), h('i', { style: { width: clamp(v, 0, 100) + '%' } }));
 const REASON = (r) => {
   const m = String(r || '');
@@ -30,7 +31,7 @@ export default {
   async mount(root, ctx) {
     let w = null; let tab = ctx.query.get('tab') || ls('wallet.tab') || 'overview'; let alive = true;
     const inner = h('div.inner'); mount(root, inner); mount(inner, loading(t('Counting your coins…')));
-    const load = async () => { w = await api.get('/api/wallet'); patchMe({ coins: w.coins }); };
+    const load = async () => { w = await api.get('/api/wallet'); patchMe({ coins: w.coins, gems: w.gems, infinite: !!w.infinite }); };
     try { await load(); } catch (e) { mount(inner, emptyState('alert', t('Wallet unavailable'), e.message)); return () => {}; }
     const body = h('div');
     const balEl = h('div.wl-bal');
@@ -88,25 +89,30 @@ export default {
         h('div.col', h('div.card', h('h3', t('Transfers')), transferList()), h('div.card', h('h3', t('Pets & chests')), h('div.row', { style: 'gap:10px;flex-wrap:wrap' }, h('span.pill', '🐾 ' + t('{n} pets', { n: w.pets.list.length })), h('span.pill', '🎁 ' + t('{n} chests opened', { n: w.chests.opened })), w.pets.bonus ? h('span.pill', '💼 ' + t('Work bonus +{p}%', { p: Math.round(w.pets.bonus * 100) })) : null)))));
     }
     function transferList() {
-      return w.transfers.length ? h('div.cs-hist', w.transfers.slice(0, 12).map((x) => h('div.cs-h' + (x.dir === 'in' ? '.win' : ''), h('span.cs-h-ic', icon(x.dir === 'in' ? 'download' : 'send', 15)), h('div.grow', h('div', x.dir === 'in' ? t('From @{u}', { u: x.user ? x.user.username : '?' }) : t('To @{u}', { u: x.user ? x.user.username : '?' })), h('div.tiny.muted', fmt.rel(x.t) + (x.note ? ' · “' + x.note + '”' : ''))), h('b.cs-h-net' + (x.dir === 'in' ? '.pos' : '.neg'), (x.dir === 'in' ? '+' : '−') + fmt.coins(x.amount)))))
+      return w.transfers.length ? h('div.cs-hist', w.transfers.slice(0, 12).map((x) => h('div.cs-h' + (x.dir === 'in' ? '.win' : ''), h('span.cs-h-ic', icon(x.dir === 'in' ? 'download' : 'send', 15)), h('div.grow', h('div', x.dir === 'in' ? t('From @{u}', { u: x.user ? x.user.username : '?' }) : t('To @{u}', { u: x.user ? x.user.username : '?' })), h('div.tiny.muted', fmt.rel(x.t) + (x.note ? ' · “' + x.note + '”' : ''))), h('b.cs-h-net' + (x.dir === 'in' ? '.pos' : '.neg'), (x.dir === 'in' ? '+' : '−') + (x.cur === 'gems' ? fmt.num(x.amount) + ' 💎' : fmt.coins(x.amount))))))
         : h('p.small.muted', t('No transfers yet.'));
     }
 
+    let sendCur = ctx.query.get('cur') === 'gems' ? 'gems' : 'coins';
     function send() {
-      const to = h('input.input', { placeholder: t('username'), autocomplete: 'off', value: ctx.query.get('to') || '' }); const amt = h('input.input', { type: 'text', inputmode: 'decimal', placeholder: '100, 10k, 1m' }); const note = h('input.input', { maxlength: '80', placeholder: t('Optional note') });
+      const to = h('input.input', { placeholder: t('username'), autocomplete: 'off', value: ctx.query.get('to') || '' }); const amt = h('input.input', { type: 'text', inputmode: 'decimal', placeholder: sendCur === 'gems' ? '5, 20, 100' : '100, 10k, 1m' }); const note = h('input.input', { maxlength: '80', placeholder: t('Optional note') });
       const fr = (S.friends && S.friends.friends) || [];
+      const G = sendCur === 'gems'; const lim = G ? w.gemLimits : w.limits; const fm = G ? (n) => fmt.num(n) : (n) => fmt.coins(n);
+      const blocked = !G && w.infinite;
       mount(body, h('div.grid.cols-2', { style: 'margin-top:14px' },
-        h('div.card.col', h('h3', icon('send', 18), ' ' + t('Send coins')),
+        h('div.card.col', h('div.row', { style: 'justify-content:space-between;gap:10px;flex-wrap:wrap' }, h('h3', icon(G ? 'gem' : 'send', 18), ' ' + (G ? t('Send gems') : t('Send coins'))),
+          segEl([['coins', '🪙 ' + t('Coins')], ['gems', '💎 ' + t('Gems')]], sendCur, (v) => { sendCur = v; send(); })),
+          G ? h('div.small.muted', t('You have {n} gems.', { n: fmt.num(S.me.gems || 0) })) : null,
           field(t('To'), to), fr.length ? h('div.row', { style: 'gap:6px;flex-wrap:wrap' }, fr.slice(0, 8).map((f) => h('button.btn.sm.ghost', { type: 'button', onClick: () => { to.value = f.username; } }, '@' + f.username))) : null,
           field(t('Amount'), amt), field(t('Note'), note),
-          h('div.small.muted', t('Up to {m} per transfer · {d} per day · sent today: {s}', { m: fmt.coins(w.limits.max), d: fmt.coins(w.limits.day), s: fmt.coins(w.limits.sentToday) })),
-          w.infinite ? h('div.cs-paused', icon('info', 16), t('Transfers are disabled for accounts with an unlimited wallet.')) : null,
-          h('button.btn.primary', { disabled: w.infinite, onClick: (e) => busy(e.currentTarget, async () => {
-            const a = parseCoins(amt.value); const u = to.value.trim().replace(/^@/, '');
+          h('div.small.muted', t('Up to {m} per transfer · {d} per day · sent today: {s}', { m: fm(lim.max), d: fm(lim.day), s: fm(lim.sentToday) })),
+          blocked ? h('div.cs-paused', icon('info', 16), t('Transfers are disabled for accounts with an unlimited wallet.')) : null,
+          h('button.btn.primary', { disabled: blocked, onClick: (e) => busy(e.currentTarget, async () => {
+            const a = G ? Math.trunc(Number(String(amt.value).replace(/[^0-9]/g, ''))) : parseCoins(amt.value); const u = to.value.trim().replace(/^@/, '');
             if (!u || !(a > 0)) return toast(t('Enter a username and an amount'), 'err');
-            if (!(await confirmBox(t('Send {n} coins to @{u}? Transfers cannot be undone.', { n: fmt.coins(a), u }), { ok: t('Send') }))) return;
-            try { const r = await api.post('/api/wallet/transfer', { to: u, amount: a, note: note.value }); patchMe({ coins: r.coins }); sfx.coin ? sfx.coin() : null; toast(t('Sent {n} coins to @{u}', { n: fmt.coins(a), u: r.to.username }), 'coin'); await load(); paint(); } catch (er) { toastErr(er); }
-          }) }, icon('send', 16), t('Send coins'))),
+            if (!(await confirmBox(G ? t('Send {n} gems to @{u}? Transfers cannot be undone.', { n: fmt.num(a), u }) : t('Send {n} coins to @{u}? Transfers cannot be undone.', { n: fmt.coins(a), u }), { ok: t('Send') }))) return;
+            try { const r = await api.post('/api/wallet/transfer', { to: u, amount: a, note: note.value, currency: sendCur }); patchMe(G ? { gems: r.gems } : { coins: r.coins }); sfx.coin ? sfx.coin() : null; toast(G ? t('Sent {n} gems to @{u}', { n: fmt.num(a), u: r.to.username }) : t('Sent {n} coins to @{u}', { n: fmt.coins(a), u: r.to.username }), 'coin'); await load(); paint(); } catch (er) { toastErr(er); }
+          }) }, icon('send', 16), G ? t('Send gems') : t('Send coins'))),
         h('div.card', h('h3', t('Recent transfers')), transferList())));
     }
 

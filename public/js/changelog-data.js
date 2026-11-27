@@ -2,6 +2,17 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.5",
+    "date": "2026-11-27",
+    "title": { "en": "Donate and send gems", "es": "Dona y envía gemas" },
+    "changes": [
+      { "type": "new", "en": "Gems can now be sent and donated: Wallet → Send has a Coins/Gems switch, and every Plaza booth has a 💎 button. Up to 200 gems at a time and 500 a day.", "es": "Ahora se pueden enviar y donar gemas: en Cartera → Enviar hay un selector Monedas/Gemas y cada puesto de la Plaza tiene un botón 💎. Hasta 200 gemas cada vez y 500 al día." },
+      { "type": "improved", "en": "Plaza: the donation feed, booths and top donors show gem donations too.", "es": "Plaza: el historial de donaciones, los puestos y los mejores donantes también muestran las gemas." },
+      { "type": "fixed", "en": "The ∞ symbol now appears only on wallets that are really unlimited. A balance of a billion coins or more shows the real amount (for example 2b).", "es": "El símbolo ∞ ahora solo aparece en monederos realmente ilimitados. Un saldo de mil millones de monedas o más muestra la cantidad real (por ejemplo 2b)." },
+      { "type": "fixed", "en": "A donation no longer shows two notices to the person who receives it.", "es": "Una donación ya no muestra dos avisos a quien la recibe." }
+    ]
+  },
+  {
     "v": "16.4",
     "date": "2026-11-27",
     "title": { "en": "The new Nebulix 3.0 trailer", "es": "El nuevo tráiler de Nebulix 3.0" },

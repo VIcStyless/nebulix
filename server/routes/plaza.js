@@ -26,7 +26,7 @@ const BOOST_COINS_PER_HOUR = 2000; const BOOST_MAX_H = 48;
 function booths() { return meta('booths', {}); }
 function boothView(b) {
   const u = S.users[b.uid]; if (!u || u.deleted || banned(u)) return null;
-  return { uid: b.uid, user: mini(u), title: b.title, emoji: b.emoji, color: b.color, goal: b.goal, raised: b.raised, donors: b.donors, boosted: b.boostUntil > now() ? b.boostUntil : 0, created: b.created, online: hub.online(u.id), last: b.last || null };
+  return { uid: b.uid, user: mini(u), title: b.title, emoji: b.emoji, color: b.color, goal: b.goal, raised: b.raised, raisedGems: b.raisedGems || 0, donors: b.donors, boosted: b.boostUntil > now() ? b.boostUntil : 0, created: b.created, online: hub.online(u.id), last: b.last || null };
 }
 function sortedBooths() {
   const t = now();
@@ -34,25 +34,27 @@ function sortedBooths() {
     .sort((a, b) => (b.boosted > t) - (a.boosted > t) || (b.boosted - a.boosted) || (b.online - a.online) || ((b.last && b.last.t) || b.created) - ((a.last && a.last.t) || a.created));
 }
 function donate(u, body) {
-  const transfer = require('./wallet').transfer;
+  const W = require('./wallet'); const gems = String(body.currency || '') === 'gems';
   const toName = String(body.to || '').replace(/^@/, '');
-  const r = transfer(u, { to: toName, amount: body.amount, note: clean(body.note, 80) || '🎁' });
+  const r = (gems ? W.transferGems : W.transfer)(u, { to: toName, amount: body.amount, note: clean(body.note, 80) || '🎁', donation: true });
   const to = S.users[r.to.id];
   const b = booths()[to.id];
-  const rec = { id: rid(6), t: now(), from: u.id, to: to.id, amount: r.transfer.amount, note: r.transfer.note };
-  if (b) { b.raised += rec.amount; b.donors = (b.donors || 0) + 1; b.last = { t: rec.t, from: u.username, amount: rec.amount }; }
+  const rec = { id: rid(6), t: now(), from: u.id, to: to.id, amount: r.transfer.amount, note: r.transfer.note }; if (gems) rec.cur = 'gems';
+  if (b) { if (gems) b.raisedGems = (b.raisedGems || 0) + rec.amount; else b.raised += rec.amount; b.donors = (b.donors || 0) + 1; b.last = { t: rec.t, from: u.username, amount: rec.amount, cur: gems ? 'gems' : 'coins' }; }
   const feed = meta('donations', []); feed.unshift(rec); if (feed.length > 300) feed.length = 300;
-  u.stats = u.stats || {}; u.stats.donated = (u.stats.donated || 0) + rec.amount;
-  to.stats = to.stats || {}; to.stats.received = (to.stats.received || 0) + rec.amount;
+  const k = gems ? 'donatedGems' : 'donated'; const kr = gems ? 'receivedGems' : 'received';
+  u.stats = u.stats || {}; u.stats[k] = (u.stats[k] || 0) + rec.amount;
+  to.stats = to.stats || {}; to.stats[kr] = (to.stats[kr] || 0) + rec.amount;
   S.store.touch('meta'); S.store.touch('users');
   try { prog.award(u, 'donate'); } catch {}
-  hub.push(to.id, { t: 'donation', from: publicUser(u), amount: rec.amount, note: rec.note });
-  return { ok: true, coins: u.coins, donation: rec, booth: b ? boothView(b) : null };
+  hub.push(to.id, { t: 'donation', from: publicUser(u), amount: rec.amount, note: rec.note, cur: gems ? 'gems' : 'coins' });
+  return { ok: true, coins: u.coins, gems: u.gems || 0, donation: rec, booth: b ? boothView(b) : null };
 }
-const feedView = () => (S.meta.donations || []).slice(0, 25).map((d) => ({ id: d.id, t: d.t, amount: d.amount, note: d.note, from: mini(S.users[d.from]), to: mini(S.users[d.to]) })).filter((d) => d.from && d.to);
+const feedView = () => (S.meta.donations || []).slice(0, 25).map((d) => ({ id: d.id, t: d.t, amount: d.amount, cur: d.cur || 'coins', note: d.note, from: mini(S.users[d.from]), to: mini(S.users[d.to]) })).filter((d) => d.from && d.to);
 function topDonors() {
-  const list = Object.values(S.users).filter((u) => !u.deleted && u.verified && u.stats && u.stats.donated > 0).sort((a, b) => b.stats.donated - a.stats.donated).slice(0, 10);
-  return list.map((u) => ({ user: mini(u), donated: u.stats.donated }));
+  const score = (u) => (u.stats.donated || 0) + (u.stats.donatedGems || 0) * econ.GEM_RATE; // a gem counts as what it costs in coins
+  const list = Object.values(S.users).filter((u) => !u.deleted && u.verified && u.stats && score(u) > 0).sort((a, b) => score(b) - score(a)).slice(0, 10);
+  return list.map((u) => ({ user: mini(u), donated: u.stats.donated || 0, gems: u.stats.donatedGems || 0 }));
 }
 
 // ================= player market =================
@@ -200,7 +202,7 @@ module.exports = function register(r) {
   r.post('/api/gems/exchange', Object.assign({ limit: [20, 60000, 'user'] }, A), async (c) => econ.buyGems(c.user, c.body.n));
 
   // donations & booths
-  r.get('/api/plaza', { auth: true, limit: [60, 60000, 'user'] }, async (c) => ({ booths: sortedBooths().slice(0, 60), mine: booths()[c.user.id] ? boothView(booths()[c.user.id]) : null, feed: feedView(), top: topDonors(), boostPrice: BOOST_COINS_PER_HOUR }));
+  r.get('/api/plaza', { auth: true, limit: [60, 60000, 'user'] }, async (c) => ({ booths: sortedBooths().slice(0, 60), mine: booths()[c.user.id] ? boothView(booths()[c.user.id]) : null, feed: feedView(), top: topDonors(), boostPrice: BOOST_COINS_PER_HOUR, gemLimits: require('./wallet').gemLimits(c.user) }));
   r.post('/api/plaza/booth', Object.assign({ limit: [20, 60000, 'user'] }, A), async (c) => {
     const u = c.user; const b = c.body; const all = booths();
     const title = clean(b.title, 48); if (title.length < 3) throw new HttpError(400, 'bad_title', 'Give your booth a title (3-48 characters)');

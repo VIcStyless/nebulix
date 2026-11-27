@@ -53,7 +53,7 @@ export default {
     const emotes = h('div.c3d-emotes', ['👋', '🎉', '😂', '🔥', '💸', '😭'].map((e) => h('button', { type: 'button', onClick: () => { ws.send({ t: 'c3d_emote', e }); bubble(meId, e, true); } }, e)));
     const rtxBtn = h('button.btn.sm', { onClick: () => { rtx = !rtx; ls('c3d.rtx', rtx); applyQuality(); paintTop(); } });
     const countEl = h('span.pill');
-    const top = h('div.c3d-top', h('button.btn.sm', { onClick: () => ctx.go('casino') }, icon('back', 14), t('Classic casino')), h('b.grow', t('3D Casino')), countEl, h('span.coin', fmt.coins(S.me.coins)), rtxBtn, h('button.btn.sm', { onClick: () => ctx.go('avatar') }, icon('user', 14), t('Avatar')));
+    const top = h('div.c3d-top', h('button.btn.sm', { onClick: () => ctx.go('casino') }, icon('back', 14), t('Classic casino')), h('b.grow', t('3D Casino')), countEl, h('span.coin', (S.me.infinite ? '∞' : fmt.coins(S.me.coins))), rtxBtn, h('button.btn.sm', { onClick: () => ctx.go('avatar') }, icon('user', 14), t('Avatar')));
     const help = h('div.c3d-help.tiny', t('WASD / arrows to walk · drag to look · E to play · Enter to chat'));
     const joy = h('div.c3d-joy', h('i')); // mobile joystick
     const overlay = h('div.c3d-ov'); overlay.style.display = 'none';
