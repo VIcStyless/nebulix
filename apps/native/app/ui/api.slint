@@ -1,0 +1,171 @@
+// The bridge between the Slint UI and Rust (src/*.rs). Rust fills the models and implements the callbacks.
+
+export struct Conv { id: string, peer-id: string, name: string, initials: string, username: string, unread: int, last: string, online: bool }
+export struct Msg { id: string, mine: bool, text: string, time: string, locked: bool }
+export struct Person { id: string, name: string, initials: string, username: string, kind: string, online: bool }
+export struct DriveItem { id: string, name: string, kind: string, size: string, folder: bool, when: string }
+export struct Crumb { id: string, name: string }
+export struct Tx { text: string, amount: string, positive: bool, time: string }
+export struct NoticeItem { text: string, time: string, kind: string, link: string }
+export struct Vm {
+    id: string, name: string, os: string, arch: string, state: string, cpus: int, ram: int, disk: int,
+    iso: string, ports: string, shot: image, has-shot: bool, uefi: bool, boot-iso: bool,
+}
+export struct ImageChoice { id: string, name: string, about: string, size: string, local: bool, path: string }
+export struct Avd { id: string, name: string, api: int, version: string, profile: string, state: string, cpus: int, ram: int, storage: int }
+export struct Choice { id: string, label: string }
+
+export global Api {
+    // ---- session ----
+    in-out property <bool> signed-in;
+    in-out property <bool> busy;
+    in-out property <string> error;
+    in-out property <string> toast;
+    in-out property <string> server: "https://nebulix.fly.dev";
+    in-out property <string> version;
+    in-out property <string> platform;
+    /// true on Windows / macOS / Linux: local virtual machines and Android Emulator
+    in-out property <bool> desktop: true;
+    in-out property <int> page: 0;
+    in-out property <bool> online;
+    in-out property <string> lang: "es";
+
+    // ---- login ----
+    in-out property <bool> need-2fa;
+    in-out property <string> verify-email;
+    callback login(string, string, string);
+    callback signup(string, string, string);
+    callback verify(string);
+    callback logout();
+    callback set-server(string);
+
+    // ---- me ----
+    in-out property <string> me-id;
+    in-out property <string> me-name;
+    in-out property <string> me-username;
+    in-out property <string> me-initials;
+    in-out property <string> coins;
+    in-out property <string> gems;
+    in-out property <string> level;
+    in-out property <string> tier;
+    in-out property <string> daily-msg;
+    callback claim-daily();
+    callback refresh();
+
+    // ---- notifications ----
+    in-out property <[NoticeItem]> notices;
+    in-out property <int> unread-notices;
+    in-out property <bool> os-notify: true;
+    callback clear-notices();
+
+    // ---- messages (end-to-end encrypted) ----
+    /// "ready" | "restore" | "none" | "mismatch" | "loading"
+    in-out property <string> key-state: "loading";
+    in-out property <[Conv]> convs;
+    in-out property <int> unread-dms;
+    in-out property <string> open-conv;
+    in-out property <string> open-peer-name;
+    in-out property <string> open-peer-initials;
+    in-out property <string> safety;
+    in-out property <[Msg]> msgs;
+    in-out property <bool> peer-typing;
+    callback open-chat(string);
+    callback send-msg(string);
+    callback typing();
+    callback restore-key(string);
+    callback create-key();
+    callback start-chat(string);
+
+    // ---- friends ----
+    in-out property <[Person]> people;
+    callback friend-request(string);
+    callback friend-accept(string);
+    callback friend-decline(string);
+    callback friend-remove(string);
+
+    // ---- drive ----
+    in-out property <[DriveItem]> drive;
+    in-out property <[Crumb]> crumbs;
+    in-out property <string> drive-folder;
+    in-out property <string> usage;
+    in-out property <float> usage-ratio;
+    in-out property <string> drive-view: "files";
+    callback drive-open(string);
+    callback drive-view-set(string);
+    callback drive-upload();
+    callback drive-download(string);
+    callback drive-new-folder(string);
+    callback drive-delete(string);
+    callback drive-star(string);
+
+    // ---- wallet ----
+    in-out property <[Tx]> txs;
+    in-out property <string> send-limit;
+    callback transfer(string, string, string);
+
+    // ---- local virtual machines (desktop) ----
+    in-out property <[Vm]> vms;
+    in-out property <string> host-info;
+    in-out property <string> host-hint;
+    in-out property <bool> has-qemu;
+    in-out property <int> host-cpus: 4;
+    in-out property <int> host-ram: 8192;
+    in-out property <[ImageChoice]> images;
+    in-out property <string> dl-label;
+    in-out property <float> dl-progress: -1;
+    in-out property <[string]> snaps;
+    in-out property <string> snaps-vm;
+    in-out property <string> vm-command;
+    callback vm-refresh();
+    callback vm-create(string, string, string, int, int, int, string, bool);
+    callback vm-update(string, string, int, int, bool, bool, string);
+    callback vm-start(string);
+    callback vm-shutdown(string);
+    callback vm-force-off(string);
+    callback vm-reset(string);
+    callback vm-pause(string);
+    callback vm-resume(string);
+    callback vm-delete(string);
+    callback vm-keys(string, string);
+    callback vm-snapshots(string);
+    callback vm-snap-save(string, string);
+    callback vm-snap-load(string, string);
+    callback vm-snap-delete(string, string);
+    callback vm-pick-iso() -> string;
+    callback vm-show-command(string);
+    callback image-download(string, string);
+    callback dl-cancel();
+
+    // ---- local Android Emulator (desktop) ----
+    in-out property <bool> sdk-ready;
+    in-out property <[int]> sdk-images;
+    in-out property <string> sdk-accel;
+    in-out property <[Avd]> avds;
+    in-out property <[string]> versions;
+    in-out property <[int]> version-ids;
+    in-out property <[string]> profiles;
+    in-out property <[string]> profile-ids;
+    in-out property <[string]> droid-apps;
+    in-out property <string> droid-apps-of;
+    pure callback has-image(int) -> bool;
+    callback droid-refresh();
+    callback droid-install(int);
+    callback droid-create(string, int, string, int, int, int);
+    callback droid-start(string, bool);
+    callback droid-stop(string);
+    callback droid-delete(string);
+    callback droid-apk(string);
+    callback droid-push(string);
+    callback droid-shot(string);
+    callback droid-rotate(string);
+    callback droid-gps(string, string, string);
+    callback droid-list-apps(string);
+    callback droid-uninstall(string, string);
+    callback open-folder(string);
+    callback open-url(string);
+
+    // ---- settings ----
+    callback set-lang(string);
+    callback set-dark(bool);
+    callback set-os-notify(bool);
+}

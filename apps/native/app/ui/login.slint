@@ -1,0 +1,75 @@
+import { Button, LineEdit, CheckBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api } from "api.slint";
+import { Card, H1, Label, Muted, Notice } from "widgets.slint";
+
+export component LoginPage inherits Rectangle {
+    property <bool> creating;
+    property <bool> advanced;
+    property <string> u;
+    property <string> p;
+    property <string> email;
+    property <string> code2;
+    background: Theme.bg;
+    Card {
+        width: min(parent.width - 32px, 420px);
+        height: col.preferred-height;
+        col := VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                Text { text: "✦"; font-size: 30px; color: Theme.accent; vertical-alignment: center; }
+                VerticalLayout {
+                    H1 { text: "Nebulix"; }
+                    Muted { text: @tr("Native app · {}", Api.platform); }
+                }
+            }
+            if Api.verify-email != "": VerticalLayout {
+                spacing: 10px;
+                Label { text: @tr("We sent a code to {}. Enter it to verify your account.", Api.verify-email); }
+                code := LineEdit { placeholder-text: @tr("6-digit code"); input-type: number; accepted => { Api.verify(self.text); } }
+                Button { text: @tr("Verify"); primary: true; enabled: !Api.busy; clicked => { Api.verify(code.text); } }
+            }
+            if Api.verify-email == "": VerticalLayout {
+                spacing: 10px;
+                Label { text: creating ? @tr("Create your Nebulix account") : @tr("Sign in to your Nebulix account"); font-weight: 600; }
+                LineEdit { placeholder-text: creating ? @tr("Username") : @tr("Username or e-mail"); text <=> root.u; }
+                if creating: LineEdit { placeholder-text: @tr("E-mail (optional)"); text <=> root.email; }
+                LineEdit { placeholder-text: @tr("Password"); input-type: password; text <=> root.p; accepted => { if !creating { Api.login(root.u, root.p, root.code2); } } }
+                if Api.need-2fa && !creating: LineEdit { placeholder-text: @tr("Two-step verification code"); input-type: number; text <=> root.code2; accepted => { Api.login(root.u, root.p, root.code2); } }
+                Notice { text: Api.error; tone: Theme.bad; }
+                Button {
+                    text: Api.busy ? @tr("Please wait…") : creating ? @tr("Create account") : @tr("Sign in");
+                    primary: true;
+                    enabled: !Api.busy;
+                    clicked => {
+                        if creating { Api.signup(root.u, root.p, root.email); } else { Api.login(root.u, root.p, root.code2); }
+                    }
+                }
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: creating ? @tr("I already have an account") : @tr("Create an account");
+                        color: Theme.accent;
+                        font-size: 13px;
+                        TouchArea { clicked => { creating = !creating; Api.error = ""; } }
+                    }
+                    Text {
+                        text: @tr("Server");
+                        color: Theme.muted;
+                        font-size: 13px;
+                        TouchArea { clicked => { advanced = !advanced; } }
+                    }
+                }
+                if advanced: VerticalLayout {
+                    spacing: 6px;
+                    Muted { text: @tr("Only change this for a self-hosted or test Nebulix server."); }
+                    srv := LineEdit { text: Api.server; accepted => { Api.set-server(self.text); } }
+                    Button { text: @tr("Use this server"); clicked => { Api.set-server(srv.text); } }
+                }
+            }
+        }
+    }
+}

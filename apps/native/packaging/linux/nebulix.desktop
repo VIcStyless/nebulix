@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nebulix
+GenericName=Nebulix
+Comment=Nebulix: messages, Drive, wallet, virtual machines and Android on your computer
+Exec=nebulix
+Icon=nebulix
+Terminal=false
+Categories=Network;Utility;Emulator;
+StartupWMClass=nebulix

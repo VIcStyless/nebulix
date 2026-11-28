@@ -98,32 +98,45 @@ Laboratorio con comprobación de contraseñas filtradas (k-anonimato), análisis
 ## ✦ Descargar las apps
 
 <p align="center">
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Descargar para Windows" height="44"></a>
+  &nbsp;
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Descargar para macOS" height="44"></a>
+  &nbsp;
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Descargar para Linux" height="44"></a>
+  &nbsp;
   <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Descargar para Android" height="44"></a>
   &nbsp;
-  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Descargar para Windows" height="44"></a>
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Descargar_para-iOS-999999?style=for-the-badge&logo=apple&logoColor=white" alt="Descargar para iOS" height="44"></a>
 </p>
+
+Desde la versión 17, las apps son **nativas**: están escritas en Rust con una interfaz Slint compilada a código máquina y se conectan al servidor de Nebulix. No abren la web por dentro.
 
 En cada versión de **[Releases](../../releases/latest)** encontrarás:
 
 | Archivo | Para | Requisitos |
 |---|---|---|
-| `Nebulix-x.y.z.apk` | 📱 Android | Android 7.0 o superior |
 | `Nebulix-Setup-x.y.z.exe` | 💻 Windows (instalador) | Windows 10 / 11, 64 bits |
+| `Nebulix-x.y.z-windows-x64-portable.zip` | 💻 Windows (sin instalar) | Windows 10 / 11, 64 bits |
+| `Nebulix-x.y.z-macos-universal.dmg` | 🍎 macOS | macOS 11 o superior (Apple Silicon e Intel) |
+| `Nebulix-x.y.z-amd64.deb` / `…-linux-x86_64.tar.gz` | 🐧 Linux | Ubuntu 22.04 / Debian 12 o equivalente |
+| `Nebulix-x.y.z-android.apk` | 📱 Android | Android 8.0 o superior |
+| `Nebulix-x.y.z-ios-unsigned.ipa` | 📱 iPhone / iPad | iOS 15 o superior, instalada con AltStore o Sideloadly |
 | `SHA256SUMS.txt` | 🔒 Verificación | Comprueba que los archivos no se han modificado |
 
-Las dos apps son una ventana segura a Nebulix:
+Qué hacen:
 
-- ✅ solo HTTPS y solo certificados del sistema;
-- ✅ solo las direcciones de Nebulix se abren dentro de la app (el resto, en tu navegador normal);
-- ✅ la web no tiene acceso a tus archivos, ni a Android ni a Windows;
-- ✅ cámara y micrófono solo cuando Nebulix los pide (salas de voz y videollamadas);
-- ✅ si la dirección principal no responde, prueban solas las direcciones espejo.
+- ✅ mensajes cifrados de extremo a extremo, compatibles con la web (recupera tu clave con su frase de copia);
+- ✅ amigos, Drive, cartera, recompensa diaria y notificaciones en tiempo real;
+- ✅ la sesión y las claves se guardan en el almacén seguro del sistema;
+- ✅ **solo en PC (Windows, macOS, Linux):** máquinas virtuales locales con QEMU y aceleración por hardware (KVM, WHPX, HVF), con instantáneas y miniatura en vivo, y el **emulador oficial de Android** en tu ordenador con instalación de APK, archivos, capturas y GPS.
 
 > [!NOTE]
 > **Windows** puede mostrar «Windows protegió su PC» porque el instalador aún no lleva firma de código de pago: pulsa *Más información → Ejecutar de todas formas*.
-> En **Android** tendrás que permitir «instalar apps de origen desconocido» para tu navegador.
+> **macOS**: la primera vez, clic derecho sobre Nebulix → *Abrir* (no está notarizada).
+> En **Android** tendrás que permitir «instalar apps de origen desconocido» para tu navegador; se actualiza encima de la app anterior.
+> **iOS**: sin cuenta de Apple Developer, el `.ipa` va sin firmar; con un Apple ID gratuito hay que volver a firmarla cada 7 días.
 
-Las apps se compilan automáticamente con GitHub Actions desde el código de [`apps/`](apps) cada vez que se publica una versión.
+Las apps se compilan automáticamente con GitHub Actions desde [`apps/native`](apps/native) cada vez que se publica una versión. Detalles en [`docs/NATIVE-APPS.md`](docs/NATIVE-APPS.md).
 
 <br>
 
@@ -192,8 +205,7 @@ server/           servidor Node.js (API, WebSockets, proxy, juegos, economía, I
 public/           la web (sin compilación: módulos ES)
   js/views/       cada sección de la app
   vm/             emulador v86 y fuentes de las imágenes libres
-apps/android/     app de Android (Java, WebView reforzada)
-apps/windows/     app de Windows (Electron + instalador NSIS)
+apps/native/      apps nativas (Rust + Slint): Windows, macOS, Linux, Android e iOS
 deploy/           espejos de Fly.io
 scripts/          utilidades de administración
 ```

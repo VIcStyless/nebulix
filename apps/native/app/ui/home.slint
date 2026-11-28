@@ -1,0 +1,78 @@
+import { Button, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, Stat, Avatar, Tag } from "widgets.slint";
+
+export component HomePage inherits Rectangle {
+    in property <bool> narrow;
+    ScrollView {
+        VerticalLayout {
+            padding: narrow ? 14px : 24px;
+            spacing: 14px;
+            alignment: start;
+            HorizontalLayout {
+                spacing: 12px;
+                Avatar { name: Api.me-initials; size: 52px; online: Api.online; }
+                VerticalLayout {
+                    alignment: center;
+                    H1 { text: @tr("Hi, {}", Api.me-name); }
+                    Muted { text: "@" + Api.me-username + (Api.tier != "" ? " · " + Api.tier : "") + " · " + (Api.online ? @tr("Connected in real time") : @tr("Reconnecting…")); }
+                }
+            }
+            GridLayout {
+                spacing: 10px;
+                Row {
+                    Stat { label: @tr("Coins"); value: Api.coins; glyph: "💰"; }
+                    Stat { label: @tr("Gems"); value: Api.gems; glyph: "💎"; }
+                }
+                Row {
+                    Stat { label: @tr("Level"); value: Api.level; glyph: "⭐"; }
+                    Stat { label: @tr("Unread messages"); value: Api.unread-dms; glyph: "✉"; }
+                }
+            }
+            Card {
+                height: dc.preferred-height;
+                dc := HorizontalLayout {
+                    padding: 14px;
+                    spacing: 12px;
+                    Text { text: "🎁"; font-size: 28px; vertical-alignment: center; width: 36px; }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        H2 { text: @tr("Daily reward"); }
+                        Muted { text: Api.daily-msg != "" ? Api.daily-msg : @tr("Claim your coins every day to keep your streak."); }
+                    }
+                    VerticalLayout { alignment: center; Button { text: @tr("Claim"); primary: true; enabled: !Api.busy; clicked => { Api.claim-daily(); } } }
+                }
+            }
+            if Api.desktop: Card {
+                height: lc.preferred-height;
+                lc := VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    H2 { text: @tr("Only in the desktop app"); }
+                    Muted { text: @tr("Virtual machines and the Android Emulator run on this computer with hardware acceleration, in their own windows — much faster than in the browser."); }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        Button { text: @tr("Virtual machines"); clicked => { Api.page = 5; } }
+                        Button { text: @tr("Android"); clicked => { Api.page = 6; } }
+                    }
+                }
+            }
+            H2 { text: @tr("Notifications"); }
+            if Api.notices.length == 0: Muted { text: @tr("Nothing new. Notifications from Nebulix appear here and on your system while the app is open."); }
+            for n in Api.notices: Card {
+                height: nl.preferred-height;
+                nl := HorizontalLayout {
+                    padding: 10px;
+                    spacing: 10px;
+                    Text { text: n.kind == "dm" ? "✉" : n.kind == "friend" ? "👥" : "🔔"; font-size: 18px; vertical-alignment: center; }
+                    Label { text: n.text; horizontal-stretch: 1; vertical-alignment: center; }
+                    Muted { text: n.time; vertical-alignment: center; }
+                }
+            }
+            if Api.notices.length > 0: HorizontalLayout { alignment: start; Button { text: @tr("Clear"); clicked => { Api.clear-notices(); } } }
+        }
+    }
+}

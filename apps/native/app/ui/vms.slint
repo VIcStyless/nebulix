@@ -1,0 +1,208 @@
+import { Button, LineEdit, ScrollView, ComboBox, SpinBox, Slider, CheckBox, ProgressIndicator } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api, Vm } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, Tag } from "widgets.slint";
+
+component Download inherits Card {
+    visible: Api.dl-progress >= 0;
+    height: Api.dl-progress >= 0 ? 64px : 0px;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 10px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 6px;
+            Label { text: Api.dl-label; }
+            ProgressIndicator { progress: Api.dl-progress; height: 6px; }
+        }
+        Button { text: @tr("Cancel"); clicked => { Api.dl-cancel(); } }
+    }
+}
+
+component VmCard inherits Card {
+    in property <Vm> vm;
+    in property <bool> narrow;
+    property <bool> editing;
+    property <int> e-cpus: vm.cpus;
+    property <int> e-ram: vm.ram;
+    property <string> e-ports: vm.ports;
+    property <string> snap;
+    height: body.preferred-height;
+    body := VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 12px;
+            Rectangle {
+                width: narrow ? 96px : 160px;
+                height: self.width * 0.6;
+                border-radius: 8px;
+                background: #000;
+                clip: true;
+                if vm.has-shot: Image { source: vm.shot; width: parent.width; height: parent.height; image-fit: contain; }
+                if !vm.has-shot: Text { text: vm.os == "windows" ? "🪟" : "🐧"; font-size: 30px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                HorizontalLayout {
+                    spacing: 8px;
+                    H2 { text: vm.name; horizontal-stretch: 1; }
+                    Tag { text: vm.state == "running" ? @tr("Running") : vm.state == "paused" ? @tr("Paused") : @tr("Stopped"); tone: vm.state == "running" ? Theme.good : vm.state == "paused" ? Theme.warn : Theme.muted; }
+                }
+                Muted { text: @tr("{} CPU · {} MB RAM · {} GB disk · {}", vm.cpus, vm.ram, vm.disk, vm.arch) + (vm.uefi ? " · UEFI" : ""); }
+                if vm.iso != "": Muted { text: "💿 " + vm.iso + (vm.boot-iso ? " (" + @tr("boots from it") + ")" : ""); overflow: elide; wrap: no-wrap; }
+                if vm.ports != "": Muted { text: @tr("Ports: {}", vm.ports); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            if vm.state == "stopped": Button { text: "▶ " + @tr("Start"); primary: true; enabled: Api.has-qemu; clicked => { Api.vm-start(vm.id); } }
+            if vm.state == "running": Button { text: @tr("Shut down"); clicked => { Api.vm-shutdown(vm.id); } }
+            if vm.state == "running": Button { text: "⏸"; clicked => { Api.vm-pause(vm.id); } }
+            if vm.state == "paused": Button { text: "▶ " + @tr("Resume"); primary: true; clicked => { Api.vm-resume(vm.id); } }
+            if vm.state != "stopped": Button { text: @tr("Restart"); clicked => { Api.vm-reset(vm.id); } }
+            if vm.state != "stopped": Button { text: @tr("Force off"); clicked => { Api.vm-force-off(vm.id); } }
+            if vm.state != "stopped": Button { text: "Ctrl+Alt+Del"; clicked => { Api.vm-keys(vm.id, "ctrl-alt-delete"); } }
+            if vm.state != "stopped": Button { text: @tr("Snapshots"); clicked => { Api.vm-snapshots(vm.id); } }
+            if vm.state == "stopped": Button { text: @tr("Settings"); clicked => { editing = !editing; } }
+            if vm.state == "stopped": Button { text: "🗑"; clicked => { Api.vm-delete(vm.id); } }
+            Button { text: "⌨"; clicked => { Api.vm-show-command(vm.id); } }
+        }
+        if editing: VerticalLayout {
+            spacing: 6px;
+            HorizontalLayout { spacing: 8px; Label { text: @tr("Processors"); width: 110px; vertical-alignment: center; } SpinBox { minimum: 1; maximum: Api.host-cpus; value <=> root.e-cpus; } }
+            HorizontalLayout { spacing: 8px; Label { text: @tr("Memory (MB)"); width: 110px; vertical-alignment: center; } SpinBox { minimum: 256; maximum: Api.host-ram; step-size: 256; value <=> root.e-ram; } }
+            HorizontalLayout { spacing: 8px; Label { text: @tr("Ports"); width: 110px; vertical-alignment: center; } LineEdit { placeholder-text: "2222:22, 8080:80"; text <=> root.e-ports; } }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Button { text: @tr("Save"); primary: true; clicked => { Api.vm-update(vm.id, vm.name, root.e-cpus, root.e-ram, vm.boot-iso, false, root.e-ports); root.editing = false; } }
+                Button { text: vm.boot-iso ? @tr("Boot from disk") : @tr("Boot from the image"); enabled: vm.iso != ""; clicked => { Api.vm-update(vm.id, vm.name, vm.cpus, vm.ram, !vm.boot-iso, false, vm.ports); } }
+            }
+        }
+        if Api.snaps-vm == vm.id: VerticalLayout {
+            spacing: 6px;
+            H2 { text: @tr("Snapshots (disk and memory)"); }
+            if Api.snaps.length == 0: Muted { text: @tr("No snapshots yet."); }
+            for s in Api.snaps: HorizontalLayout {
+                spacing: 8px;
+                Label { text: "📸 " + s; horizontal-stretch: 1; vertical-alignment: center; }
+                Button { text: @tr("Restore"); clicked => { Api.vm-snap-load(vm.id, s); } }
+                Button { text: "🗑"; clicked => { Api.vm-snap-delete(vm.id, s); } }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                LineEdit { placeholder-text: @tr("Snapshot name (letters, numbers, - _)"); text <=> root.snap; }
+                Button { text: @tr("Save snapshot"); primary: true; enabled: root.snap != "" && !Api.busy; clicked => { Api.vm-snap-save(vm.id, root.snap); root.snap = ""; } }
+            }
+        }
+    }
+}
+
+export component VmsPage inherits Rectangle {
+    in property <bool> narrow;
+    property <bool> creating;
+    property <string> name: "Linux";
+    property <string> os: "linux";
+    property <int> cpus: min(2, Api.host-cpus);
+    property <int> ram: 2048;
+    property <int> disk: 20;
+    property <string> iso;
+    property <bool> uefi;
+    property <int> image-index: -1;
+    ScrollView {
+        VerticalLayout {
+            padding: narrow ? 12px : 24px;
+            spacing: 12px;
+            alignment: start;
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    H1 { text: @tr("Virtual machines"); }
+                    Muted { text: @tr("They run on this computer with QEMU, each in its own window."); }
+                }
+                Button { text: @tr("Refresh"); clicked => { Api.vm-refresh(); } }
+                Button { text: creating ? @tr("Close") : "＋ " + @tr("New machine"); primary: !creating; enabled: Api.has-qemu; clicked => { creating = !creating; } }
+            }
+            Card {
+                height: hc.preferred-height;
+                hc := VerticalLayout {
+                    padding: 12px;
+                    spacing: 6px;
+                    Label { text: Api.host-info; }
+                    Notice { text: Api.host-hint; tone: Api.has-qemu ? Theme.warn : Theme.bad; }
+                }
+            }
+            Download { }
+            Notice { text: Api.error; tone: Theme.bad; }
+            if creating: Card {
+                height: cc.preferred-height;
+                cc := VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    H2 { text: @tr("New machine"); }
+                    HorizontalLayout { spacing: 8px; Label { text: @tr("Name"); width: 120px; vertical-alignment: center; } LineEdit { text <=> root.name; } }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Label { text: @tr("System"); width: 120px; vertical-alignment: center; }
+                        ComboBox { model: [@tr("Linux"), @tr("Windows"), @tr("Other")]; current-index: 0; selected(v) => { root.os = self.current-index == 1 ? "windows" : self.current-index == 2 ? "other" : "linux"; if self.current-index == 1 { root.uefi = true; root.ram = max(root.ram, 4096); root.disk = max(root.disk, 64); } } }
+                    }
+                    Label { text: @tr("Installation image"); }
+                    for img[i] in Api.images: Rectangle {
+                        height: il.preferred-height;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: root.image-index == i ? Theme.accent : Theme.border;
+                        background: root.image-index == i ? Theme.accent.transparentize(0.85) : transparent;
+                        TouchArea { clicked => { root.image-index = i; root.iso = img.path; } }
+                        il := HorizontalLayout {
+                            padding: 8px;
+                            spacing: 8px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Text { text: img.name; color: Theme.text; font-size: 14px; font-weight: 600; }
+                                Muted { text: img.about + " · " + img.size; }
+                            }
+                            if img.local: Tag { text: @tr("Downloaded"); tone: Theme.good; y: (parent.height - self.height) / 2; }
+                            if !img.local && img.id != "": Button { text: @tr("Download"); enabled: Api.dl-progress < 0; clicked => { Api.image-download(img.id, "x86_64"); } }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button { text: @tr("Use my own ISO…"); clicked => { root.iso = Api.vm-pick-iso(); root.image-index = -1; } }
+                        Muted { text: root.iso != "" ? root.iso : @tr("No image: boot an empty disk"); vertical-alignment: center; overflow: elide; wrap: no-wrap; horizontal-stretch: 1; }
+                    }
+                    HorizontalLayout { spacing: 8px; Label { text: @tr("Processors"); width: 120px; vertical-alignment: center; } SpinBox { minimum: 1; maximum: Api.host-cpus; value <=> root.cpus; } }
+                    HorizontalLayout { spacing: 8px; Label { text: @tr("Memory (MB)"); width: 120px; vertical-alignment: center; } SpinBox { minimum: 256; maximum: Api.host-ram; step-size: 256; value <=> root.ram; } }
+                    HorizontalLayout { spacing: 8px; Label { text: @tr("Disk (GB)"); width: 120px; vertical-alignment: center; } SpinBox { minimum: 1; maximum: 2048; value <=> root.disk; } }
+                    CheckBox { text: @tr("UEFI firmware (needed by Windows 11 and some systems)"); checked <=> root.uefi; }
+                    Muted { text: @tr("The disk only uses the space that the system actually writes."); }
+                    HorizontalLayout {
+                        alignment: start;
+                        Button {
+                            text: @tr("Create machine");
+                            primary: true;
+                            enabled: !Api.busy && root.name != "";
+                            clicked => { Api.vm-create(root.name, root.os, root.iso, root.cpus, root.ram, root.disk, "", root.uefi); root.creating = false; }
+                        }
+                    }
+                }
+            }
+            if Api.vms.length == 0 && !creating: Muted { text: @tr("No machines yet. Create one and install Linux or Windows from an image."); }
+            for v in Api.vms: VmCard { vm: v; narrow: root.narrow; }
+            if Api.vm-command != "": Card {
+                height: cmd.preferred-height;
+                cmd := VerticalLayout {
+                    padding: 12px;
+                    spacing: 6px;
+                    H2 { text: @tr("QEMU command"); }
+                    Text { text: Api.vm-command; color: Theme.muted; font-size: 11px; wrap: word-wrap; font-family: "monospace"; }
+                    HorizontalLayout { alignment: start; Button { text: @tr("Close"); clicked => { Api.vm-command = ""; } } }
+                }
+            }
+        }
+    }
+}

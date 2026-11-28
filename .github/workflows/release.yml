@@ -1,65 +1,200 @@
-# Builds the Android app (.apk) and the Windows installer (.exe) and publishes them in GitHub Releases.
-# Runs when a version tag is pushed (v13.5.0) or by hand from the Actions tab.
-# The Android signing key is never in the repository: it comes from encrypted repository secrets.
+# Builds the native Nebulix apps (Rust + Slint, apps/native) for Windows, macOS, Linux, Android and iOS and publishes
+# them in GitHub Releases. Runs on version tags (v17.0.0) or by hand from the Actions tab (publishing is optional then).
+# The Android signing key never lives in the repository: it comes from encrypted repository secrets.
+# iOS: no Apple Developer account, so the .ipa is unsigned (sideload with AltStore / Sideloadly). The job also boots
+# the app in the iPhone simulator and keeps a screenshot as proof that it runs.
 name: Release apps
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      version: { description: 'Version (e.g. 13.5.0)', required: true }
+      version: { description: 'Version (e.g. 17.0.0)', required: true }
+      publish: { description: 'Publish a GitHub release', type: boolean, default: false }
 permissions:
   contents: write
 env:
   VERSION: ${{ github.event.inputs.version || github.ref_name }}
+  CARGO_TERM_COLOR: always
+defaults:
+  run:
+    shell: bash
+    working-directory: apps/native
 jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: System libraries
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1-dev libfreetype-dev libxkbcommon-dev libwayland-dev libxcursor-dev libx11-dev libxrandr-dev libxi-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - name: Unit tests
+        run: cargo test --release -p nebulix-core -p nebulix-local --lib && cargo test --release -p nebulix-app --lib
+      - name: Build
+        run: cargo build --release -p nebulix-app
+      - name: Package (.tar.gz and .deb)
+        run: |
+          V="${VERSION#v}"; mkdir -p out
+          d=out/nebulix-$V-linux-x86_64; mkdir -p $d
+          cp target/release/nebulix packaging/linux/nebulix.desktop $d/; cp app/icons/nebulix.png $d/
+          tar -C out -czf out/Nebulix-$V-linux-x86_64.tar.gz nebulix-$V-linux-x86_64
+          p=out/deb; mkdir -p $p/DEBIAN $p/usr/bin $p/usr/share/applications $p/usr/share/icons/hicolor/512x512/apps
+          install -m755 target/release/nebulix $p/usr/bin/nebulix
+          install -m644 packaging/linux/nebulix.desktop $p/usr/share/applications/nebulix.desktop
+          install -m644 app/icons/nebulix.png $p/usr/share/icons/hicolor/512x512/apps/nebulix.png
+          cat > $p/DEBIAN/control <<EOF
+          Package: nebulix
+          Version: $V
+          Architecture: amd64
+          Maintainer: VicStyles <noreply@nebulix.dev>
+          Depends: libc6 (>= 2.35), libfontconfig1, libfreetype6, libxkbcommon0
+          Recommends: qemu-system-x86, xdg-desktop-portal
+          Section: net
+          Priority: optional
+          Description: Nebulix native app
+           Messages (end-to-end encrypted), Drive, wallet and friends from Nebulix, plus local
+           virtual machines (QEMU + KVM) and the official Android Emulator on this computer.
+          EOF
+          sed -i 's/^          //' $p/DEBIAN/control
+          dpkg-deb --root-owner-group --build $p out/Nebulix-$V-amd64.deb
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: "apps/native/out/Nebulix-*" }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - name: Build
+        run: cargo build --release -p nebulix-app
+      - name: Installer (Inno Setup) and portable zip
+        run: |
+          V="${VERSION#v}"; export NBX_VERSION="$V"
+          ISCC="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          [ -f "$ISCC" ] || { choco install innosetup -y --no-progress; }
+          "$ISCC" packaging/windows/nebulix.iss
+          mkdir -p out && mv packaging/windows/out/*.exe out/
+          7z a "out/Nebulix-$V-windows-x64-portable.zip" ./target/release/nebulix.exe
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: "apps/native/out/Nebulix-*" }
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-apple-darwin,x86_64-apple-darwin" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - name: Build (Apple Silicon + Intel)
+        run: |
+          cargo build --release -p nebulix-app --target aarch64-apple-darwin
+          cargo build --release -p nebulix-app --target x86_64-apple-darwin
+      - name: App bundle and .dmg
+        run: |
+          V="${VERSION#v}"; mkdir -p out
+          A=out/Nebulix.app/Contents; mkdir -p $A/MacOS $A/Resources
+          lipo -create -output $A/MacOS/nebulix target/aarch64-apple-darwin/release/nebulix target/x86_64-apple-darwin/release/nebulix
+          sed "s/__VERSION__/$V/g" packaging/macos/Info.plist > $A/Info.plist
+          I=out/Nebulix.iconset; mkdir -p $I
+          for s in 16 32 128 256 512; do sips -z $s $s app/icons/nebulix.png --out $I/icon_${s}x${s}.png >/dev/null; d=$((s*2)); sips -z $d $d app/icons/nebulix.png --out $I/icon_${s}x${s}@2x.png >/dev/null; done
+          iconutil -c icns $I -o $A/Resources/Nebulix.icns
+          codesign --force --deep -s - out/Nebulix.app   # ad-hoc signature (needed to run on Apple Silicon)
+          ln -s /Applications out/Applications
+          hdiutil create -volname Nebulix -srcfolder out/Nebulix.app -srcfolder out/Applications -ov -format UDZO out/Nebulix-$V-macos-universal.dmg
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: "apps/native/out/Nebulix-*.dmg" }
+
   android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '17' }
-      - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: '8.10.2' }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-linux-android,x86_64-linux-android" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - name: Android SDK packages
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          cargo install cargo-apk --locked
       - name: Build signed APK
-        working-directory: apps/android
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           V="${VERSION#v}"
-          export VERSION_NAME="$V" VERSION_CODE="${{ github.run_number }}"
-          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"; export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.p12"; fi
-          gradle --no-daemon assembleRelease
-          mkdir -p out && cp app/build/outputs/apk/release/*.apk "out/Nebulix-$V.apk"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            export CARGO_APK_RELEASE_KEYSTORE="$RUNNER_TEMP/release.p12" CARGO_APK_RELEASE_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD"
+          else
+            keytool -genkeypair -keystore "$RUNNER_TEMP/test.jks" -storepass android -keypass android -alias test -keyalg RSA -dname CN=test -validity 30 >/dev/null
+            export CARGO_APK_RELEASE_KEYSTORE="$RUNNER_TEMP/test.jks" CARGO_APK_RELEASE_KEYSTORE_PASSWORD=android
+          fi
+          cargo apk build --release -p nebulix-app
+          mkdir -p out && cp target/release/apk/Nebulix.apk "out/Nebulix-$V-android.apk"
           rm -f "$RUNNER_TEMP/release.p12"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs "out/Nebulix-$V-android.apk" | head -3
       - uses: actions/upload-artifact@v4
-        with: { name: android, path: apps/android/out/*.apk }
-  windows:
-    runs-on: windows-latest
+        with: { name: android, path: "apps/native/out/Nebulix-*.apk" }
+
+  ios:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with: { node-version: '22' }
-      - name: Build installer
-        working-directory: apps/windows
-        shell: bash
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-apple-ios,aarch64-apple-ios-sim" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - name: Build (device + simulator)
         run: |
-          V="${VERSION#v}"
-          npm ci --no-audit --no-fund
-          npm version "$V" --no-git-tag-version --allow-same-version
-          npm run dist
+          cargo build --release -p nebulix-app --bin nebulix --target aarch64-apple-ios
+          cargo build --release -p nebulix-app --bin nebulix --target aarch64-apple-ios-sim
+      - name: Unsigned .ipa
+        run: |
+          V="${VERSION#v}"; mkdir -p out
+          make_app() { # $1 = target, $2 = output .app
+            mkdir -p "$2"; cp "target/$1/release/nebulix" "$2/nebulix"
+            sed "s/__VERSION__/$V/g" packaging/ios/Info.plist > "$2/Info.plist"
+            sips -z 120 120 app/icons/nebulix.png --out "$2/AppIcon60x60@2x.png" >/dev/null
+            sips -z 180 180 app/icons/nebulix.png --out "$2/AppIcon60x60@3x.png" >/dev/null
+          }
+          make_app aarch64-apple-ios out/Payload/Nebulix.app
+          (cd out && zip -qr "Nebulix-$V-ios-unsigned.ipa" Payload)
+          make_app aarch64-apple-ios-sim out/sim/Nebulix.app
+          codesign --force -s - out/sim/Nebulix.app
+      - name: Smoke test in the iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,v in d.items() if 'iOS' in r for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" out/sim/Nebulix.app
+          xcrun simctl launch "$UDID" dev.nebulix.app
+          sleep 20
+          xcrun simctl io "$UDID" screenshot out/ios-simulator.png
+          xcrun simctl spawn "$UDID" launchctl list | grep -q dev.nebulix.app && echo "Nebulix is running in the simulator"
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: apps/windows/dist/*.exe }
+        with: { name: ios, path: "apps/native/out/Nebulix-*.ipa" }
+      - uses: actions/upload-artifact@v4
+        with: { name: ios-simulator-screenshot, path: apps/native/out/ios-simulator.png }
+
   release:
-    needs: [android, windows]
+    needs: [linux, windows, macos, android, ios]
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'true'
     runs-on: ubuntu-latest
+    defaults: { run: { working-directory: . } }
     steps:
       - uses: actions/download-artifact@v4
         with: { path: dist, merge-multiple: true }
       - name: SHA-256 checksums
-        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+        run: cd dist && rm -f ios-simulator.png && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref_name }}

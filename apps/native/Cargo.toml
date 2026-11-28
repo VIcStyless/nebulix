@@ -1,0 +1,25 @@
+# Nebulix native apps (Windows, macOS, Linux, Android, iOS). See docs/NATIVE-APPS.md.
+#   core  — API client, realtime socket, end-to-end encryption compatible with the web client, secure storage
+#   local — things only a native app can do: hardware-accelerated QEMU machines and the official Android Emulator
+#   app   — the Slint user interface (desktop binary, Android cdylib, iOS static library)
+[workspace]
+resolver = "2"
+members = ["core", "local", "app"]
+
+[workspace.package]
+version = "17.0.0"
+edition = "2021"
+license = "LicenseRef-Proprietary"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+thiserror = "2"
+log = "0.4"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true
+opt-level = 3
