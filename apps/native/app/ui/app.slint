@@ -1,0 +1,168 @@
+import { Button, ComboBox, Switch, ScrollView, Palette } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, NavItem, Avatar, Icons, Ico } from "widgets.slint";
+import { LoginPage } from "login.slint";
+import { HomePage } from "home.slint";
+import { MessagesPage } from "messages.slint";
+import { FriendsPage, DrivePage, WalletPage } from "social.slint";
+import { VmsPage } from "vms.slint";
+import { AndroidPage } from "android.slint";
+
+export { Api, Theme }
+
+component SettingsPage inherits Rectangle {
+    in property <bool> narrow;
+    ScrollView {
+        VerticalLayout {
+            padding: narrow ? 12px : 24px;
+            spacing: 12px;
+            alignment: start;
+            H1 { text: @tr("Settings"); }
+            Card {
+                height: s1.preferred-height;
+                s1 := VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Label { text: @tr("Language"); horizontal-stretch: 1; vertical-alignment: center; }
+                        ComboBox { model: ["Español", "English"]; current-index: Api.lang == "en" ? 1 : 0; selected(v) => { Api.set-lang(self.current-index == 1 ? "en" : "es"); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Label { text: @tr("Dark theme"); horizontal-stretch: 1; vertical-alignment: center; }
+                        Switch { checked: Theme.dark; toggled => { Api.set-dark(self.checked); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Label { text: @tr("System notifications for new messages"); horizontal-stretch: 1; vertical-alignment: center; }
+                        Switch { checked: Api.os-notify; toggled => { Api.set-os-notify(self.checked); } }
+                    }
+                }
+            }
+            Card {
+                height: s2.preferred-height;
+                s2 := VerticalLayout {
+                    padding: 14px;
+                    spacing: 6px;
+                    H2 { text: @tr("Account"); }
+                    Muted { text: "@" + Api.me-username + " · " + Api.server; }
+                    HorizontalLayout { alignment: start; Button { text: @tr("Sign out"); clicked => { Api.logout(); } } }
+                }
+            }
+            Card {
+                height: s3.preferred-height;
+                s3 := VerticalLayout {
+                    padding: 14px;
+                    spacing: 6px;
+                    H2 { text: @tr("About"); }
+                    Muted { text: @tr("Nebulix {} · native app for {} · written in Rust with Slint", Api.version, Api.platform); }
+                    Muted { text: @tr("Sessions and encryption keys are kept in your system's secure storage."); }
+                    if Api.desktop: HorizontalLayout { alignment: start; Button { text: @tr("Open the data folder"); clicked => { Api.open-folder(""); } } }
+                }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Nebulix";
+    icon: @image-url("../icons/nebulix.png");
+    preferred-width: 1180px;
+    preferred-height: 760px;
+    min-width: 340px;
+    min-height: 480px;
+    background: Theme.bg;
+    default-font-size: 14px;
+    property <bool> narrow: self.width < 760px;
+    property <bool> dark-mode: Theme.dark;
+    init => { Palette.color-scheme = Theme.dark ? ColorScheme.dark : ColorScheme.light; }
+    changed dark-mode => { Palette.color-scheme = self.dark-mode ? ColorScheme.dark : ColorScheme.light; }
+    // pages: 0 home, 1 messages, 2 friends, 3 drive, 4 wallet, 5 VMs, 6 Android, 7 settings
+    if !Api.signed-in: LoginPage { width: parent.width; height: parent.height; }
+    if Api.signed-in: Rectangle {
+        if !narrow: HorizontalLayout {
+            Rectangle {
+                width: 220px;
+                background: Theme.panel;
+                border-width: 0px;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        padding-bottom: 12px;
+                        spacing: 8px;
+                        Image { source: Icons.logo; width: 28px; height: 28px; y: (parent.height - self.height) / 2; }
+                        Text { text: "Nebulix"; font-size: 20px; font-weight: 700; color: Theme.text; vertical-alignment: center; }
+                    }
+                    NavItem { label: @tr("Home"); icon: Icons.home; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
+                    NavItem { label: @tr("Messages"); icon: Icons.mail; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
+                    NavItem { label: @tr("Friends"); icon: Icons.users; active: Api.page == 2; clicked => { Api.page = 2; } }
+                    NavItem { label: @tr("Drive"); icon: Icons.folder; active: Api.page == 3; clicked => { Api.page = 3; } }
+                    NavItem { label: @tr("Wallet"); icon: Icons.wallet; active: Api.page == 4; clicked => { Api.page = 4; } }
+                    if Api.desktop: Muted { text: @tr("ON THIS COMPUTER"); font-size: 10px; height: 26px; vertical-alignment: bottom; }
+                    if Api.desktop: NavItem { label: @tr("Virtual machines"); icon: Icons.monitor; active: Api.page == 5; clicked => { Api.page = 5; } }
+                    if Api.desktop: NavItem { label: @tr("Android"); icon: Icons.bot; active: Api.page == 6; clicked => { Api.page = 6; } }
+                    Rectangle { vertical-stretch: 1; }
+                    NavItem { label: @tr("Settings"); icon: Icons.settings; active: Api.page == 7; clicked => { Api.page = 7; } }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        padding-top: 6px;
+                        Avatar { name: Api.me-initials; size: 30px; online: Api.online; }
+                        VerticalLayout { alignment: center; Text { text: Api.me-name; color: Theme.text; font-size: 13px; overflow: elide; } HorizontalLayout { spacing: 4px; Ico { source: Icons.coins; tint: Theme.muted; width: 11px; height: 11px; y: 2px; } Muted { text: Api.coins; font-size: 11px; } } }
+                    }
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                if Api.page == 0: HomePage { narrow: false; }
+                if Api.page == 1: MessagesPage { narrow: false; }
+                if Api.page == 2: FriendsPage { narrow: false; }
+                if Api.page == 3: DrivePage { narrow: false; }
+                if Api.page == 4: WalletPage { narrow: false; }
+                if Api.page == 5: VmsPage { narrow: false; }
+                if Api.page == 6: AndroidPage { narrow: false; }
+                if Api.page == 7: SettingsPage { narrow: false; }
+            }
+        }
+        if narrow: VerticalLayout {
+            Rectangle {
+                vertical-stretch: 1;
+                if Api.page == 0: HomePage { narrow: true; }
+                if Api.page == 1: MessagesPage { narrow: true; }
+                if Api.page == 2: FriendsPage { narrow: true; }
+                if Api.page == 3: DrivePage { narrow: true; }
+                if Api.page == 4: WalletPage { narrow: true; }
+                if Api.page == 5: VmsPage { narrow: true; }
+                if Api.page == 6: AndroidPage { narrow: true; }
+                if Api.page == 7: SettingsPage { narrow: true; }
+            }
+            Rectangle {
+                height: 62px;
+                background: Theme.panel;
+                HorizontalLayout {
+                    padding: 4px;
+                    spacing: 2px;
+                    NavItem { compact: true; label: @tr("Home"); icon: Icons.home; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
+                    NavItem { compact: true; label: @tr("Messages"); icon: Icons.mail; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
+                    NavItem { compact: true; label: @tr("Friends"); icon: Icons.users; active: Api.page == 2; clicked => { Api.page = 2; } }
+                    NavItem { compact: true; label: @tr("Drive"); icon: Icons.folder; active: Api.page == 3; clicked => { Api.page = 3; } }
+                    if Api.desktop: NavItem { compact: true; label: "VM"; icon: Icons.monitor; active: Api.page == 5; clicked => { Api.page = 5; } }
+                    NavItem { compact: true; label: @tr("More"); icon: Icons.settings; active: Api.page == 4 || Api.page >= 6; clicked => { Api.page = Api.page == 7 ? 4 : 7; } }
+                }
+            }
+        }
+    }
+    // toast
+    if Api.toast != "": Rectangle {
+        y: parent.height - 120px;
+        x: (parent.width - self.width) / 2;
+        width: min(parent.width - 32px, tt.preferred-width + 32px);
+        height: tt.preferred-height;
+        border-radius: 10px;
+        background: Theme.text;
+        tt := Text { text: Api.toast; color: Theme.bg; font-size: 13px; wrap: word-wrap; horizontal-alignment: center; vertical-alignment: center; width: parent.width - 24px; }
+        TouchArea { clicked => { Api.toast = ""; } }
+    }
+}

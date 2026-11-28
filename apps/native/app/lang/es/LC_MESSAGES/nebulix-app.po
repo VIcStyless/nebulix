@@ -1,0 +1,497 @@
+# Spanish translation of the Nebulix native app (Slint @tr strings).
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es\n"
+
+msgid "Running"
+msgstr "Encendida"
+
+msgid "Starting…"
+msgstr "Arrancando…"
+
+msgid "Stopped"
+msgstr "Apagado"
+
+msgid "Start"
+msgstr "Empezar"
+
+msgid "Stop"
+msgstr "Detener"
+
+msgid "More"
+msgstr "Más"
+
+msgid "Latitude"
+msgstr "Latitud"
+
+msgid "Longitude"
+msgstr "Longitud"
+
+msgid "Set"
+msgstr "Fijar"
+
+msgid "Installed apps"
+msgstr "Apps instaladas"
+
+msgid "Uninstall"
+msgstr "Desinstalar"
+
+msgid "Refresh"
+msgstr "Actualizar"
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "New device"
+msgstr "Nuevo dispositivo"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Android version"
+msgstr "Versión de Android"
+
+msgid "Name"
+msgstr "Nombre"
+
+msgid "Device"
+msgstr "Dispositivo"
+
+msgid "Memory (MB)"
+msgstr "Memoria (MB)"
+
+msgid "Download"
+msgstr "Descarga"
+
+msgid "Settings"
+msgstr "Ajustes"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "Account"
+msgstr "Cuenta"
+
+msgid "Sign out"
+msgstr "Cerrar sesión"
+
+msgid "About"
+msgstr "Acerca de"
+
+msgid "Home"
+msgstr "Inicio"
+
+msgid "Messages"
+msgstr "Mensajes"
+
+msgid "Friends"
+msgstr "Amigos"
+
+msgid "Drive"
+msgstr "Drive"
+
+msgid "Wallet"
+msgstr "Cartera"
+
+msgid "Virtual machines"
+msgstr "Máquinas virtuales"
+
+msgid "Reconnecting…"
+msgstr "Reconectando…"
+
+msgid "Coins"
+msgstr "Monedas"
+
+msgid "Gems"
+msgstr "Gemas"
+
+msgid "Level"
+msgstr "Nivel"
+
+msgid "Daily reward"
+msgstr "Recompensa diaria"
+
+msgid "Claim"
+msgstr "Reclamar"
+
+msgid "Notifications"
+msgstr "Notificaciones"
+
+msgid "Clear"
+msgstr "Borrar"
+
+msgid "Verify"
+msgstr "Verificar"
+
+msgid "Username"
+msgstr "Nombre de usuario"
+
+msgid "Password"
+msgstr "Contraseña"
+
+msgid "Please wait…"
+msgstr "Espera un momento…"
+
+msgid "Create account"
+msgstr "Crear cuenta"
+
+msgid "Create an account"
+msgstr "Crear una cuenta"
+
+msgid "Server"
+msgstr "Servidor"
+
+msgid "Backup passphrase"
+msgstr "Frase de tu copia de seguridad"
+
+msgid "End-to-end encrypted"
+msgstr "Cifrado de extremo a extremo"
+
+msgid "Send"
+msgstr "Enviar"
+
+msgid "Send request"
+msgstr "Enviar solicitud"
+
+msgid "Request sent"
+msgstr "Solicitud enviada"
+
+msgid "Accept"
+msgstr "Aceptar"
+
+msgid "Decline"
+msgstr "Rechazar"
+
+msgid "Message"
+msgstr "Mensaje"
+
+msgid "Upload"
+msgstr "Subir"
+
+msgid "New folder"
+msgstr "Nueva carpeta"
+
+msgid "Recent"
+msgstr "Recientes"
+
+msgid "Starred"
+msgstr "Destacados"
+
+msgid "Shared with me"
+msgstr "Compartido conmigo"
+
+msgid "Trash"
+msgstr "Papelera"
+
+msgid "Create"
+msgstr "Crear"
+
+msgid "Open"
+msgstr "Abrir"
+
+msgid "Send coins"
+msgstr "Enviar monedas"
+
+msgid "Amount"
+msgstr "Cantidad"
+
+msgid "Recent activity"
+msgstr "Actividad reciente"
+
+msgid "Paused"
+msgstr "En pausa"
+
+msgid "Shut down"
+msgstr "Apagar"
+
+msgid "Resume"
+msgstr "Reanudar"
+
+msgid "Restart"
+msgstr "Reiniciar"
+
+msgid "Force off"
+msgstr "Forzar apagado"
+
+msgid "Snapshots"
+msgstr "Instantáneas"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "No snapshots yet."
+msgstr "Aún no hay instantáneas."
+
+msgid "Restore"
+msgstr "Restaurar"
+
+msgid "Save snapshot"
+msgstr "Guardar instantánea"
+
+msgid "New machine"
+msgstr "Nueva máquina"
+
+msgid "System"
+msgstr "Sistema"
+
+msgid "Windows"
+msgstr "Ventanas"
+
+msgid "Other"
+msgstr "Otro"
+
+msgid "Downloaded"
+msgstr "Descargado"
+
+msgid "{} CPU · {} MB · {} GB"
+msgstr "{} CPU · {} MB · {} GB"
+
+msgid "Cold boot"
+msgstr "Arranque en frío"
+
+msgid "Install APK…"
+msgstr "Instalar APK…"
+
+msgid "Send file…"
+msgstr "Enviar archivo…"
+
+msgid "GPS location"
+msgstr "Ubicación GPS"
+
+msgid "No apps installed yet. Use “Install APK…”."
+msgstr "Aún no hay apps instaladas. Usa «Instalar APK…»."
+
+msgid "Android"
+msgstr "Android"
+
+msgid "The official Android Emulator on this computer, with GPU and hardware acceleration."
+msgstr "El emulador oficial de Android en este ordenador, con GPU y aceleración por hardware."
+
+msgid "Set up the Android Emulator"
+msgstr "Configurar el emulador de Android"
+
+msgid "Nebulix downloads the Android Emulator, adb and an Android system image (about 1.5 GB) from Google, the same files Android Studio uses."
+msgstr "Nebulix descarga de Google el emulador de Android, adb y una imagen de sistema de Android (unos 1,5 GB), los mismos archivos que usa Android Studio."
+
+msgid "Processors"
+msgstr "Procesadores"
+
+msgid "Storage (GB)"
+msgstr "Almacenamiento (GB)"
+
+msgid "I accept the Android SDK License Agreement"
+msgstr "Acepto el Acuerdo de licencia del SDK de Android"
+
+msgid "Read the license"
+msgstr "Leer la licencia"
+
+msgid "Create device"
+msgstr "Crear dispositivo"
+
+msgid "This version is ready. Press “New device”."
+msgstr "Esta versión está lista. Pulsa «Nuevo dispositivo»."
+
+msgid "No devices yet. Create one to start Android in its own window."
+msgstr "Aún no hay dispositivos. Crea uno para abrir Android en su propia ventana."
+
+msgid "Open the screenshots folder"
+msgstr "Abrir la carpeta de capturas"
+
+msgid "Dark theme"
+msgstr "Tema oscuro"
+
+msgid "System notifications for new messages"
+msgstr "Notificaciones del sistema para mensajes nuevos"
+
+msgid "Nebulix {} · native app for {} · written in Rust with Slint"
+msgstr "Nebulix {} · app nativa para {} · escrita en Rust con Slint"
+
+msgid "Sessions and encryption keys are kept in your system's secure storage."
+msgstr "Las sesiones y las claves de cifrado se guardan en el almacén seguro de tu sistema."
+
+msgid "Open the data folder"
+msgstr "Abrir la carpeta de datos"
+
+msgid "ON THIS COMPUTER"
+msgstr "EN ESTE ORDENADOR"
+
+msgid "Hi, {}"
+msgstr "Hola, {}"
+
+msgid "Connected in real time"
+msgstr "Conectado en tiempo real"
+
+msgid "Unread messages"
+msgstr "Mensajes sin leer"
+
+msgid "Claim your coins every day to keep your streak."
+msgstr "Reclama tus monedas cada día para mantener la racha."
+
+msgid "Only in the desktop app"
+msgstr "Solo en la app de escritorio"
+
+msgid "Virtual machines and the Android Emulator run on this computer with hardware acceleration, in their own windows — much faster than in the browser."
+msgstr "Las máquinas virtuales y el emulador de Android se ejecutan en este ordenador con aceleración por hardware, en sus propias ventanas: mucho más rápido que en el navegador."
+
+msgid "Nothing new. Notifications from Nebulix appear here and on your system while the app is open."
+msgstr "Nada nuevo. Las notificaciones de Nebulix aparecen aquí y en tu sistema mientras la app está abierta."
+
+msgid "Native app · {}"
+msgstr "App nativa · {}"
+
+msgid "We sent a code to {}. Enter it to verify your account."
+msgstr "Hemos enviado un código a {}. Escríbelo para verificar tu cuenta."
+
+msgid "6-digit code"
+msgstr "Código de 6 cifras"
+
+msgid "Create your Nebulix account"
+msgstr "Crea tu cuenta de Nebulix"
+
+msgid "Sign in to your Nebulix account"
+msgstr "Inicia sesión en tu cuenta de Nebulix"
+
+msgid "Username or e-mail"
+msgstr "Usuario o correo"
+
+msgid "E-mail (optional)"
+msgstr "Correo (opcional)"
+
+msgid "Two-step verification code"
+msgstr "Código de verificación en dos pasos"
+
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+msgid "I already have an account"
+msgstr "Ya tengo cuenta"
+
+msgid "Only change this for a self-hosted or test Nebulix server."
+msgstr "Cámbialo solo para un servidor de Nebulix propio o de pruebas."
+
+msgid "Use this server"
+msgstr "Usar este servidor"
+
+msgid "Your messages are end-to-end encrypted"
+msgstr "Tus mensajes están cifrados de extremo a extremo"
+
+msgid "Your account already has an encryption key on another device. Enter the passphrase of your key backup to read your messages here."
+msgstr "Tu cuenta ya tiene una clave de cifrado en otro dispositivo. Escribe la frase de contraseña de tu copia de la clave para leer aquí tus mensajes."
+
+msgid "Restore key"
+msgstr "Restaurar clave"
+
+msgid "Start over with a new key"
+msgstr "Empezar con una clave nueva"
+
+msgid "Starting over makes older messages unreadable on every device. Make a backup in the web app (Messages → Security) if you have none."
+msgstr "Empezar de nuevo hace que los mensajes antiguos no se puedan leer en ningún dispositivo. Haz una copia en la web (Mensajes → Seguridad) si no tienes ninguna."
+
+msgid "Create your encryption key to send and receive private messages. Only you and the other person can read them."
+msgstr "Crea tu clave de cifrado para enviar y recibir mensajes privados. Solo tú y la otra persona podéis leerlos."
+
+msgid "Create key"
+msgstr "Crear clave"
+
+msgid "Checking your encryption key…"
+msgstr "Comprobando tu clave de cifrado…"
+
+msgid "Username to message"
+msgstr "Usuario al que escribir"
+
+msgid "No conversations yet. Write a username above or message a friend."
+msgstr "Aún no hay conversaciones. Escribe un usuario arriba o escribe a un amigo."
+
+msgid "Choose a conversation"
+msgstr "Elige una conversación"
+
+msgid "typing…"
+msgstr "escribiendo…"
+
+msgid "Safety number: {}"
+msgstr "Número de seguridad: {}"
+
+msgid "This message can't be read on this device"
+msgstr "Este mensaje no se puede leer en este dispositivo"
+
+msgid "Write a message"
+msgstr "Escribe un mensaje"
+
+msgid "Add a friend by username"
+msgstr "Añade un amigo por su usuario"
+
+msgid "You have no friends here yet. Send a request with their username."
+msgstr "Aún no tienes amigos aquí. Envía una solicitud con su usuario."
+
+msgid "Wants to be your friend"
+msgstr "Quiere ser tu amigo"
+
+msgid "My files"
+msgstr "Mis archivos"
+
+msgid "Folder name"
+msgstr "Nombre de la carpeta"
+
+msgid "This folder is empty."
+msgstr "Esta carpeta está vacía."
+
+msgid "Note (optional)"
+msgstr "Nota (opcional)"
+
+msgid "{} CPU · {} MB RAM · {} GB disk · {}"
+msgstr "{} CPU · {} MB de RAM · {} GB de disco · {}"
+
+msgid "boots from it"
+msgstr "arranca desde ella"
+
+msgid "Ports: {}"
+msgstr "Puertos: {}"
+
+msgid "Ports"
+msgstr "Puertos"
+
+msgid "Boot from disk"
+msgstr "Arrancar desde el disco"
+
+msgid "Boot from the image"
+msgstr "Arrancar desde la imagen"
+
+msgid "Snapshots (disk and memory)"
+msgstr "Instantáneas (disco y memoria)"
+
+msgid "Snapshot name (letters, numbers, - _)"
+msgstr "Nombre de la instantánea (letras, números, - _)"
+
+msgid "They run on this computer with QEMU, each in its own window."
+msgstr "Se ejecutan en este ordenador con QEMU, cada una en su propia ventana."
+
+msgid "Linux"
+msgstr "Linux"
+
+msgid "Installation image"
+msgstr "Imagen de instalación"
+
+msgid "Use my own ISO…"
+msgstr "Usar mi propia ISO…"
+
+msgid "No image: boot an empty disk"
+msgstr "Sin imagen: arrancar un disco vacío"
+
+msgid "Disk (GB)"
+msgstr "Disco (GB)"
+
+msgid "UEFI firmware (needed by Windows 11 and some systems)"
+msgstr "Firmware UEFI (lo necesitan Windows 11 y algunos sistemas)"
+
+msgid "The disk only uses the space that the system actually writes."
+msgstr "El disco solo ocupa el espacio que el sistema escribe de verdad."
+
+msgid "Create machine"
+msgstr "Crear máquina"
+
+msgid "No machines yet. Create one and install Linux or Windows from an image."
+msgstr "Aún no hay máquinas. Crea una e instala Linux o Windows desde una imagen."
+
+msgid "QEMU command"
+msgstr "Comando de QEMU"

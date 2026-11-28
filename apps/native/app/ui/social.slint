@@ -1,0 +1,168 @@
+import { Button, LineEdit, ListView, ScrollView, ComboBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, Avatar, Tag, Icons, Ico } from "widgets.slint";
+
+export component FriendsPage inherits Rectangle {
+    in property <bool> narrow;
+    property <string> add;
+    VerticalLayout {
+        padding: narrow ? 12px : 24px;
+        spacing: 10px;
+        H1 { text: @tr("Friends"); }
+        HorizontalLayout {
+            spacing: 8px;
+            LineEdit { placeholder-text: @tr("Add a friend by username"); text <=> root.add; accepted => { Api.friend-request(root.add); root.add = ""; } }
+            Button { text: @tr("Send request"); primary: true; enabled: root.add != ""; clicked => { Api.friend-request(root.add); root.add = ""; } }
+        }
+        Notice { text: Api.error; tone: Theme.bad; }
+        if Api.people.length == 0: Muted { text: @tr("You have no friends here yet. Send a request with their username."); }
+        ListView {
+            for p in Api.people: Rectangle {
+                height: 58px;
+                HorizontalLayout {
+                    padding: 6px;
+                    spacing: 10px;
+                    Avatar { name: p.initials; online: p.online; y: (parent.height - self.height) / 2; }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text { text: p.name; color: Theme.text; font-size: 14px; overflow: elide; }
+                        Muted { text: "@" + p.username; }
+                    }
+                    if p.kind == "incoming": Tag { text: @tr("Wants to be your friend"); tone: Theme.accent; y: (parent.height - self.height) / 2; }
+                    if p.kind == "outgoing": Tag { text: @tr("Request sent"); y: (parent.height - self.height) / 2; }
+                    if p.kind == "incoming": Button { text: @tr("Accept"); primary: true; clicked => { Api.friend-accept(p.id); } }
+                    if p.kind == "incoming": Button { text: @tr("Decline"); clicked => { Api.friend-decline(p.id); } }
+                    if p.kind == "friend": Button { text: @tr("Message"); clicked => { Api.open-chat(p.id); Api.page = 1; } }
+                    if p.kind == "friend" || p.kind == "outgoing": Button { icon: Icons.x; colorize-icon: true; clicked => { Api.friend-remove(p.id); } }
+                }
+            }
+        }
+    }
+}
+
+export component DrivePage inherits Rectangle {
+    in property <bool> narrow;
+    property <string> folder-name;
+    property <bool> naming;
+    VerticalLayout {
+        padding: narrow ? 12px : 24px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 8px;
+            H1 { text: @tr("Drive"); horizontal-stretch: 1; }
+            if Api.desktop: Button { text: @tr("Upload"); primary: true; enabled: Api.drive-view == "files"; clicked => { Api.drive-upload(); } }
+            Button { text: @tr("New folder"); enabled: Api.drive-view == "files"; clicked => { naming = !naming; } }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            for v in [{ id: "files", label: @tr("My files") }, { id: "recent", label: @tr("Recent") }, { id: "starred", label: @tr("Starred") }, { id: "shared", label: @tr("Shared with me") }, { id: "trash", label: @tr("Trash") }]: Button {
+                text: v.label;
+                checkable: true;
+                checked: Api.drive-view == v.id;
+                clicked => { Api.drive-view-set(v.id); }
+            }
+        }
+        if naming: HorizontalLayout {
+            spacing: 8px;
+            LineEdit { placeholder-text: @tr("Folder name"); text <=> root.folder-name; accepted => { Api.drive-new-folder(root.folder-name); root.folder-name = ""; root.naming = false; } }
+            Button { text: @tr("Create"); clicked => { Api.drive-new-folder(root.folder-name); root.folder-name = ""; root.naming = false; } }
+        }
+        if Api.drive-view == "files": HorizontalLayout {
+            spacing: 4px;
+            alignment: start;
+            Text { text: @tr("My files"); color: Theme.accent; font-size: 13px; TouchArea { clicked => { Api.drive-open(""); } } }
+            for c in Api.crumbs: HorizontalLayout {
+                spacing: 4px;
+                Muted { text: "›"; }
+                Text { text: c.name; color: Theme.accent; font-size: 13px; TouchArea { clicked => { Api.drive-open(c.id); } } }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            Muted { text: Api.usage; vertical-alignment: center; }
+            Rectangle {
+                height: 6px;
+                horizontal-stretch: 1;
+                y: (parent.height - self.height) / 2;
+                border-radius: 3px;
+                background: Theme.panel2;
+                Rectangle { x: 0; width: parent.width * clamp(Api.usage-ratio, 0, 1); border-radius: 3px; background: Api.usage-ratio > 0.9 ? Theme.bad : Theme.accent; }
+            }
+        }
+        Notice { text: Api.error; tone: Theme.bad; }
+        if Api.drive.length == 0: Muted { text: @tr("This folder is empty."); }
+        ListView {
+            for it in Api.drive: Rectangle {
+                height: 50px;
+                border-radius: 8px;
+                background: ta.has-hover ? Theme.panel2 : transparent;
+                ta := TouchArea { double-clicked => { if it.folder { Api.drive-open(it.id); } else if it.kind == "file" && Api.desktop { Api.drive-download(it.id); } } }
+                HorizontalLayout {
+                    padding: 6px;
+                    spacing: 10px;
+                    Ico { source: it.folder ? Icons.folder : it.kind == "doc" ? Icons.doc : it.kind == "sheet" ? Icons.sheet : it.kind == "slides" ? Icons.slides : Icons.file; tint: it.folder ? Theme.accent : Theme.muted; width: 22px; height: 22px; y: (parent.height - self.height) / 2; }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text { text: it.name; color: Theme.text; font-size: 14px; overflow: elide; }
+                        Muted { text: it.size + (it.size != "" ? " · " : "") + it.when; }
+                    }
+                    if it.folder: Button { text: @tr("Open"); clicked => { Api.drive-open(it.id); } }
+                    if it.kind == "file" && Api.desktop: Button { text: @tr("Download"); clicked => { Api.drive-download(it.id); } }
+                    if Api.drive-view != "shared" && Api.drive-view != "trash": Button { icon: Icons.star; colorize-icon: true; clicked => { Api.drive-star(it.id); } }
+                    if Api.drive-view != "shared": Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.drive-delete(it.id); } }
+                }
+            }
+        }
+    }
+}
+
+export component WalletPage inherits Rectangle {
+    in property <bool> narrow;
+    property <string> to;
+    property <string> amount;
+    property <string> note;
+    ScrollView {
+        VerticalLayout {
+            padding: narrow ? 12px : 24px;
+            spacing: 12px;
+            alignment: start;
+            H1 { text: @tr("Wallet"); }
+            HorizontalLayout {
+                spacing: 10px;
+                Card {
+                    height: 80px;
+                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Coins"); } HorizontalLayout { spacing: 8px; alignment: start; Ico { source: Icons.coins; tint: Theme.accent; width: 22px; height: 22px; y: (parent.height - self.height) / 2; } Text { text: Api.coins; color: Theme.text; font-size: 24px; font-weight: 700; } } }
+                }
+                Card {
+                    height: 80px;
+                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Gems"); } HorizontalLayout { spacing: 8px; alignment: start; Ico { source: Icons.gem; tint: Theme.accent; width: 22px; height: 22px; y: (parent.height - self.height) / 2; } Text { text: Api.gems; color: Theme.text; font-size: 24px; font-weight: 700; } } }
+                }
+            }
+            Card {
+                height: tc.preferred-height;
+                tc := VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    H2 { text: @tr("Send coins"); }
+                    LineEdit { placeholder-text: @tr("Username"); text <=> root.to; }
+                    LineEdit { placeholder-text: @tr("Amount"); input-type: number; text <=> root.amount; }
+                    LineEdit { placeholder-text: @tr("Note (optional)"); text <=> root.note; }
+                    Muted { text: Api.send-limit; }
+                    HorizontalLayout { alignment: start; Button { text: @tr("Send"); primary: true; enabled: root.to != "" && root.amount != "" && !Api.busy; clicked => { Api.transfer(root.to, root.amount, root.note); } } }
+                    Notice { text: Api.error; tone: Theme.bad; }
+                }
+            }
+            H2 { text: @tr("Recent activity"); }
+            for t in Api.txs: HorizontalLayout {
+                spacing: 10px;
+                Label { text: t.text; horizontal-stretch: 1; }
+                Text { text: t.amount; color: t.positive ? Theme.good : Theme.bad; font-weight: 700; }
+                Muted { text: t.time; min-width: 70px; horizontal-alignment: right; }
+            }
+        }
+    }
+}

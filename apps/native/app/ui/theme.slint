@@ -1,0 +1,16 @@
+// Nebulix native theme: dark by default, light on request. Colours follow the web app's accent.
+export global Theme {
+    in-out property <bool> dark: true;
+    in-out property <color> accent: #7c5cff;
+    out property <color> bg: dark ? #0e0f17 : #f4f5fb;
+    out property <color> panel: dark ? #171927 : #ffffff;
+    out property <color> panel2: dark ? #1f2233 : #eef0f7;
+    out property <color> border: dark ? #2b2f45 : #d9dce8;
+    out property <color> text: dark ? #eef0ff : #141625;
+    out property <color> muted: dark ? #9aa0bf : #5d6380;
+    out property <color> good: #22c55e;
+    out property <color> warn: #f59e0b;
+    out property <color> bad: #ef4444;
+    out property <length> radius: 12px;
+    out property <length> gap: 10px;
+}

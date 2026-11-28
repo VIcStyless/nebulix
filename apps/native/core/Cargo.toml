@@ -1,0 +1,28 @@
+[package]
+name = "nebulix-core"
+description = "Nebulix API client, realtime socket and end-to-end encryption (compatible with the web client)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+thiserror.workspace = true
+log.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "json", "gzip"] }
+tungstenite = { version = "0.27", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+url = "2"
+# end-to-end encryption: same algorithms as public/js/crypto.js (ECDH P-256 -> HKDF-SHA256 -> AES-GCM-256)
+p256 = { version = "0.13", features = ["ecdh"] }
+hkdf = "0.12"
+sha2 = "0.10"
+aes-gcm = "0.10"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+num-bigint = "0.4"
+dirs = "6"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
