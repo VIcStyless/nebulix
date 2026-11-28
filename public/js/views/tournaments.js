@@ -37,7 +37,7 @@ export default {
     }
     function paint() {
       mount(inner,
-        h('div.page-title', h('div', h('h2', icon('trophy', 22), ' ', t('Tournaments')), h('p', t('A new Arcade tournament every hour, a daily cup and a weekly championship. Join, play the game and your best score counts. Prizes are paid automatically.')))),
+        h('div.page-title', h('div', h('h2', icon('trophy', 22), ' ', t('Tournaments')), h('p', t('A new Arcade tournament every hour, a daily cup and a weekly championship. Join, play the game and your best score counts. Prizes are paid automatically.'))), h('button.btn', { onClick: () => ctx.go('cups') }, icon('users', 16), t('Community Cups'))),
         d.wins ? h('div.cs-note', '🏅 ', t('You have won prizes in {n} tournaments.', { n: d.wins })) : null,
         h('div.tn-live', d.live.map(card)),
         h('div.grid2', { style: 'margin-top:16px' },

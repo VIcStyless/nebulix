@@ -179,3 +179,31 @@ html[data-cursor] :is(input:not([type=range]):not([type=checkbox]):not([type=rad
 .lib-ptbar { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; color: var(--muted); }
 .lib-ptbar i { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 2px 2px; background: var(--accent); }
 .adm-stack { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; opacity: .75; }
+/* 16.10 Community Cups */
+.cup-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.cup-card { display: flex; flex-direction: column; gap: 8px; text-align: left; font: inherit; color: var(--text); cursor: pointer; min-width: 0; }
+.cup-card h3 { margin: 0; overflow-wrap: anywhere; } .cup-card.live { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); } .cup-card.cancelled { opacity: .6; }
+.cup-foot { display: flex; gap: 8px; align-items: center; min-width: 0; } .cup-champ { margin: 0; color: var(--accent); font-weight: 600; }
+.cup-page > * + * { margin-top: 12px; } .cup-page h2 { overflow-wrap: anywhere; }
+.cup-winner { display: flex; gap: 14px; align-items: center; color: #f5b301; } .cup-winner b { font-size: 1.25rem; color: var(--text); } .cup-winner > div { flex: 1; min-width: 0; }
+.cup-mine { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.cup-bracket { display: flex; gap: 22px; overflow-x: auto; padding-bottom: 8px; }
+.cup-round { display: flex; flex-direction: column; min-width: 210px; flex: none; }
+.cup-rname { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+.cup-col { display: flex; flex-direction: column; justify-content: space-around; flex: 1; gap: 12px; }
+.cup-match { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow: hidden; position: relative; }
+.cup-match.ready { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); } .cup-match.disputed { border-color: #e0a100; }
+.cup-side { display: flex; gap: 6px; align-items: center; padding: 6px 8px; min-width: 0; } .cup-side + .cup-side { border-top: 1px solid var(--border); }
+.cup-side span.grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cup-side.empty { color: var(--muted); font-style: italic; }
+.cup-side.win { font-weight: 700; background: color-mix(in srgb, var(--accent) 12%, transparent); } .cup-score { min-width: 1.2em; text-align: right; }
+.cup-flag { font-size: .72rem; padding: 2px 8px; color: #e0a100; display: flex; gap: 4px; align-items: center; } .cup-flag.soft { color: var(--muted); }
+.cup-mact { display: flex; gap: 4px; padding: 4px 6px 6px; flex-wrap: wrap; }
+.cup-players { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+.cup-player { display: flex; gap: 8px; align-items: center; min-width: 0; } .cup-player .grow { min-width: 0; overflow: hidden; }
+.cup-info:empty { display: none; } .pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 16.10 Math solver */
+.ms-bar { display: flex; gap: 8px; } .ms-bar .ms-in { flex: 1; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 1.05rem; }
+.ms-ex, .ms-hist { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; align-items: center; } .ms-ex .chip, .ms-hist .chip { font-family: var(--mono, ui-monospace, monospace); font-size: .78rem; }
+.ms-out { margin-top: 12px; } .ms-out .gt-out { overflow-wrap: anywhere; } .ms-err { color: #e05252; padding: 8px 0; }
+.ms-steps { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 6px; } .ms-steps li { overflow-wrap: anywhere; }
+.ms-plotwrap { margin-top: 10px; } .ms-plot { width: 100%; max-width: 640px; height: auto; aspect-ratio: 640 / 300; display: block; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; }

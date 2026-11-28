@@ -5,6 +5,8 @@
 //  weather: current weather and 7-day forecast from Open-Meteo through the server (CC BY 4.0).
 //  fx:      currency converter with European Central Bank reference rates (Frankfurter), updated on working days.
 //  physics: formula solver — pick a formula, fill in all but one value.
+//  math:    maths solver (public/js/mathsolve.js): arithmetic, equations in x (exact up to degree 2, numeric otherwise),
+//           derivatives, definite integrals and a plot. No eval().
 //  scan:    barcode / QR reader with the browser's BarcodeDetector (camera or image file) where the browser has it.
 import { h, mount, ls, copyText } from '../util.js';
 import { t, getLang, locale } from '../i18n.js';
@@ -12,8 +14,9 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { toast, toastErr, loading, emptyState, field, tabsEl, modal, segEl } from '../ui.js';
 import * as TM from '../timers.js';
+import * as MS from '../mathsolve.js';
 
-const TOOLS = [['table', 'Periodic table', 'flask'], ['clock', 'World clock', 'clock'], ['timer', 'Timers', 'bell'], ['weather', 'Weather', 'sun'], ['fx', 'Currency', 'coins'], ['physics', 'Physics', 'zap'], ['scan', 'Barcode reader', 'camera']];
+const TOOLS = [['table', 'Periodic table', 'flask'], ['clock', 'World clock', 'clock'], ['timer', 'Timers', 'bell'], ['weather', 'Weather', 'sun'], ['fx', 'Currency', 'coins'], ['physics', 'Physics', 'zap'], ['math', 'Math solver', 'grid'], ['scan', 'Barcode reader', 'camera']];
 const curLang = () => getLang() || 'es';
 
 export default {
@@ -27,7 +30,7 @@ export default {
       mount(body, loading());
       try { cleanup = (await FN[tool](body)) || null; } catch (e) { mount(body, emptyState('alert', t('Something went wrong'), e.message)); }
     };
-    mount(root, h('div.inner.gt', h('div.page-title', h('div', h('h2', icon('book', 22), ' ', t('Reference')), h('p', t('Periodic table, world clock, timers, weather, currency rates, physics formulas and a barcode reader.')))),
+    mount(root, h('div.inner.gt', h('div.page-title', h('div', h('h2', icon('book', 22), ' ', t('Reference')), h('p', t('Periodic table, world clock, timers, weather, currency rates, physics formulas, a maths solver and a barcode reader.')))),
       tabsEl(TOOLS.map(([k, l, ic]) => [k, t(l), ic]), tool, (v) => { tool = v; show(); }), body));
     show();
     return () => { if (cleanup) try { cleanup(); } catch {} };
@@ -223,6 +226,78 @@ function physics(box) {
   mount(box, h('section.card.gt-card', h('h3', t('Physics formulas')), field(t('Formula'), sel), form)); paint();
 }
 
+// ---------------- Math solver ----------------
+const MATH_EX = ['2x + 3 = 11', 'x^2 - 5x + 6 = 0', 'x^2 + 2x + 5 = 0', 'x^3 - 6x^2 + 11x - 6 = 0', 'sin(x) = 0.5', 'e^x = 5', 'x^3 - 2x', 'sqrt(2) * pi', '(3/4 + 1/6) * 12'];
+function math(box) {
+  const inp = h('input.input.ms-in', { type: 'text', spellcheck: false, autocomplete: 'off', placeholder: t('e.g. x^2 - 5x + 6 = 0'), 'aria-label': t('Expression or equation'), value: ls('ref.math') || 'x^2 - 5x + 6 = 0' });
+  const out = h('div.ms-out'); let hist = (ls('ref.mathHist') || []).slice(0, 8); const histBox = h('div.ms-hist');
+  const paintHist = () => mount(histBox, hist.length ? [h('span.tiny.muted', t('Recent')), ...hist.map((q) => h('button.chip', { onClick: () => { inp.value = q; run(true); } }, q))] : null);
+  const num = (v) => MS.fmtNum(v);
+  const stepLabel = (l) => { let m; if ((m = /^Quadratic:(.*)$/.exec(l))) return t('Quadratic') + ':' + m[1]; if ((m = /^Polynomial of degree (\d+)$/.exec(l))) return t('Polynomial of degree {n}', { n: m[1] }); return t(l); };
+  const stepVal = (v) => (v === 'solved numerically' ? t(v) : v);
+  const stepsEl = (steps) => steps.length ? h('ol.ms-steps', steps.map((s) => h('li', Array.isArray(s) ? [h('span.muted', stepLabel(s[0])), ' ', h('code.gt-code', stepVal(s[1]))] : h('code.gt-code', s)))) : null;
+  function plotEl(expr, marks) {
+    const cv = h('canvas.ms-plot', { width: 640, height: 300, 'aria-label': t('Graph') }); let x0 = -10, x1 = 10;
+    if (marks && marks.length) { const lo = Math.min(...marks), hi = Math.max(...marks); if (lo >= -1000 && hi <= 1000) { const pad = Math.max(2, (hi - lo) * 0.4); x0 = Math.min(-2, lo - pad); x1 = Math.max(2, hi + pad); } }
+    const draw = () => {
+      const g = cv.getContext('2d'); const W = cv.width, H = cv.height; const cs = getComputedStyle(document.documentElement);
+      const col = (n, d) => (cs.getPropertyValue(n).trim() || d);
+      g.clearRect(0, 0, W, H); const N = 600; const xs = [], ys = [];
+      for (let i = 0; i <= N; i++) { const x = x0 + ((x1 - x0) * i) / N; let y; try { y = MS.evaluate(expr, x); } catch { y = NaN; } xs.push(x); ys.push(y); }
+      const fin = ys.filter(Number.isFinite).sort((a, b) => a - b);
+      let y0 = fin.length ? fin[Math.floor(fin.length * 0.03)] : -1, y1 = fin.length ? fin[Math.ceil(fin.length * 0.97) - 1] : 1;
+      if (y1 - y0 < 1e-9) { y0 -= 1; y1 += 1; } const yp = (y1 - y0) * 0.12; y0 -= yp; y1 += yp; if (y0 > 0) y0 = Math.min(y0, -yp); if (y1 < 0) y1 = Math.max(y1, yp);
+      const X = (x) => ((x - x0) / (x1 - x0)) * W; const Y = (y) => H - ((y - y0) / (y1 - y0)) * H;
+      g.strokeStyle = col('--border', '#8884'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.moveTo(X(0), 0); g.lineTo(X(0), H); g.stroke();
+      g.fillStyle = col('--muted', '#888'); g.font = '11px system-ui'; g.fillText(num(x0).split(' ≈')[0], 4, Math.min(H - 4, Math.max(12, Y(0) - 4))); const r = num(x1).split(' ≈')[0]; g.fillText(r, W - 4 - g.measureText(r).width, Math.min(H - 4, Math.max(12, Y(0) - 4)));
+      g.fillText(num(y1).split(' ≈')[0].slice(0, 9), Math.min(W - 60, Math.max(4, X(0) + 4)), 12); g.fillText(num(y0).split(' ≈')[0].slice(0, 9), Math.min(W - 60, Math.max(4, X(0) + 4)), H - 4);
+      g.strokeStyle = col('--accent', '#6366f1'); g.lineWidth = 2; g.beginPath(); let pen = false;
+      for (let i = 0; i <= N; i++) { const y = ys[i]; if (!Number.isFinite(y) || (i && Number.isFinite(ys[i - 1]) && Math.abs(y - ys[i - 1]) > (y1 - y0) * 2)) { pen = false; if (!Number.isFinite(y)) continue; } const py = Y(y); if (!pen) { g.moveTo(X(xs[i]), py); pen = true; } else g.lineTo(X(xs[i]), py); }
+      g.stroke();
+      g.fillStyle = col('--text', '#111'); for (const m of marks || []) if (m >= x0 && m <= x1) { g.beginPath(); g.arc(X(m), Y(0), 4, 0, 7); g.fill(); }
+    };
+    requestAnimationFrame(draw); return h('div.ms-plotwrap', cv, h('div.tiny.muted', t('Graph from x = {a} to {b}', { a: num(x0).split(' ≈')[0], b: num(x1).split(' ≈')[0] })));
+  }
+  function fnPanel(expr) {
+    const d = MS.derive(expr); const a = h('input.input', { type: 'text', value: '0', style: 'max-width:110px', 'aria-label': 'a' }); const b = h('input.input', { type: 'text', value: '1', style: 'max-width:110px', 'aria-label': 'b' });
+    const at = h('input.input', { type: 'text', value: '1', style: 'max-width:110px', 'aria-label': 'x' }); const ires = h('b.gt-out'); const vres = h('b.gt-out');
+    const val = (el) => { const r = MS.solve(el.value); if (r.kind !== 'value') throw new MS.MathError('Use a number'); return r.value; };
+    const calcI = () => { try { const A = val(a), B = val(b); if (Math.abs(B - A) > 1e6) throw new MS.MathError('Range too large'); ires.textContent = num(MS.integrate(expr, A, B)).split(' ≈').pop().trim(); } catch (e) { ires.textContent = t(e.key || e.message, e.params || undefined); } };
+    const calcV = () => { try { const x = val(at); vres.textContent = 'f = ' + num(MS.evaluate(expr, x)) + ' · f′ = ' + num(MS.evaluate(d, x)); } catch (e) { vres.textContent = t(e.key || e.message, e.params || undefined); } };
+    for (const el of [a, b]) el.addEventListener('input', calcI); at.addEventListener('input', calcV); calcI(); calcV();
+    const zeros = MS.numericRoots((x) => MS.evaluate(expr, x));
+    return [h('div.gt-results', h('div', h('span', 'f(x)'), h('b.gt-out', MS.toStr(expr))), h('div', h('span', t('Derivative')), h('b.gt-out.ms-deriv', 'f′(x) = ' + MS.toStr(d)))),
+      h('div.gt-row', field('x', at), h('div', vres)),
+      h('div.gt-row', field(t('From'), a), field(t('To'), b), h('div', h('span.tiny.muted', '∫ f(x) dx ≈ '), ires)),
+      zeros.roots.length ? h('p.small', t('Zeros'), ': ', zeros.roots.slice(0, 12).map((r) => num(r).split(' ≈').pop().trim()).join(' · '), zeros.capped || zeros.roots.length > 12 ? ' …' : '') : null,
+      plotEl(expr, zeros.roots.slice(0, 12))];
+  }
+  function run(save) {
+    const q = inp.value.trim(); ls('ref.math', q); if (!q) return mount(out, null);
+    let r; try { r = MS.solve(q); } catch (e) { return mount(out, h('div.ms-err', icon('alert', 14), ' ', t(e.key || e.message, e.params || undefined))); }
+    if (save) { hist = [q, ...hist.filter((x) => x !== q)].slice(0, 8); ls('ref.mathHist', hist); paintHist(); }
+    const { lhs, rhs } = MS.parse(q); const f = rhs ? { op: '-', a: lhs, b: rhs } : lhs;
+    if (r.kind === 'value') return mount(out, h('div.gt-results', h('div', h('span', t('Result')), h('b.gt-out.ms-res', r.result))));
+    if (r.kind === 'check') return mount(out, h('div.gt-results', h('div', h('span', t('Check')), h('b.gt-out.ms-res', r.result === 'true' ? '✓ ' + t('True') : '✗ ' + t('False')))), stepsEl(r.steps));
+    if (r.kind === 'function') return mount(out, fnPanel(r.expr));
+    if (r.kind === 'none') return mount(out, stepsEl(r.steps), h('div.gt-results', h('div', h('span', t('Result')), h('b.gt-out.ms-res', r.result === 'all' ? t('Every x is a solution') : t('No solution')))));
+    if (r.kind === 'complex') return mount(out, stepsEl(r.steps), h('div.gt-results', h('div', h('span', t('No real solutions. Complex solutions:')), h('b.gt-out.ms-res', r.complex.join('   ')))), plotEl(f, []));
+    const shown = r.roots.slice(0, 20);
+    mount(out, stepsEl(r.steps),
+      h('div.gt-results', h('div', h('span', r.roots.length === 1 ? t('Solution') : t('Solutions')), h('b.gt-out.ms-res', shown.length ? shown.map((x) => 'x = ' + num(x)).join('   ') : t('No real solution found')))),
+      r.note === 'double' ? h('p.small.muted', t('Double root')) : null,
+      !r.exact ? h('p.tiny.muted', r.capped || r.roots.length > shown.length ? t('Found numerically; there are more solutions. The ones closest to 0 are shown.') : t('Found numerically between −1000 and 1000 (to about 9 digits). Solutions outside that range, or where the graph only touches zero, can be missed.')) : null,
+      plotEl(f, shown));
+  }
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') run(true); });
+  inp.addEventListener('input', () => { clearTimeout(inp._t); inp._t = setTimeout(() => run(false), 350); });
+  mount(box, h('section.card.gt-card', h('h3', t('Math solver')),
+    h('div.ms-bar', inp, h('button.btn.primary', { onClick: () => run(true) }, t('Solve'))),
+    h('div.ms-ex', MATH_EX.map((q) => h('button.chip', { onClick: () => { inp.value = q; run(true); } }, q))), histBox, out,
+    h('p.tiny.muted', t('Use x as the variable. Supported: + − × ÷ ^, brackets, implicit multiplication (2x, 3(x+1)), sin cos tan asin acos atan sqrt cbrt abs ln log exp, pi and e. Angles are in radians.'))));
+  paintHist(); run(false);
+}
+
 // ---------------- Barcode reader ----------------
 async function scan(box) {
   const has = 'BarcodeDetector' in window; let stream = null, raf = 0; const found = h('div.ref-found'); const seen = new Set();
@@ -245,4 +320,4 @@ async function scan(box) {
   return stop;
 }
 
-const FN = { table, clock, timer, weather, fx, physics, scan };
+const FN = { table, clock, timer, weather, fx, physics, math, scan };
