@@ -106,8 +106,9 @@ jobs:
           for s in 16 32 128 256 512; do sips -z $s $s app/icons/nebulix.png --out $I/icon_${s}x${s}.png >/dev/null; d=$((s*2)); sips -z $d $d app/icons/nebulix.png --out $I/icon_${s}x${s}@2x.png >/dev/null; done
           iconutil -c icns $I -o $A/Resources/Nebulix.icns
           codesign --force --deep -s - out/Nebulix.app   # ad-hoc signature (needed to run on Apple Silicon)
-          ln -s /Applications out/Applications
-          hdiutil create -volname Nebulix -srcfolder out/Nebulix.app -srcfolder out/Applications -ov -format UDZO out/Nebulix-$V-macos-universal.dmg
+          # the disk image holds the app and a link to /Applications (a staging folder keeps the link as a link)
+          mkdir -p out/dmg && mv out/Nebulix.app out/dmg/ && ln -s /Applications out/dmg/Applications
+          hdiutil create -volname Nebulix -srcfolder out/dmg -ov -format UDZO out/Nebulix-$V-macos-universal.dmg
       - uses: actions/upload-artifact@v4
         with: { name: macos, path: "apps/native/out/Nebulix-*.dmg" }
 
