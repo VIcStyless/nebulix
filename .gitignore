@@ -1,10 +1,7 @@
 # dependencies and builds
 node_modules/
-apps/windows/dist/
-apps/android/build/
-apps/android/app/build/
-apps/android/.gradle/
-apps/android/local.properties
+apps/native/target/
+apps/native/out/
 *.apk
 *.aab
 # secrets and private data — never commit these

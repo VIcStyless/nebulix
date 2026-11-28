@@ -552,9 +552,47 @@ Gaps from the brief that this phase fills:
   - Full sweep with 0 issues.
   - The phase 21 and 22 suites still pass.
 
+## 3zc. Community Cups and a maths solver (v16.10.0, phase 24)
+
+A third pass over the brief left two gaps with no working home: player-run **tournament brackets / custom
+competitions** (the Arcade tournaments are score-based and run by Nebulix) and a **mathematics solver** (education).
+
+- **Community Cups** (`#/cups`, `#/cups/<id>`, `views/cups.js`, `server/routes/cups.js`, table `cups`):
+  - Any verified player can organise up to 5 open or live cups: game (Fortnite, Valorant, Rocket League, CS2,
+    Minecraft, LoL, Apex, OW2, R6, Nebulix, chess or a named "Other"), 4–64 places, best of 1/3/5/7, region, planned
+    start (within 90 days), description, rules, link-only visibility, and optionally playing in it.
+  - Sign-ups while open; the organiser can edit the format (not below the current sign-ups) and remove players, who
+    cannot rejoin. Starting seeds the bracket randomly or by sign-up order, using standard seed order, and pads it to
+    a power of two with byes that advance automatically.
+  - Both players report the series score. Matching reports confirm it; different ones mark the match as disputed
+    and notify the organiser, who can set or correct any result until the next match has been played (correcting
+    the final reopens the cup). Notifications (localized) for sign-ups, match ready, reports, disputes, the champion
+    and cancellation.
+  - Blocks are respected both ways, muted users cannot create cups (MUTED_PATHS), staff can cancel or delete.
+    Finished and cancelled cups are kept 60 days. Results are self-reported and cups have no coin prizes, so they
+    cannot move coins around. Tournaments links to Community Cups.
+- **Math solver** (Reference → Math solver, `public/js/mathsolve.js`, no `eval`/`Function`):
+  - Parser with precedence, right-associative `^`, implicit multiplication, Unicode operators and superscripts,
+    sin…atan, sqrt, cbrt, abs, ln, log, exp, pi and e.
+  - Equations in x: exact for degree 1 and 2 with steps (discriminant, double and complex roots); anything else is
+    solved numerically on [−1000, 1000] (sign changes + bisection, poles skipped), nearest-to-0 first, capped at 40,
+    and the page says when results are numeric or capped.
+  - Functions: symbolic derivative with light simplification, value of f and f′ at a point, Simpson integral, zeros
+    and a canvas graph that follows the theme. Errors are translated, recent inputs are kept on the device.
+- **Fixed during testing:** the uncommitted Tournaments edit that added the Community Cups button had an extra `)`,
+  which stopped the Tournaments page from loading; the route sweep caught it.
+- **Tests:**
+  - 51 engine checks (`math.mjs`): precedence, polynomials up to cubic, trig/exp roots, poles, identities, 15
+    derivatives checked against finite differences, integrals and parse errors.
+  - 50 API checks (`p24.mjs`): validation and clamping, joining and leaving, kicks, format edits, seeding and byes,
+    reports, disputes, organiser corrections and locks, cancel and delete, blocks, 401 without login.
+  - 25 browser checks in Spanish (`cdp-p24.mjs`), with no console errors: solver results, steps, errors, graph pixels
+    and integral; cup list, joining by dialog, bracket, reporting, confirmation and the winner; 3 pages at 390 px.
+  - Full route sweep (95 routes) with 0 issues.
+
 ## 4. Next phases (in order)
 
-Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–23).
+Everything in the module table that can be built without the owner's purchases or keys is done (phases 1–24).
 What remains needs the owner:
 
 1. **A KVM compute node** for Nebulix Android (and faster Cloud PC): a bare-metal server (e.g. OVH So you Start

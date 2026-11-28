@@ -7,6 +7,8 @@ import { modal } from './ui.js';
 import { startTour } from './tour.js';
 
 const ITEMS = [
+  ['trophy', 'Community Cups', 'Organise a bracket tournament for any game; players report the scores.', 'cups'],
+  ['grid', 'Math solver', 'Equations with steps, derivatives, integrals and graphs in Reference.', 'ref/math'],
   ['clock', 'Playtime', 'Your time in Nebulix games is measured automatically; see it in Game library and share it on your profile.', 'library'],
   ['box3d', '3D viewer', 'Open GLB, glTF, STL and OBJ models from your device or your Drive.', 'model3d'],
   ['monitor', 'Screensaver and custom pointer', 'Five screensavers and three pointer styles in Settings → Appearance.', 'settings/appearance'],

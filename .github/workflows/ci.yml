@@ -12,6 +12,18 @@ jobs:
       - name: Parse all JavaScript
         run: |
           set -e
-          for f in $(git ls-files 'server/*.js' 'server/**/*.js' 'scripts/*.js' 'apps/windows/main.js'); do node --check "$f"; done
+          for f in $(git ls-files 'server/*.js' 'server/**/*.js' 'scripts/*.js'); do node --check "$f"; done
           for f in $(git ls-files 'public/js/*.js' 'public/js/**/*.js' | grep -v '/vendor/'); do node --input-type=module --check < "$f" 2>/dev/null || node --check "$f"; done
           echo "All files parse"
+  native:
+    # the native apps (apps/native): unit tests, including WebCrypto-compatible encryption and the qcow2 writer
+    runs-on: ubuntu-22.04
+    defaults: { run: { working-directory: apps/native } }
+    steps:
+      - uses: actions/checkout@v5
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libfontconfig1-dev libfreetype-dev libxkbcommon-dev libwayland-dev libxcursor-dev libx11-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/native }
+      - run: cargo test --release -p nebulix-core -p nebulix-local --lib && cargo test --release -p nebulix-app --lib

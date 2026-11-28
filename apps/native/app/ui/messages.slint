@@ -1,0 +1,141 @@
+import { Button, LineEdit, ListView, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api, Conv } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, Avatar, Badge, Tag, Icons, Ico } from "widgets.slint";
+
+component KeySetup inherits Card {
+    property <string> pass;
+    height: kc.preferred-height;
+    kc := VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+        H2 { text: @tr("Your messages are end-to-end encrypted"); }
+        if Api.key-state == "restore" || Api.key-state == "mismatch": VerticalLayout {
+            spacing: 8px;
+            Label { text: @tr("Your account already has an encryption key on another device. Enter the passphrase of your key backup to read your messages here."); }
+            LineEdit { placeholder-text: @tr("Backup passphrase"); input-type: password; text <=> root.pass; accepted => { Api.restore-key(root.pass); } }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Button { text: @tr("Restore key"); primary: true; enabled: !Api.busy; clicked => { Api.restore-key(root.pass); } }
+                Button { text: @tr("Start over with a new key"); clicked => { Api.create-key(); } }
+            }
+            Muted { text: @tr("Starting over makes older messages unreadable on every device. Make a backup in the web app (Messages → Security) if you have none."); }
+        }
+        if Api.key-state == "none": VerticalLayout {
+            spacing: 8px;
+            Label { text: @tr("Create your encryption key to send and receive private messages. Only you and the other person can read them."); }
+            HorizontalLayout { alignment: start; Button { text: @tr("Create key"); primary: true; enabled: !Api.busy; clicked => { Api.create-key(); } } }
+        }
+        if Api.key-state == "loading": Muted { text: @tr("Checking your encryption key…"); }
+        Notice { text: Api.error; tone: Theme.bad; }
+    }
+}
+
+component ConvRow inherits Rectangle {
+    in property <Conv> c;
+    in property <bool> active;
+    callback clicked;
+    height: 60px;
+    border-radius: 10px;
+    background: active ? Theme.accent.transparentize(0.8) : ta.has-hover ? Theme.panel2 : transparent;
+    ta := TouchArea { clicked => { root.clicked(); } }
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 10px;
+        Avatar { name: c.initials; online: c.online; y: (parent.height - self.height) / 2; }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text { text: c.name; color: Theme.text; font-size: 14px; font-weight: c.unread > 0 ? 700 : 500; overflow: elide; }
+            Muted { text: c.last; overflow: elide; wrap: no-wrap; }
+        }
+        if c.unread > 0: Badge { text: c.unread; y: (parent.height - self.height) / 2; }
+    }
+}
+
+export component MessagesPage inherits Rectangle {
+    in property <bool> narrow;
+    property <string> draft;
+    property <string> who;
+    property <bool> show-list: !narrow || Api.open-conv == "";
+    property <bool> show-chat: !narrow || Api.open-conv != "";
+    if Api.key-state != "ready": VerticalLayout {
+        padding: 20px;
+        alignment: start;
+        H1 { text: @tr("Messages"); }
+        KeySetup { }
+    }
+    if Api.key-state == "ready": HorizontalLayout {
+        padding: narrow ? 8px : 16px;
+        spacing: 12px;
+        if show-list: VerticalLayout {
+            width: narrow ? parent.width - 16px : 300px;
+            spacing: 8px;
+            H1 { text: @tr("Messages"); }
+            HorizontalLayout {
+                spacing: 6px;
+                LineEdit { placeholder-text: @tr("Username to message"); text <=> root.who; accepted => { Api.start-chat(root.who); root.who = ""; } }
+                Button { icon: Icons.plus; colorize-icon: true; clicked => { Api.start-chat(root.who); root.who = ""; } }
+            }
+            if Api.convs.length == 0: Muted { text: @tr("No conversations yet. Write a username above or message a friend."); }
+            ListView {
+                for c in Api.convs: ConvRow { c: c; active: c.id == Api.open-conv; clicked => { Api.open-chat(c.peer-id); } }
+            }
+        }
+        if show-chat: Card {
+            horizontal-stretch: 1;
+            if Api.open-conv == "": VerticalLayout {
+                alignment: center;
+                Muted { text: @tr("Choose a conversation"); horizontal-alignment: center; }
+            }
+            if Api.open-conv != "": VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+                HorizontalLayout {
+                    spacing: 10px;
+                    if narrow: Button { text: "←"; clicked => { Api.open-conv = ""; } }
+                    Avatar { name: Api.open-peer-initials; }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        H2 { text: Api.open-peer-name; }
+                        HorizontalLayout { spacing: 4px; alignment: start; if !Api.peer-typing: Ico { source: Icons.lock; tint: Theme.muted; width: 11px; height: 11px; y: 3px; } Muted { text: Api.peer-typing ? @tr("typing…") : @tr("End-to-end encrypted"); } }
+                    }
+                }
+                if Api.safety != "": Muted { text: @tr("Safety number: {}", Api.safety); font-size: 10px; }
+                lv := ListView {
+                    vertical-stretch: 1;
+                    for m in Api.msgs: HorizontalLayout {
+                        padding-top: 3px;
+                        padding-bottom: 3px;
+                        alignment: m.mine ? end : start;
+                        Rectangle {
+                            width: min(bt.preferred-width + 24px, lv.visible-width * 0.78);
+                            height: bv.preferred-height;
+                            border-radius: 14px;
+                            background: m.locked ? Theme.panel2 : m.mine ? Theme.accent : Theme.panel2;
+                            bv := VerticalLayout {
+                                padding: 7px;
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                bt := Text { text: m.locked ? @tr("This message can't be read on this device") : m.text; color: m.mine && !m.locked ? white : Theme.text; font-size: 14px; wrap: word-wrap; font-italic: m.locked; }
+                                Text { text: m.time; color: m.mine && !m.locked ? #ffffffaa : Theme.muted; font-size: 10px; horizontal-alignment: right; }
+                            }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    LineEdit {
+                        placeholder-text: @tr("Write a message");
+                        text <=> root.draft;
+                        edited => { Api.typing(); }
+                        accepted => { if root.draft != "" { Api.send-msg(root.draft); root.draft = ""; } }
+                    }
+                    Button { text: @tr("Send"); primary: true; enabled: root.draft != ""; clicked => { Api.send-msg(root.draft); root.draft = ""; } }
+                }
+            }
+        }
+    }
+}

@@ -2,6 +2,26 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.10",
+    "date": "2026-11-28",
+    "title": {
+      "en": "Community Cups and a maths solver",
+      "es": "Copas de la comunidad y solucionador de matemáticas"
+    },
+    "changes": [
+      {
+        "type": "new",
+        "en": "Community Cups: organise a bracket tournament for any game (Fortnite, Valorant, Rocket League, CS2, Minecraft and more) with 4–64 places and best-of-1 to best-of-7 matches. Players sign up, the bracket is seeded with byes, both players report the score and the organiser settles disagreements. Scores are self-reported and cups have no coin prizes.",
+        "es": "Copas de la comunidad: organiza un torneo con cuadro para cualquier juego (Fortnite, Valorant, Rocket League, CS2, Minecraft y más) con 4–64 plazas y partidas al mejor de 1 a 7. Los jugadores se apuntan, el cuadro se crea con cabezas de serie y pases directos, los dos jugadores dan el resultado y el organizador resuelve los desacuerdos. Los resultados los dan los jugadores y las copas no tienen premios en monedas."
+      },
+      {
+        "type": "new",
+        "en": "Reference → Math solver: arithmetic, equations in x with steps (exact for linear and quadratic, including complex roots; numeric for the rest), derivatives, definite integrals and a graph.",
+        "es": "Referencia → Solucionador de matemáticas: aritmética, ecuaciones en x con pasos (exactas para primer y segundo grado, incluidas raíces complejas; numéricas para el resto), derivadas, integrales definidas y gráfica."
+      }
+    ]
+  },
+  {
     "v": "16.9",
     "date": "2026-11-27",
     "title": {

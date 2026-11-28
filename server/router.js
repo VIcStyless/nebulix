@@ -1,5 +1,5 @@
 'use strict';
-const MUTED_PATHS = /^\/api\/(channels\/[^/]+\/messages(\/[^/]+)?|comments\/[^/]+|echo(\/[^/]+\/repost)?|forum(\/p\/[^/]+\/comment)?|lens(\/[^/]+\/comments|\/stories)?|hub(\/upload|\/[^/]+(\/version|\/cover)?)?|worlds\/ugc|squads|events|themes|recruit|crosshairs|code\/r\/.+\/comments)$/;
+const MUTED_PATHS = /^\/api\/(channels\/[^/]+\/messages(\/[^/]+)?|comments\/[^/]+|echo(\/[^/]+\/repost)?|forum(\/p\/[^/]+\/comment)?|lens(\/[^/]+\/comments|\/stories)?|hub(\/upload|\/[^/]+(\/version|\/cover)?)?|worlds\/ugc|squads|events|themes|recruit|crosshairs|cups|code\/r\/.+\/comments)$/;
 const cfg = require('./config');
 const metrics = require('./metrics');
 const { HttpError, sendJson, readBody, Limiter, clientIp } = require('./util');

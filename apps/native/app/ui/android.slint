@@ -1,0 +1,142 @@
+import { Button, LineEdit, ScrollView, ComboBox, SpinBox, CheckBox, ProgressIndicator } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Api, Avd } from "api.slint";
+import { Card, H1, H2, Label, Muted, Notice, Tag, Icons, Ico } from "widgets.slint";
+
+component AvdCard inherits Card {
+    in property <Avd> d;
+    property <string> lat: "40.4168";
+    property <string> lon: "-3.7038";
+    property <bool> tools;
+    height: b.preferred-height;
+    b := VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
+            Ico { source: d.profile == "tablet" ? Icons.tablet : Icons.phone; tint: Theme.accent; width: 30px; height: 30px; y: (parent.height - self.height) / 2; }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                H2 { text: d.name; }
+                Muted { text: d.version + " · " + d.profile + " · " + @tr("{} CPU · {} MB · {} GB", d.cpus, d.ram, d.storage); }
+            }
+            Tag {
+                text: d.state == "booted" ? @tr("Running") : d.state == "booting" ? @tr("Starting…") : @tr("Stopped");
+                tone: d.state == "booted" ? Theme.good : d.state == "booting" ? Theme.warn : Theme.muted;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            if d.state == "stopped": Button { icon: Icons.play; colorize-icon: true; text: @tr("Start"); primary: true; clicked => { Api.droid-start(d.id, false); } }
+            if d.state == "stopped": Button { text: @tr("Cold boot"); clicked => { Api.droid-start(d.id, true); } }
+            if d.state != "stopped": Button { text: @tr("Stop"); clicked => { Api.droid-stop(d.id); } }
+            if d.state == "booted": Button { text: @tr("Install APK…"); primary: true; clicked => { Api.droid-apk(d.id); } }
+            if d.state == "booted": Button { text: @tr("Send file…"); clicked => { Api.droid-push(d.id); } }
+            if d.state == "booted": Button { icon: Icons.camera; colorize-icon: true; clicked => { Api.droid-shot(d.id); } }
+            if d.state == "booted": Button { icon: Icons.rotate; colorize-icon: true; clicked => { Api.droid-rotate(d.id); } }
+            if d.state == "booted": Button { text: @tr("More"); clicked => { tools = !tools; if tools { Api.droid-list-apps(d.id); } } }
+            if d.state == "stopped": Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.droid-delete(d.id); } }
+        }
+        if tools && d.state == "booted": VerticalLayout {
+            spacing: 6px;
+            H2 { text: @tr("GPS location"); }
+            HorizontalLayout {
+                spacing: 6px;
+                LineEdit { placeholder-text: @tr("Latitude"); text <=> root.lat; }
+                LineEdit { placeholder-text: @tr("Longitude"); text <=> root.lon; }
+                Button { text: @tr("Set"); clicked => { Api.droid-gps(d.id, root.lat, root.lon); } }
+            }
+            H2 { text: @tr("Installed apps"); }
+            if Api.droid-apps-of == d.id && Api.droid-apps.length == 0: Muted { text: @tr("No apps installed yet. Use “Install APK…”."); }
+            if Api.droid-apps-of == d.id: VerticalLayout {
+                for a in Api.droid-apps: HorizontalLayout {
+                    spacing: 6px;
+                    Label { text: a; horizontal-stretch: 1; vertical-alignment: center; }
+                    Button { text: @tr("Uninstall"); clicked => { Api.droid-uninstall(d.id, a); } }
+                }
+            }
+        }
+    }
+}
+
+export component AndroidPage inherits Rectangle {
+    in property <bool> narrow;
+    property <bool> creating;
+    property <bool> agree;
+    property <int> ver-index: 2;
+    property <string> name: "Pixel";
+    property <int> prof-index: 0;
+    property <int> cpus: 2;
+    property <int> ram: 2048;
+    property <int> storage: 8;
+    ScrollView {
+        VerticalLayout {
+            padding: narrow ? 12px : 24px;
+            spacing: 12px;
+            alignment: start;
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    H1 { text: @tr("Android"); }
+                    Muted { text: @tr("The official Android Emulator on this computer, with GPU and hardware acceleration."); }
+                }
+                Button { icon: Icons.refresh; colorize-icon: true; text: @tr("Refresh"); clicked => { Api.droid-refresh(); } }
+                if Api.sdk-ready: Button { icon: creating ? Icons.x : Icons.plus; colorize-icon: true; text: creating ? @tr("Close") : @tr("New device"); primary: !creating; clicked => { creating = !creating; } }
+            }
+            if Api.sdk-accel != "": Notice { text: Api.sdk-accel; tone: Theme.warn; }
+            if Api.dl-progress >= 0: Card {
+                height: 64px;
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    VerticalLayout { horizontal-stretch: 1; spacing: 6px; Label { text: Api.dl-label; } ProgressIndicator { progress: Api.dl-progress; height: 6px; } }
+                    Button { text: @tr("Cancel"); clicked => { Api.dl-cancel(); } }
+                }
+            }
+            Notice { text: Api.error; tone: Theme.bad; }
+            if !Api.sdk-ready || creating: Card {
+                height: sc.preferred-height;
+                sc := VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    H2 { text: Api.sdk-ready ? @tr("New device") : @tr("Set up the Android Emulator"); }
+                    if !Api.sdk-ready: Label { text: @tr("Nebulix downloads the Android Emulator, adb and an Android system image (about 1.5 GB) from Google, the same files Android Studio uses."); }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Label { text: @tr("Android version"); width: 130px; vertical-alignment: center; }
+                        ComboBox { model: Api.versions; current-index <=> root.ver-index; }
+                    }
+                    if creating: HorizontalLayout { spacing: 8px; Label { text: @tr("Name"); width: 130px; vertical-alignment: center; } LineEdit { text <=> root.name; } }
+                    if creating: HorizontalLayout { spacing: 8px; Label { text: @tr("Device"); width: 130px; vertical-alignment: center; } ComboBox { model: Api.profiles; current-index <=> root.prof-index; } }
+                    if creating: HorizontalLayout { spacing: 8px; Label { text: @tr("Processors"); width: 130px; vertical-alignment: center; } SpinBox { minimum: 1; maximum: min(8, Api.host-cpus); value <=> root.cpus; } }
+                    if creating: HorizontalLayout { spacing: 8px; Label { text: @tr("Memory (MB)"); width: 130px; vertical-alignment: center; } SpinBox { minimum: 1024; maximum: min(16384, Api.host-ram); step-size: 512; value <=> root.ram; } }
+                    if creating: HorizontalLayout { spacing: 8px; Label { text: @tr("Storage (GB)"); width: 130px; vertical-alignment: center; } SpinBox { minimum: 2; maximum: 128; value <=> root.storage; } }
+                    property <int> api: root.ver-index >= 0 && root.ver-index < Api.version-ids.length ? Api.version-ids[root.ver-index] : 34;
+                    property <bool> have-image: Api.sdk-images.length > 0 && Api.has-image(api); // re-evaluated when sdk-images changes
+                    if !have-image: VerticalLayout {
+                        spacing: 6px;
+                        CheckBox { text: @tr("I accept the Android SDK License Agreement"); checked <=> root.agree; }
+                        Text { text: @tr("Read the license"); color: Theme.accent; font-size: 13px; TouchArea { clicked => { Api.open-url("https://developer.android.com/studio/terms"); } } }
+                        HorizontalLayout { alignment: start; Button { text: @tr("Download"); primary: true; enabled: root.agree && Api.dl-progress < 0; clicked => { Api.droid-install(api); } } }
+                    }
+                    if have-image && creating: HorizontalLayout {
+                        alignment: start;
+                        Button {
+                            text: @tr("Create device");
+                            primary: true;
+                            enabled: root.name != "" && !Api.busy;
+                            clicked => { Api.droid-create(root.name, api, Api.profile-ids[root.prof-index], root.cpus, root.ram, root.storage); root.creating = false; }
+                        }
+                    }
+                    if have-image && !creating: Muted { text: @tr("This version is ready. Press “New device”."); }
+                }
+            }
+            if Api.sdk-ready && Api.avds.length == 0 && !creating: Muted { text: @tr("No devices yet. Create one to start Android in its own window."); }
+            for d in Api.avds: AvdCard { d: d; }
+            if Api.sdk-ready: HorizontalLayout { alignment: start; Button { text: @tr("Open the screenshots folder"); clicked => { Api.open-folder("android-shots"); } } }
+        }
+    }
+}
