@@ -273,7 +273,8 @@ function banner(info) {
   console.log(`  Data:   ${cfg.dataDir}`);
   console.log(`  Mail:   ${mail}${mail === 'console' ? '  (codes are shown on screen / in this window; set SMTP_* or RESEND_API_KEY for real emails)' : ''}`);
   console.log(`  AI:     ${ai}${ai === 'local' ? '  (offline assistant; add a Claude key in Admin → AI, or install Ollama for free local AI)' : ''}`);
-  console.log(`  PRO:    ${pay.stripe ? 'Stripe enabled' : 'redeem codes only (set STRIPE_* to accept cards)'}`);
+  // the banner prints before the Stripe setup (prices, webhook) has run, so a configured key reads as "setting up"
+  console.log(`  PRO:    ${pay.cardsOff ? 'redeem codes only (card payments switched off by the owner)' : pay.stripe ? 'Stripe enabled' : cfg.stripe.secret ? 'Stripe (setting up prices and webhook…)' : 'redeem codes only (set STRIPE_* to accept cards)'}`);
   if (!cfg.isPublic) console.log('  Mode:   private (only this computer). Run "npm run public" for a shareable link.');
   console.log(`${line}\n  Press Ctrl+C to stop.\n`);
 }

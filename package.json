@@ -1,6 +1,6 @@
 {
   "name": "nebulix",
-  "version": "13.5.0",
+  "version": "16.10.1",
   "description": "Nebulix - the gaming proxy and community. Created by VicStyles.",
   "author": "VicStyles",
   "private": true,
@@ -9,7 +9,6 @@
   "scripts": {
     "start": "node server/index.js",
     "public": "node scripts/public.js",
-    "test": "node test/run.js",
     "make-admin": "node scripts/make-admin.js"
   }
 }

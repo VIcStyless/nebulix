@@ -2,6 +2,26 @@
 // Each change: { type: 'new' | 'improved' | 'fixed', en: '…', es: '…' }. The view shows es for Spanish, en otherwise.
 export const CHANGELOG = [
   {
+    "v": "16.10.1",
+    "date": "2026-11-28",
+    "title": {
+      "en": "Fixes",
+      "es": "Correcciones"
+    },
+    "changes": [
+      {
+        "type": "fixed",
+        "en": "With card payments switched off, the server no longer repeats the whole Stripe setup every 10 minutes.",
+        "es": "Con los pagos con tarjeta desactivados, el servidor ya no repite toda la configuración de Stripe cada 10 minutos."
+      },
+      {
+        "type": "fixed",
+        "en": "The start-up summary no longer says \"redeem codes only\" when Stripe is configured.",
+        "es": "El resumen de arranque ya no dice «solo códigos» cuando Stripe está configurado."
+      }
+    ]
+  },
+  {
     "v": "16.10",
     "date": "2026-11-28",
     "title": {

@@ -79,7 +79,7 @@ async function autoSetup() {
       st.tiers[tier] = { monthly: mo.id, yearly: yr.id, amounts: { monthly: mo.unit_amount, yearly: yr.unit_amount } };
     }
     // Stripe only delivers webhooks to public https addresses
-    if (!cfg.stripe.webhook && /^https:\/\//.test(cfg.appOrigin) && !/\/\/(localhost|127\.|\[::1\])/.test(cfg.appOrigin)) {
+    if (!cfg.stripe.webhook && publicOrigin()) {
       const url = cfg.appOrigin + '/api/stripe/webhook';
       const list = await stripe('GET', '/v1/webhook_endpoints?limit=100');
       const ours = (list.data || []).filter((w) => w.url === url && w.metadata && w.metadata.app === 'nebulix');
@@ -95,11 +95,14 @@ async function autoSetup() {
   } catch (e) { st.error = e.message; st.failed = now(); console.error('[stripe] automatic setup failed:', e.message); }
   finally { setupRunning = false; S.store.touch('stripe'); }
 }
+function publicOrigin() { return /^https:\/\//.test(cfg.appOrigin) && !/\/\/(localhost|127\.|\[::1\])/.test(cfg.appOrigin); }
 function startAutoSetup() {
   if (!cfg.stripe.secret) return;
   setTimeout(autoSetup, 1500).unref();
   // retry while something is missing (e.g. Stripe was unreachable at boot)
-  setInterval(() => { const a = auto(); if (a.error || !enabled().stripe || !enabled().webhook) autoSetup(); }, 10 * 60000).unref();
+  // retry only while the setup itself is incomplete: card payments switched off (cardsOff) must not re-run it every
+  // 10 minutes, and a private install never gets a webhook
+  setInterval(() => { const a = auto(); const p = priceIds(); if (a.error || !(p.monthly || p.yearly) || (publicOrigin() && !whSecret())) autoSetup(); }, 10 * 60000).unref();
 }
 
 function flatten(obj, prefix, out) {
