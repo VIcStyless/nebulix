@@ -1,7 +1,7 @@
 import { Button, LineEdit, ListView, ScrollView, ComboBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, Avatar, Tag } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, Avatar, Tag, Icons, Ico } from "widgets.slint";
 
 export component FriendsPage inherits Rectangle {
     in property <bool> narrow;
@@ -35,7 +35,7 @@ export component FriendsPage inherits Rectangle {
                     if p.kind == "incoming": Button { text: @tr("Accept"); primary: true; clicked => { Api.friend-accept(p.id); } }
                     if p.kind == "incoming": Button { text: @tr("Decline"); clicked => { Api.friend-decline(p.id); } }
                     if p.kind == "friend": Button { text: @tr("Message"); clicked => { Api.open-chat(p.id); Api.page = 1; } }
-                    if p.kind == "friend" || p.kind == "outgoing": Button { text: "✕"; clicked => { Api.friend-remove(p.id); } }
+                    if p.kind == "friend" || p.kind == "outgoing": Button { icon: Icons.x; colorize-icon: true; clicked => { Api.friend-remove(p.id); } }
                 }
             }
         }
@@ -103,7 +103,7 @@ export component DrivePage inherits Rectangle {
                 HorizontalLayout {
                     padding: 6px;
                     spacing: 10px;
-                    Text { text: it.folder ? "📁" : it.kind == "doc" ? "📝" : it.kind == "sheet" ? "📊" : it.kind == "slides" ? "📽" : "📄"; font-size: 20px; vertical-alignment: center; }
+                    Ico { source: it.folder ? Icons.folder : it.kind == "doc" ? Icons.doc : it.kind == "sheet" ? Icons.sheet : it.kind == "slides" ? Icons.slides : Icons.file; tint: it.folder ? Theme.accent : Theme.muted; width: 22px; height: 22px; y: (parent.height - self.height) / 2; }
                     VerticalLayout {
                         alignment: center;
                         horizontal-stretch: 1;
@@ -112,8 +112,8 @@ export component DrivePage inherits Rectangle {
                     }
                     if it.folder: Button { text: @tr("Open"); clicked => { Api.drive-open(it.id); } }
                     if it.kind == "file" && Api.desktop: Button { text: @tr("Download"); clicked => { Api.drive-download(it.id); } }
-                    if Api.drive-view != "shared" && Api.drive-view != "trash": Button { text: "☆"; clicked => { Api.drive-star(it.id); } }
-                    if Api.drive-view != "shared": Button { text: "🗑"; clicked => { Api.drive-delete(it.id); } }
+                    if Api.drive-view != "shared" && Api.drive-view != "trash": Button { icon: Icons.star; colorize-icon: true; clicked => { Api.drive-star(it.id); } }
+                    if Api.drive-view != "shared": Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.drive-delete(it.id); } }
                 }
             }
         }
@@ -135,11 +135,11 @@ export component WalletPage inherits Rectangle {
                 spacing: 10px;
                 Card {
                     height: 80px;
-                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Coins"); } Text { text: "💰 " + Api.coins; color: Theme.text; font-size: 24px; font-weight: 700; } }
+                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Coins"); } HorizontalLayout { spacing: 8px; alignment: start; Ico { source: Icons.coins; tint: Theme.accent; width: 22px; height: 22px; y: (parent.height - self.height) / 2; } Text { text: Api.coins; color: Theme.text; font-size: 24px; font-weight: 700; } } }
                 }
                 Card {
                     height: 80px;
-                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Gems"); } Text { text: "💎 " + Api.gems; color: Theme.text; font-size: 24px; font-weight: 700; } }
+                    VerticalLayout { padding: 14px; alignment: center; Muted { text: @tr("Gems"); } HorizontalLayout { spacing: 8px; alignment: start; Ico { source: Icons.gem; tint: Theme.accent; width: 22px; height: 22px; y: (parent.height - self.height) / 2; } Text { text: Api.gems; color: Theme.text; font-size: 24px; font-weight: 700; } } }
                 }
             }
             Card {

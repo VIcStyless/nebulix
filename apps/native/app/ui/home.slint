@@ -1,7 +1,7 @@
 import { Button, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, Stat, Avatar, Tag } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, Stat, Avatar, Tag, Icons, Ico } from "widgets.slint";
 
 export component HomePage inherits Rectangle {
     in property <bool> narrow;
@@ -22,12 +22,12 @@ export component HomePage inherits Rectangle {
             GridLayout {
                 spacing: 10px;
                 Row {
-                    Stat { label: @tr("Coins"); value: Api.coins; glyph: "💰"; }
-                    Stat { label: @tr("Gems"); value: Api.gems; glyph: "💎"; }
+                    Stat { label: @tr("Coins"); value: Api.coins; icon: Icons.coins; }
+                    Stat { label: @tr("Gems"); value: Api.gems; icon: Icons.gem; }
                 }
                 Row {
-                    Stat { label: @tr("Level"); value: Api.level; glyph: "⭐"; }
-                    Stat { label: @tr("Unread messages"); value: Api.unread-dms; glyph: "✉"; }
+                    Stat { label: @tr("Level"); value: Api.level; icon: Icons.star; }
+                    Stat { label: @tr("Unread messages"); value: Api.unread-dms; icon: Icons.mail; }
                 }
             }
             Card {
@@ -35,7 +35,7 @@ export component HomePage inherits Rectangle {
                 dc := HorizontalLayout {
                     padding: 14px;
                     spacing: 12px;
-                    Text { text: "🎁"; font-size: 28px; vertical-alignment: center; width: 36px; }
+                    Ico { source: Icons.gift; tint: Theme.accent; width: 30px; height: 30px; y: (parent.height - self.height) / 2; }
                     VerticalLayout {
                         alignment: center;
                         horizontal-stretch: 1;
@@ -67,7 +67,7 @@ export component HomePage inherits Rectangle {
                 nl := HorizontalLayout {
                     padding: 10px;
                     spacing: 10px;
-                    Text { text: n.kind == "dm" ? "✉" : n.kind == "friend" ? "👥" : "🔔"; font-size: 18px; vertical-alignment: center; }
+                    Ico { source: n.kind == "dm" ? Icons.mail : n.kind == "friend" ? Icons.users : Icons.bell; tint: Theme.accent; y: (parent.height - self.height) / 2; }
                     Label { text: n.text; horizontal-stretch: 1; vertical-alignment: center; }
                     Muted { text: n.time; vertical-alignment: center; }
                 }

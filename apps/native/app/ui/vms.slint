@@ -1,7 +1,7 @@
 import { Button, LineEdit, ScrollView, ComboBox, SpinBox, Slider, CheckBox, ProgressIndicator } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api, Vm } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, Tag } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, Tag, Icons, Ico } from "widgets.slint";
 
 component Download inherits Card {
     visible: Api.dl-progress >= 0;
@@ -40,7 +40,7 @@ component VmCard inherits Card {
                 background: #000;
                 clip: true;
                 if vm.has-shot: Image { source: vm.shot; width: parent.width; height: parent.height; image-fit: contain; }
-                if !vm.has-shot: Text { text: vm.os == "windows" ? "🪟" : "🐧"; font-size: 30px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                if !vm.has-shot: Ico { source: Icons.monitor; tint: #ffffff66; width: 34px; height: 34px; }
             }
             VerticalLayout {
                 spacing: 4px;
@@ -51,24 +51,24 @@ component VmCard inherits Card {
                     Tag { text: vm.state == "running" ? @tr("Running") : vm.state == "paused" ? @tr("Paused") : @tr("Stopped"); tone: vm.state == "running" ? Theme.good : vm.state == "paused" ? Theme.warn : Theme.muted; }
                 }
                 Muted { text: @tr("{} CPU · {} MB RAM · {} GB disk · {}", vm.cpus, vm.ram, vm.disk, vm.arch) + (vm.uefi ? " · UEFI" : ""); }
-                if vm.iso != "": Muted { text: "💿 " + vm.iso + (vm.boot-iso ? " (" + @tr("boots from it") + ")" : ""); overflow: elide; wrap: no-wrap; }
+                if vm.iso != "": Muted { text: vm.iso + (vm.boot-iso ? " (" + @tr("boots from it") + ")" : ""); overflow: elide; wrap: no-wrap; }
                 if vm.ports != "": Muted { text: @tr("Ports: {}", vm.ports); }
             }
         }
         HorizontalLayout {
             spacing: 6px;
             alignment: start;
-            if vm.state == "stopped": Button { text: "▶ " + @tr("Start"); primary: true; enabled: Api.has-qemu; clicked => { Api.vm-start(vm.id); } }
+            if vm.state == "stopped": Button { icon: Icons.play; colorize-icon: true; text: @tr("Start"); primary: true; enabled: Api.has-qemu; clicked => { Api.vm-start(vm.id); } }
             if vm.state == "running": Button { text: @tr("Shut down"); clicked => { Api.vm-shutdown(vm.id); } }
-            if vm.state == "running": Button { text: "⏸"; clicked => { Api.vm-pause(vm.id); } }
-            if vm.state == "paused": Button { text: "▶ " + @tr("Resume"); primary: true; clicked => { Api.vm-resume(vm.id); } }
+            if vm.state == "running": Button { icon: Icons.pause; colorize-icon: true; clicked => { Api.vm-pause(vm.id); } }
+            if vm.state == "paused": Button { icon: Icons.play; colorize-icon: true; text: @tr("Resume"); primary: true; clicked => { Api.vm-resume(vm.id); } }
             if vm.state != "stopped": Button { text: @tr("Restart"); clicked => { Api.vm-reset(vm.id); } }
             if vm.state != "stopped": Button { text: @tr("Force off"); clicked => { Api.vm-force-off(vm.id); } }
             if vm.state != "stopped": Button { text: "Ctrl+Alt+Del"; clicked => { Api.vm-keys(vm.id, "ctrl-alt-delete"); } }
             if vm.state != "stopped": Button { text: @tr("Snapshots"); clicked => { Api.vm-snapshots(vm.id); } }
             if vm.state == "stopped": Button { text: @tr("Settings"); clicked => { editing = !editing; } }
-            if vm.state == "stopped": Button { text: "🗑"; clicked => { Api.vm-delete(vm.id); } }
-            Button { text: "⌨"; clicked => { Api.vm-show-command(vm.id); } }
+            if vm.state == "stopped": Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.vm-delete(vm.id); } }
+            Button { icon: Icons.keyboard; colorize-icon: true; clicked => { Api.vm-show-command(vm.id); } }
         }
         if editing: VerticalLayout {
             spacing: 6px;
@@ -88,9 +88,9 @@ component VmCard inherits Card {
             if Api.snaps.length == 0: Muted { text: @tr("No snapshots yet."); }
             for s in Api.snaps: HorizontalLayout {
                 spacing: 8px;
-                Label { text: "📸 " + s; horizontal-stretch: 1; vertical-alignment: center; }
+                Ico { source: Icons.camera; tint: Theme.muted; y: (parent.height - self.height) / 2; } Label { text: s; horizontal-stretch: 1; vertical-alignment: center; }
                 Button { text: @tr("Restore"); clicked => { Api.vm-snap-load(vm.id, s); } }
-                Button { text: "🗑"; clicked => { Api.vm-snap-delete(vm.id, s); } }
+                Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.vm-snap-delete(vm.id, s); } }
             }
             HorizontalLayout {
                 spacing: 8px;
@@ -124,8 +124,8 @@ export component VmsPage inherits Rectangle {
                     H1 { text: @tr("Virtual machines"); }
                     Muted { text: @tr("They run on this computer with QEMU, each in its own window."); }
                 }
-                Button { text: @tr("Refresh"); clicked => { Api.vm-refresh(); } }
-                Button { text: creating ? @tr("Close") : "＋ " + @tr("New machine"); primary: !creating; enabled: Api.has-qemu; clicked => { creating = !creating; } }
+                Button { icon: Icons.refresh; colorize-icon: true; text: @tr("Refresh"); clicked => { Api.vm-refresh(); } }
+                Button { icon: creating ? Icons.x : Icons.plus; colorize-icon: true; text: creating ? @tr("Close") : @tr("New machine"); primary: !creating; enabled: Api.has-qemu; clicked => { creating = !creating; } }
             }
             Card {
                 height: hc.preferred-height;

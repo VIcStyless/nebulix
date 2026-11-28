@@ -1,5 +1,52 @@
 import { Theme } from "theme.slint";
 
+// Icons: Lucide (ISC licence), recoloured with `colorize`. Text glyphs are avoided because many are missing from
+// Android / iOS system fonts.
+export global Icons {
+    out property <image> home: @image-url("../icons/ui/house.svg");
+    out property <image> mail: @image-url("../icons/ui/mail.svg");
+    out property <image> users: @image-url("../icons/ui/users.svg");
+    out property <image> folder: @image-url("../icons/ui/folder.svg");
+    out property <image> wallet: @image-url("../icons/ui/wallet.svg");
+    out property <image> monitor: @image-url("../icons/ui/monitor.svg");
+    out property <image> bot: @image-url("../icons/ui/bot.svg");
+    out property <image> settings: @image-url("../icons/ui/settings.svg");
+    out property <image> coins: @image-url("../icons/ui/coins.svg");
+    out property <image> gem: @image-url("../icons/ui/gem.svg");
+    out property <image> star: @image-url("../icons/ui/star.svg");
+    out property <image> gift: @image-url("../icons/ui/gift.svg");
+    out property <image> bell: @image-url("../icons/ui/bell.svg");
+    out property <image> lock: @image-url("../icons/ui/lock.svg");
+    out property <image> trash: @image-url("../icons/ui/trash-2.svg");
+    out property <image> camera: @image-url("../icons/ui/camera.svg");
+    out property <image> rotate: @image-url("../icons/ui/rotate-cw.svg");
+    out property <image> play: @image-url("../icons/ui/play.svg");
+    out property <image> pause: @image-url("../icons/ui/pause.svg");
+    out property <image> plus: @image-url("../icons/ui/plus.svg");
+    out property <image> x: @image-url("../icons/ui/x.svg");
+    out property <image> keyboard: @image-url("../icons/ui/keyboard.svg");
+    out property <image> disc: @image-url("../icons/ui/disc.svg");
+    out property <image> file: @image-url("../icons/ui/file.svg");
+    out property <image> doc: @image-url("../icons/ui/file-text.svg");
+    out property <image> sheet: @image-url("../icons/ui/sheet.svg");
+    out property <image> slides: @image-url("../icons/ui/presentation.svg");
+    out property <image> phone: @image-url("../icons/ui/smartphone.svg");
+    out property <image> tablet: @image-url("../icons/ui/tablet.svg");
+    out property <image> refresh: @image-url("../icons/ui/refresh-cw.svg");
+    out property <image> download: @image-url("../icons/ui/download.svg");
+    out property <image> upload: @image-url("../icons/ui/upload.svg");
+    out property <image> chat: @image-url("../icons/ui/message-circle.svg");
+    out property <image> logo: @image-url("../icons/nebulix.png");
+}
+
+export component Ico inherits Image {
+    in property <color> tint: Theme.text;
+    colorize: tint;
+    width: 18px;
+    height: 18px;
+    image-fit: contain;
+}
+
 export component Card inherits Rectangle {
     background: Theme.panel;
     border-radius: Theme.radius;
@@ -99,7 +146,7 @@ export component Tag inherits Rectangle {
 
 export component NavItem inherits Rectangle {
     in property <string> label;
-    in property <string> glyph;
+    in property <image> icon;
     in property <bool> active;
     in property <int> badge;
     in property <bool> compact;
@@ -112,14 +159,14 @@ export component NavItem inherits Rectangle {
         padding-left: 12px;
         padding-right: 10px;
         spacing: 10px;
-        Text { text: root.glyph; font-size: 16px; color: active ? Theme.accent : Theme.muted; vertical-alignment: center; width: 20px; }
+        Image { source: root.icon; colorize: active ? Theme.accent : Theme.muted; width: 19px; height: 19px; y: (parent.height - self.height) / 2; }
         Text { text: root.label; font-size: 14px; color: active ? Theme.text : Theme.muted; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
         if root.badge > 0: Badge { text: root.badge > 99 ? "99+" : root.badge; y: (parent.height - self.height) / 2; }
     }
     if compact: VerticalLayout {
         alignment: center;
         spacing: 2px;
-        Text { text: root.glyph; font-size: 18px; color: active ? Theme.accent : Theme.muted; horizontal-alignment: center; }
+        HorizontalLayout { alignment: center; Image { source: root.icon; colorize: active ? Theme.accent : Theme.muted; width: 21px; height: 21px; } }
         Text { text: root.label; font-size: 10px; color: active ? Theme.text : Theme.muted; horizontal-alignment: center; overflow: elide; }
     }
     if compact && root.badge > 0: Rectangle {
@@ -155,12 +202,12 @@ export component Notice inherits Rectangle {
 export component Stat inherits Card {
     in property <string> label;
     in property <string> value;
-    in property <string> glyph;
+    in property <image> icon;
     min-height: 74px;
     HorizontalLayout {
         padding: 14px;
         spacing: 12px;
-        Text { text: root.glyph; font-size: 26px; vertical-alignment: center; width: 36px; }
+        Rectangle { width: 40px; height: 40px; y: (parent.height - self.height) / 2; border-radius: 12px; background: Theme.accent.transparentize(0.82); Image { source: root.icon; colorize: Theme.accent; width: 22px; height: 22px; } }
         VerticalLayout {
             alignment: center;
             horizontal-stretch: 1;

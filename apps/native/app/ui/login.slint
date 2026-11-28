@@ -1,7 +1,7 @@
 import { Button, LineEdit, CheckBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api } from "api.slint";
-import { Card, H1, Label, Muted, Notice } from "widgets.slint";
+import { Card, H1, Label, Muted, Notice, Icons } from "widgets.slint";
 
 export component LoginPage inherits Rectangle {
     property <bool> creating;
@@ -20,7 +20,7 @@ export component LoginPage inherits Rectangle {
             HorizontalLayout {
                 spacing: 10px;
                 alignment: start;
-                Text { text: "✦"; font-size: 30px; color: Theme.accent; vertical-alignment: center; }
+                Image { source: Icons.logo; width: 44px; height: 44px; y: (parent.height - self.height) / 2; }
                 VerticalLayout {
                     H1 { text: "Nebulix"; }
                     Muted { text: @tr("Native app · {}", Api.platform); }

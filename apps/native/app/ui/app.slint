@@ -1,7 +1,7 @@
 import { Button, ComboBox, Switch, ScrollView, Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, NavItem, Avatar } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, NavItem, Avatar, Icons, Ico } from "widgets.slint";
 import { LoginPage } from "login.slint";
 import { HomePage } from "home.slint";
 import { MessagesPage } from "messages.slint";
@@ -93,24 +93,24 @@ export component AppWindow inherits Window {
                     HorizontalLayout {
                         padding-bottom: 12px;
                         spacing: 8px;
-                        Text { text: "✦"; font-size: 24px; color: Theme.accent; vertical-alignment: center; }
+                        Image { source: Icons.logo; width: 28px; height: 28px; y: (parent.height - self.height) / 2; }
                         Text { text: "Nebulix"; font-size: 20px; font-weight: 700; color: Theme.text; vertical-alignment: center; }
                     }
-                    NavItem { label: @tr("Home"); glyph: "⌂"; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
-                    NavItem { label: @tr("Messages"); glyph: "✉"; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
-                    NavItem { label: @tr("Friends"); glyph: "👥"; active: Api.page == 2; clicked => { Api.page = 2; } }
-                    NavItem { label: @tr("Drive"); glyph: "📁"; active: Api.page == 3; clicked => { Api.page = 3; } }
-                    NavItem { label: @tr("Wallet"); glyph: "💰"; active: Api.page == 4; clicked => { Api.page = 4; } }
+                    NavItem { label: @tr("Home"); icon: Icons.home; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
+                    NavItem { label: @tr("Messages"); icon: Icons.mail; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
+                    NavItem { label: @tr("Friends"); icon: Icons.users; active: Api.page == 2; clicked => { Api.page = 2; } }
+                    NavItem { label: @tr("Drive"); icon: Icons.folder; active: Api.page == 3; clicked => { Api.page = 3; } }
+                    NavItem { label: @tr("Wallet"); icon: Icons.wallet; active: Api.page == 4; clicked => { Api.page = 4; } }
                     if Api.desktop: Muted { text: @tr("ON THIS COMPUTER"); font-size: 10px; height: 26px; vertical-alignment: bottom; }
-                    if Api.desktop: NavItem { label: @tr("Virtual machines"); glyph: "🖥"; active: Api.page == 5; clicked => { Api.page = 5; } }
-                    if Api.desktop: NavItem { label: @tr("Android"); glyph: "🤖"; active: Api.page == 6; clicked => { Api.page = 6; } }
+                    if Api.desktop: NavItem { label: @tr("Virtual machines"); icon: Icons.monitor; active: Api.page == 5; clicked => { Api.page = 5; } }
+                    if Api.desktop: NavItem { label: @tr("Android"); icon: Icons.bot; active: Api.page == 6; clicked => { Api.page = 6; } }
                     Rectangle { vertical-stretch: 1; }
-                    NavItem { label: @tr("Settings"); glyph: "⚙"; active: Api.page == 7; clicked => { Api.page = 7; } }
+                    NavItem { label: @tr("Settings"); icon: Icons.settings; active: Api.page == 7; clicked => { Api.page = 7; } }
                     HorizontalLayout {
                         spacing: 8px;
                         padding-top: 6px;
                         Avatar { name: Api.me-initials; size: 30px; online: Api.online; }
-                        VerticalLayout { alignment: center; Text { text: Api.me-name; color: Theme.text; font-size: 13px; overflow: elide; } Muted { text: "💰 " + Api.coins; font-size: 11px; } }
+                        VerticalLayout { alignment: center; Text { text: Api.me-name; color: Theme.text; font-size: 13px; overflow: elide; } HorizontalLayout { spacing: 4px; Ico { source: Icons.coins; tint: Theme.muted; width: 11px; height: 11px; y: 2px; } Muted { text: Api.coins; font-size: 11px; } } }
                     }
                 }
             }
@@ -144,12 +144,12 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     padding: 4px;
                     spacing: 2px;
-                    NavItem { compact: true; label: @tr("Home"); glyph: "⌂"; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
-                    NavItem { compact: true; label: @tr("Messages"); glyph: "✉"; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
-                    NavItem { compact: true; label: @tr("Friends"); glyph: "👥"; active: Api.page == 2; clicked => { Api.page = 2; } }
-                    NavItem { compact: true; label: @tr("Drive"); glyph: "📁"; active: Api.page == 3; clicked => { Api.page = 3; } }
-                    if Api.desktop: NavItem { compact: true; label: "VM"; glyph: "🖥"; active: Api.page == 5; clicked => { Api.page = 5; } }
-                    NavItem { compact: true; label: @tr("More"); glyph: "⚙"; active: Api.page == 4 || Api.page >= 6; clicked => { Api.page = Api.page == 7 ? 4 : 7; } }
+                    NavItem { compact: true; label: @tr("Home"); icon: Icons.home; active: Api.page == 0; badge: Api.unread-notices; clicked => { Api.page = 0; } }
+                    NavItem { compact: true; label: @tr("Messages"); icon: Icons.mail; active: Api.page == 1; badge: Api.unread-dms; clicked => { Api.page = 1; } }
+                    NavItem { compact: true; label: @tr("Friends"); icon: Icons.users; active: Api.page == 2; clicked => { Api.page = 2; } }
+                    NavItem { compact: true; label: @tr("Drive"); icon: Icons.folder; active: Api.page == 3; clicked => { Api.page = 3; } }
+                    if Api.desktop: NavItem { compact: true; label: "VM"; icon: Icons.monitor; active: Api.page == 5; clicked => { Api.page = 5; } }
+                    NavItem { compact: true; label: @tr("More"); icon: Icons.settings; active: Api.page == 4 || Api.page >= 6; clicked => { Api.page = Api.page == 7 ? 4 : 7; } }
                 }
             }
         }

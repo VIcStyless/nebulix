@@ -15,6 +15,9 @@ opened the website.
 | `local` (`nebulix-local`) | Desktop-only features that run **on this computer**: QEMU virtual machines with hardware acceleration (KVM / WHPX / HVF), a qcow2 writer (no `qemu-img` needed), a QMP client, official OS images, and the official Android Emulator installed from Google's SDK index. |
 | `app` (`nebulix-app`) | The Slint UI (`ui/*.slint`) and its logic (`src/*.rs`). It builds as a desktop/iOS binary (`nebulix`) and an Android `cdylib` (`android_main`). |
 
+Icons are [Lucide](https://lucide.dev) SVGs (ISC licence), recoloured by Slint, in `app/icons/ui`. Text glyphs and emoji are not used
+as icons, because Android and iOS system fonts lack many of them.
+
 The server needed no changes. Native requests carry no `Origin`, which the server's cross-site check allows. The
 WebSocket sends the server's own origin, as the server requires.
 

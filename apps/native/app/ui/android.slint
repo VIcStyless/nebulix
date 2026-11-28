@@ -1,7 +1,7 @@
 import { Button, LineEdit, ScrollView, ComboBox, SpinBox, CheckBox, ProgressIndicator } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api, Avd } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, Tag } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, Tag, Icons, Ico } from "widgets.slint";
 
 component AvdCard inherits Card {
     in property <Avd> d;
@@ -14,7 +14,7 @@ component AvdCard inherits Card {
         spacing: 8px;
         HorizontalLayout {
             spacing: 10px;
-            Text { text: d.profile == "tablet" ? "📱" : "🤖"; font-size: 30px; vertical-alignment: center; }
+            Ico { source: d.profile == "tablet" ? Icons.tablet : Icons.phone; tint: Theme.accent; width: 30px; height: 30px; y: (parent.height - self.height) / 2; }
             VerticalLayout {
                 horizontal-stretch: 1;
                 H2 { text: d.name; }
@@ -29,15 +29,15 @@ component AvdCard inherits Card {
         HorizontalLayout {
             spacing: 6px;
             alignment: start;
-            if d.state == "stopped": Button { text: "▶ " + @tr("Start"); primary: true; clicked => { Api.droid-start(d.id, false); } }
+            if d.state == "stopped": Button { icon: Icons.play; colorize-icon: true; text: @tr("Start"); primary: true; clicked => { Api.droid-start(d.id, false); } }
             if d.state == "stopped": Button { text: @tr("Cold boot"); clicked => { Api.droid-start(d.id, true); } }
             if d.state != "stopped": Button { text: @tr("Stop"); clicked => { Api.droid-stop(d.id); } }
             if d.state == "booted": Button { text: @tr("Install APK…"); primary: true; clicked => { Api.droid-apk(d.id); } }
             if d.state == "booted": Button { text: @tr("Send file…"); clicked => { Api.droid-push(d.id); } }
-            if d.state == "booted": Button { text: "📸"; clicked => { Api.droid-shot(d.id); } }
-            if d.state == "booted": Button { text: "⟳"; clicked => { Api.droid-rotate(d.id); } }
+            if d.state == "booted": Button { icon: Icons.camera; colorize-icon: true; clicked => { Api.droid-shot(d.id); } }
+            if d.state == "booted": Button { icon: Icons.rotate; colorize-icon: true; clicked => { Api.droid-rotate(d.id); } }
             if d.state == "booted": Button { text: @tr("More"); clicked => { tools = !tools; if tools { Api.droid-list-apps(d.id); } } }
-            if d.state == "stopped": Button { text: "🗑"; clicked => { Api.droid-delete(d.id); } }
+            if d.state == "stopped": Button { icon: Icons.trash; colorize-icon: true; clicked => { Api.droid-delete(d.id); } }
         }
         if tools && d.state == "booted": VerticalLayout {
             spacing: 6px;
@@ -83,8 +83,8 @@ export component AndroidPage inherits Rectangle {
                     H1 { text: @tr("Android"); }
                     Muted { text: @tr("The official Android Emulator on this computer, with GPU and hardware acceleration."); }
                 }
-                Button { text: @tr("Refresh"); clicked => { Api.droid-refresh(); } }
-                if Api.sdk-ready: Button { text: creating ? @tr("Close") : "＋ " + @tr("New device"); primary: !creating; clicked => { creating = !creating; } }
+                Button { icon: Icons.refresh; colorize-icon: true; text: @tr("Refresh"); clicked => { Api.droid-refresh(); } }
+                if Api.sdk-ready: Button { icon: creating ? Icons.x : Icons.plus; colorize-icon: true; text: creating ? @tr("Close") : @tr("New device"); primary: !creating; clicked => { creating = !creating; } }
             }
             if Api.sdk-accel != "": Notice { text: Api.sdk-accel; tone: Theme.warn; }
             if Api.dl-progress >= 0: Card {

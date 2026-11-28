@@ -1,7 +1,7 @@
 import { Button, LineEdit, ListView, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Api, Conv } from "api.slint";
-import { Card, H1, H2, Label, Muted, Notice, Avatar, Badge, Tag } from "widgets.slint";
+import { Card, H1, H2, Label, Muted, Notice, Avatar, Badge, Tag, Icons, Ico } from "widgets.slint";
 
 component KeySetup inherits Card {
     property <string> pass;
@@ -76,7 +76,7 @@ export component MessagesPage inherits Rectangle {
             HorizontalLayout {
                 spacing: 6px;
                 LineEdit { placeholder-text: @tr("Username to message"); text <=> root.who; accepted => { Api.start-chat(root.who); root.who = ""; } }
-                Button { text: "＋"; clicked => { Api.start-chat(root.who); root.who = ""; } }
+                Button { icon: Icons.plus; colorize-icon: true; clicked => { Api.start-chat(root.who); root.who = ""; } }
             }
             if Api.convs.length == 0: Muted { text: @tr("No conversations yet. Write a username above or message a friend."); }
             ListView {
@@ -100,7 +100,7 @@ export component MessagesPage inherits Rectangle {
                         alignment: center;
                         horizontal-stretch: 1;
                         H2 { text: Api.open-peer-name; }
-                        Muted { text: Api.peer-typing ? @tr("typing…") : "🔒 " + @tr("End-to-end encrypted"); }
+                        HorizontalLayout { spacing: 4px; alignment: start; if !Api.peer-typing: Ico { source: Icons.lock; tint: Theme.muted; width: 11px; height: 11px; y: 3px; } Muted { text: Api.peer-typing ? @tr("typing…") : @tr("End-to-end encrypted"); } }
                     }
                 }
                 if Api.safety != "": Muted { text: @tr("Safety number: {}", Api.safety); font-size: 10px; }
@@ -119,7 +119,7 @@ export component MessagesPage inherits Rectangle {
                                 padding: 7px;
                                 padding-left: 12px;
                                 padding-right: 12px;
-                                bt := Text { text: m.locked ? "🔒 " + @tr("This message can't be read on this device") : m.text; color: m.mine && !m.locked ? white : Theme.text; font-size: 14px; wrap: word-wrap; font-italic: m.locked; }
+                                bt := Text { text: m.locked ? @tr("This message can't be read on this device") : m.text; color: m.mine && !m.locked ? white : Theme.text; font-size: 14px; wrap: word-wrap; font-italic: m.locked; }
                                 Text { text: m.time; color: m.mine && !m.locked ? #ffffffaa : Theme.muted; font-size: 10px; horizontal-alignment: right; }
                             }
                         }
