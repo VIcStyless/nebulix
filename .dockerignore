@@ -1,3 +1,15 @@
+# The image only needs package.json, server/, public/ and scripts/ (see Dockerfile).
 Dockerfile
 fly.toml
+fly.*.toml
 .dockerignore
+.git
+.github
+apps
+native
+services
+tools
+docs
+data
+deploy
+*.md
