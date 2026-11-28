@@ -136,7 +136,8 @@ fn page_timer(ctx: &Ctx) -> slint::Timer {
     let c = ctx.clone();
     let mut tick = 0u32;
     t.start(slint::TimerMode::Repeated, std::time::Duration::from_secs(3), move || {
-        tick += 1;
+        tick = tick.wrapping_add(1);
+        let _ = tick; // only the desktop pages read it
         let Some(ui) = c.ui.upgrade() else { return };
         let api = ui.global::<Api>();
         if !api.get_signed_in() { return; }

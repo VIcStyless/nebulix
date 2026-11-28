@@ -50,7 +50,8 @@ pub fn task<T: Send + 'static>(ctx: &Ctx, busy: bool, work: impl FnOnce(&Ctx) ->
     });
 }
 
-/// Like `task`, with a callback when the work fails (after Api.error is set).
+/// Like `task`, with a callback when the work fails (after Api.error is set). Used by the desktop downloads.
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 pub fn task_or<T: Send + 'static>(ctx: &Ctx, work: impl FnOnce(&Ctx) -> Result<T, String> + Send + 'static, done: impl FnOnce(&AppWindow, &Ctx, T) + Send + 'static, fail: impl FnOnce(&AppWindow) + Send + 'static) {
     let c2 = ctx.clone();
     if let Some(ui) = ctx.ui.upgrade() { ui.global::<Api>().set_error("".into()); }

@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 const SERVICE: &str = "dev.nebulix.native";
 
 /// Base data directory. Mobile builds set it from the platform at startup (see `set_data_dir`).

@@ -92,6 +92,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: apps/native }
       - name: Build (Apple Silicon + Intel)
+        env: { MACOSX_DEPLOYMENT_TARGET: '11.0' }   # matches LSMinimumSystemVersion
         run: |
           cargo build --release -p nebulix-app --target aarch64-apple-darwin
           cargo build --release -p nebulix-app --target x86_64-apple-darwin
@@ -139,7 +140,7 @@ jobs:
             keytool -genkeypair -keystore "$RUNNER_TEMP/test.jks" -storepass android -keypass android -alias test -keyalg RSA -dname CN=test -validity 30 >/dev/null
             export CARGO_APK_RELEASE_KEYSTORE="$RUNNER_TEMP/test.jks" CARGO_APK_RELEASE_KEYSTORE_PASSWORD=android
           fi
-          cargo apk build --release -p nebulix-app
+          cargo apk build --release -p nebulix-app --lib   # only the Android library (the crate also has the desktop binary)
           mkdir -p out && cp target/release/apk/Nebulix.apk "out/Nebulix-$V-android.apk"
           rm -f "$RUNNER_TEMP/release.p12"
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs "out/Nebulix-$V-android.apk" | head -3
@@ -155,6 +156,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: apps/native }
       - name: Build (device + simulator)
+        env: { IPHONEOS_DEPLOYMENT_TARGET: '15.0' }   # Skia needs iOS 13+ (___chkstk_darwin); matches MinimumOSVersion
         run: |
           cargo build --release -p nebulix-app --bin nebulix --target aarch64-apple-ios
           cargo build --release -p nebulix-app --bin nebulix --target aarch64-apple-ios-sim
