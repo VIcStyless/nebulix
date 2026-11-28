@@ -84,7 +84,7 @@ jobs:
         with: { name: windows, path: "apps/native/out/Nebulix-*" }
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -124,7 +124,7 @@ jobs:
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          { yes || true; } | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null  # `yes` dies of SIGPIPE when sdkmanager ends; pipefail must not count that
           cargo install cargo-apk --locked
       - name: Build signed APK
         env:
@@ -147,7 +147,7 @@ jobs:
         with: { name: android, path: "apps/native/out/Nebulix-*.apk" }
 
   ios:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
